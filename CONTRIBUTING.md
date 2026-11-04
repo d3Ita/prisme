@@ -27,6 +27,10 @@ Put your models in `models/`; the app installs its engines on first launch. Befo
 
 The tests run automatically on GitHub for every pull request.
 
+## Questions, results and ideas
+
+Use [Discussions](https://github.com/d3Ita/prisme/discussions): **Q&A** for questions, **Show and tell** to share your images or how Prisme runs on your hardware, **Ideas** for suggestions before they become feature requests.
+
 ## Security issues
 
 Please don't open a public issue for a security problem. Use GitHub's **Report a vulnerability** button in the **Security** tab instead.

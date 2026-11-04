@@ -117,7 +117,7 @@ Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), 
 | NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | Recommended set: drawing model Q4_K, text encoder Q8_0, vision F16 | Creation 25 to 50 s, edit 45 to 90 s, model loading included |
 | Same card with the Vulkan engine | 32 GB | Same models | About 50 s for a creation, model loading included |
 
-Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text encoder and keep **Décharger sur le processeur** (CPU offload) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in an [issue](../../issues).
+Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text encoder and keep **Décharger sur le processeur** (CPU offload) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
 ## Quick start
 

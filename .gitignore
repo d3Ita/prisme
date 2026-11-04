@@ -4,8 +4,11 @@ models/
 *.safetensors
 *.ckpt
 
-# Moteur stable-diffusion.cpp et ses archives : a telecharger a part
+# Moteurs installes par Prisme et leurs telechargements
 sd/
+llama/
+.telechargements/
+.*.installation/
 zips/
 
 # Images generees

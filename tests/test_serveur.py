@@ -76,6 +76,84 @@ class ReglagesTest(unittest.TestCase):
             serveur.FICHIER_REGLAGES.unlink()
 
 
+class AmeliorationReglagesTest(unittest.TestCase):
+    def test_moteur_inconnu_refuse(self):
+        self.assertIsNotNone(valider(amelioration_moteur='autre')[1])
+
+    def test_modele_de_langage_hors_du_dossier_refuse(self):
+        self.assertIsNotNone(valider(amelioration_modele_local='../x.gguf')[1])
+        self.assertIsNotNone(valider(amelioration_vision_locale='/x.gguf')[1])
+
+    def test_moteur_integre_par_defaut(self):
+        self.assertEqual(serveur.REGLAGES_DEFAUT['amelioration_moteur'], 'integre')
+
+
+def creer_zip(chemin, fichiers):
+    import zipfile
+    with zipfile.ZipFile(chemin, 'w') as z:
+        for nom, contenu in fichiers.items():
+            z.writestr(nom, contenu)
+
+
+class InstallationMoteurTest(unittest.TestCase):
+    def setUp(self):
+        self.dossier = Path(tempfile.mkdtemp(dir=DOSSIER_TEST.name))
+        self.moteurs = dict(serveur.MOTEURS)
+
+    def tearDown(self):
+        serveur.MOTEURS.clear()
+        serveur.MOTEURS.update(self.moteurs)
+        serveur.installations.pop('test', None)
+
+    def test_extraction_refuse_les_chemins_qui_sortent(self):
+        for nom in ('../evasion.dll', '/racine.dll', 'C:/lecteur.dll'):
+            with self.subTest(nom=nom):
+                archive = self.dossier / 'piege.zip'
+                creer_zip(archive, {'outil.exe': b'ok', nom: b'piege'})
+                with self.assertRaises(RuntimeError):
+                    serveur.extraire_zip(archive, self.dossier / 'sortie')
+
+    def test_extraction_retire_le_dossier_racine_commun(self):
+        archive = self.dossier / 'paquet.zip'
+        creer_zip(archive, {'paquet/outil.exe': b'ok', 'paquet/lib/a.dll': b'a'})
+        serveur.extraire_zip(archive, self.dossier / 'sortie')
+        self.assertTrue((self.dossier / 'sortie' / 'outil.exe').is_file())
+        self.assertTrue((self.dossier / 'sortie' / 'lib' / 'a.dll').is_file())
+
+    def installer(self, empreinte_juste):
+        import hashlib
+        archive = self.dossier / 'moteur.zip'
+        creer_zip(archive, {'outil.exe': b'moteur de test'})
+        contenu = archive.read_bytes()
+        serveur.MOTEURS['test'] = {
+            'nom': 'test', 'version': '1', 'dossier': 'moteur-test', 'executable': 'outil.exe',
+            'archives': [{'url': archive.as_uri(), 'taille': len(contenu),
+                          'sha256': hashlib.sha256(contenu).hexdigest() if empreinte_juste else '0' * 64}]}
+        serveur.installations['test'] = {'phase': 'telechargement', 'fait': 0, 'total': len(contenu), 'erreur': None}
+        shutil_dossier = serveur.RACINE / 'moteur-test'
+        self.addCleanup(lambda: __import__('shutil').rmtree(shutil_dossier, ignore_errors=True))
+        serveur.installer_moteur('test')
+        return serveur.installations['test'], shutil_dossier
+
+    def test_installation_complete(self):
+        suivi, dossier = self.installer(empreinte_juste=True)
+        self.assertEqual(suivi['phase'], 'termine', suivi.get('erreur'))
+        self.assertTrue((dossier / 'outil.exe').is_file())
+        self.assertTrue(serveur.moteur_installe('test'))
+
+    def test_empreinte_differente_refusee(self):
+        suivi, dossier = self.installer(empreinte_juste=False)
+        self.assertEqual(suivi['phase'], 'erreur')
+        self.assertFalse(dossier.exists())
+
+    def test_versions_officielles_epinglees(self):
+        for nom, moteur in self.moteurs.items():
+            for archive in moteur['archives']:
+                with self.subTest(moteur=nom, url=archive['url']):
+                    self.assertTrue(archive['url'].startswith('https://github.com/'))
+                    self.assertRegex(archive['sha256'], r'^[0-9a-f]{64}$')
+
+
 class CodeAccesTest(unittest.TestCase):
     def test_code_de_128_bits(self):
         self.assertGreaterEqual(len(serveur.CODE), 20)
@@ -221,6 +299,12 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertIn(f'prisme_acces={serveur.CODE}', cookie)
         self.assertIn('HttpOnly', cookie)
         self.assertEqual(self.requete('GET', '/?code=faux', entetes={'X-Test-Distant': '1'})[0], 401)
+
+    def test_installation_de_moteur(self):
+        self.assertEqual(self.poster('/api/installer-moteur', json.dumps({'moteur': 'inconnu'}))[0], 400)
+        self.assertEqual(self.distant('/api/installer-moteur', serveur.CODE, 'POST')[0], 403)
+        etat = json.loads(self.requete('GET', '/api/etat')[2])
+        self.assertEqual(set(etat['moteurs']), {'image', 'texte'})
 
     def test_reglages_reserves_au_pc(self):
         self.assertEqual(self.distant('/api/reglages', serveur.CODE)[0], 403)

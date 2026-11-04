@@ -36,7 +36,8 @@ Application locale pour créer et modifier des images par intelligence artificie
 ## Fonctions
 
 - **Création** d'images à partir d'une description, de 1 à 4 images par lancement
-- **Amélioration de la description** par un modèle de langage local (Ollama), à la demande ou automatiquement, en création comme en modification
+- **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
+- **Installation automatique** des moteurs au premier lancement : seuls l'exe et les modèles sont à télécharger
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
 - **Historique** avec recherche, visionneuse plein écran, réutilisation de la description et du seed, mise à la corbeille
@@ -47,26 +48,28 @@ Application locale pour créer et modifier des images par intelligence artificie
 ## Prérequis
 
 - Windows 10 ou 11 avec une carte graphique NVIDIA (8 Go de mémoire vidéo ou plus conseillés)
-- [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp/releases), version CUDA pour Windows
 - Des modèles compatibles avec stable-diffusion.cpp, au format GGUF ou safetensors
-
-Facultatif : [Ollama](https://ollama.com) avec un modèle de langage, pour améliorer les descriptions.
+- Une connexion Internet au premier lancement, pour l'installation des moteurs
 
 Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un encodeur de texte de type LLM (`--llm`), un VAE et, pour la modification d'image, un encodeur d'image (`--llm_vision`).
 
 ## Installation
 
 1. Télécharge `Prisme.exe` depuis la page [Releases](../../releases), ou construis-le (voir plus bas).
-2. Crée cette structure à côté de l'exe :
+2. Place tes modèles dans un dossier `models` à côté de l'exe (et tes LoRA dans `models/loras`, si tu en as).
+3. Lance `Prisme.exe`, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp (environ 925 Mo, une seule fois).
+4. Clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
 
-   ```
-   Prisme.exe
-   sd/        sd-cli.exe et ses DLL (archive de stable-diffusion.cpp)
-   models/    tes modèles .gguf / .safetensors
-     loras/   tes LoRA (facultatif)
-   ```
+Les moteurs sont téléchargés depuis les versions officielles de [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) et de [llama.cpp](https://github.com/ggml-org/llama.cpp) sur GitHub. Prisme vérifie l'empreinte SHA-256 de chaque fichier avant de l'installer, et refuse tout fichier différent de la version testée. Ensuite, le dossier ressemble à ceci :
 
-3. Lance `Prisme.exe`. Au premier lancement, l'application indique ce qui manque : clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
+```
+Prisme.exe
+models/    tes modèles .gguf / .safetensors
+  loras/   tes LoRA (facultatif)
+sd/        moteur d'images, installé par Prisme
+llama/     moteur de texte, installé par Prisme si tu l'actives
+images/    tes images
+```
 
 Prisme fonctionne uniquement sur ce PC tant que l'accès depuis le téléphone n'est pas activé (voir plus bas).
 
@@ -100,15 +103,17 @@ Les réglages sont enregistrés dans `app/reglages.json`, les images dans `image
 
 ### Amélioration de la description
 
-Une description courte (« un chat sur un toit la nuit ») donne souvent une image moins réussie qu'une description détaillée. Prisme peut la faire réécrire par un modèle de langage servi par Ollama :
+Une description courte (« un chat sur un toit la nuit ») donne souvent une image moins réussie qu'une description détaillée. Prisme peut la faire réécrire par un modèle de langage, directement sur ton PC :
 
-1. Installe [Ollama](https://ollama.com) et télécharge un modèle de langage (`ollama pull <modèle>`).
-2. Dans **Réglages → Amélioration de la description**, choisis ce modèle.
+1. Place un modèle de langage au format GGUF dans `models` (et, pour qu'il voie les images, son fichier de vision `mmproj`).
+2. Dans **Réglages → Amélioration de la description**, garde le moteur **Intégré**, clique sur **Installer le moteur** (llama.cpp, environ 290 Mo, une seule fois), puis choisis le modèle et la vision.
 3. Clique sur **Améliorer** au-dessus de la description : le texte détaillé remplace le tien, tu peux le modifier, et **Rétablir** revient à ton texte.
+
+Si tu utilises déjà [Ollama](https://ollama.com), choisis le moteur **Ollama** et l'un de ses modèles à la place.
 
 Avec une image de départ, l'amélioration ne décrit pas une nouvelle scène : elle transforme ta demande (« ajoute de la neige ») en consigne de modification précise, qui nomme les éléments à changer et demande de garder tout le reste identique. Si le modèle de langage sait lire les images, comme les modèles de vision, Prisme lui envoie l'image de départ pour qu'il s'appuie sur ce qu'elle contient.
 
-L'option **Améliorer automatiquement** le fait avant chaque génération. Les deux consignes (création et modification) et l'adresse d'Ollama se changent dans les Réglages. Le modèle de langage est déchargé de la carte graphique dès sa réponse, pour laisser la place à la génération.
+L'option **Améliorer automatiquement** le fait avant chaque génération. Les deux consignes (création et modification) se changent dans les Réglages. Le modèle de langage est lancé seulement le temps de l'amélioration, puis retiré de la carte graphique pour laisser la place à la génération.
 
 ### Téléphone
 

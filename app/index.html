@@ -326,6 +326,10 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
 .version { font-size: 12px; color: var(--texte-3); }
 
 /* LoRA */
+.barre-installation { height: 6px; margin-top: 10px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.barre-installation span { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--accent), #c084fc); transition: width .4s ease; }
+.installation-detail { margin: 10px 0 0; font-size: 12.5px; color: var(--texte-2); }
+.installation-detail.alerte { color: var(--danger); }
 .lora { display: grid; grid-template-columns: auto 1fr 96px; gap: 12px; align-items: center; padding: 8px 10px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--bordure); }
 .lora + .lora { margin-top: 6px; }
 .lora .nom { min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -479,9 +483,12 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
           <p>Prisme a besoin du moteur stable-diffusion.cpp et de tes modèles :</p>
           <ul id="liste-problemes"></ul>
           <div class="boutons">
-            <button class="bouton-primaire" id="config-reglages">Choisir les modèles</button>
+            <button class="bouton-primaire" id="config-installer" hidden>Installer le moteur</button>
+            <button class="bouton-secondaire" id="config-reglages">Choisir les modèles</button>
             <button class="bouton-secondaire" id="config-dossier">Ouvrir le dossier models</button>
           </div>
+          <div class="barre-installation" hidden><span id="installation-image-barre"></span></div>
+          <p class="installation-detail" id="installation-image-texte"></p>
         </div>
         <img id="resultat" alt="" hidden>
         <div class="calcul" id="calcul" hidden>
@@ -569,12 +576,24 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
       </section>
       <section class="bloc">
         <h4>Amélioration de la description</h4>
-        <div class="reglage"><label for="r-amelio-modele">Modèle de langage<small>Servi par Ollama</small></label><select class="champ" id="r-amelio-modele" data-cle="amelioration_modele"></select>
-          <p class="note-champ" id="note-ollama"></p></div>
+        <div class="reglage"><label for="r-amelio-moteur">Moteur<small>Intégré : rien d'autre à installer</small></label><select class="champ" id="r-amelio-moteur" data-cle="amelioration_moteur">
+          <option value="integre">Intégré (llama.cpp)</option><option value="ollama">Ollama</option></select></div>
+        <div data-moteur="integre">
+          <div class="reglage"><label for="r-llm-local">Modèle de langage<small>Fichier GGUF du dossier models</small></label><select class="champ" id="r-llm-local" data-cle="amelioration_modele_local"></select></div>
+          <div class="reglage"><label for="r-llm-vision">Vision<small>Facultatif : lit l'image de départ</small></label><select class="champ" id="r-llm-vision" data-cle="amelioration_vision_locale"></select></div>
+          <div class="reglage"><label>Moteur de texte<small>Téléchargé une seule fois</small></label><div>
+            <button type="button" class="bouton-secondaire" id="installer-texte" hidden>Installer le moteur</button>
+            <div class="barre-installation" hidden><span id="barre-texte"></span></div>
+            <p class="installation-detail" id="etat-texte" style="margin-top:6px"></p></div></div>
+        </div>
+        <div data-moteur="ollama">
+          <div class="reglage"><label for="r-amelio-modele">Modèle de langage<small>Servi par Ollama</small></label><select class="champ" id="r-amelio-modele" data-cle="amelioration_modele"></select>
+            <p class="note-champ" id="note-ollama"></p></div>
+          <div class="reglage"><label for="r-ollama">Adresse d'Ollama</label><input class="champ" id="r-ollama" data-cle="ollama_adresse" spellcheck="false"></div>
+        </div>
         <div class="reglage"><label for="r-amelio-auto">Améliorer automatiquement<small>Avant chaque génération</small></label><label class="interrupteur"><input type="checkbox" id="r-amelio-auto" data-cle="amelioration_auto"><span></span></label></div>
         <div class="reglage"><label for="r-amelio-consigne">Consigne de création<small>Sans image de départ</small></label><textarea class="champ consigne" id="r-amelio-consigne" data-cle="amelioration_consigne"></textarea></div>
         <div class="reglage"><label for="r-amelio-modif">Consigne de modification<small>Avec une image de départ, envoyée au modèle s'il voit les images</small></label><textarea class="champ consigne" id="r-amelio-modif" data-cle="amelioration_consigne_modif"></textarea></div>
-        <div class="reglage"><label for="r-ollama">Adresse d'Ollama</label><input class="champ" id="r-ollama" data-cle="ollama_adresse" spellcheck="false"></div>
       </section>
       <section class="bloc">
         <h4>Génération <span class="liens"><button type="button" class="bouton-lien" id="profil-rapide" title="Pour les modèles distillés en 8 étapes">Profil rapide</button></span></h4>
@@ -749,6 +768,13 @@ function tailleVoulue() {
 // ---------- Generation ----------
 async function lancer() {
   if (etat.occupe || etat.ameliorant) return;
+  // Tant qu'il manque le moteur ou un modele, on montre ce qu'il reste a faire plutot qu'une erreur
+  if (problemes.length) {
+    etat.courant = null;
+    masquerResultat();
+    note('Termine d\'abord la configuration : moteur et modèles.', 'erreur');
+    return;
+  }
   let texte = prompt.value.trim();
   if (!texte) { note('Écris d\'abord ce que tu veux obtenir.', 'erreur'); prompt.focus(); return; }
   // Amelioration automatique pour une creation, sauf si le texte vient deja d'etre ameliore
@@ -1011,6 +1037,72 @@ function majProblemes(liste, local) {
 $('#config-reglages').addEventListener('click', () => $('#ouvrir-reglages').click());
 $('#config-dossier').addEventListener('click', () => api('/api/dossier-modeles', {}).catch(err => note(err.message, 'erreur')));
 
+// ---------- Installation des moteurs ----------
+const ZONES_INSTALLATION = {
+  image: { bouton: '#config-installer', texte: '#installation-image-texte', barre: '#installation-image-barre' },
+  texte: { bouton: '#installer-texte', texte: '#etat-texte', barre: '#barre-texte' },
+};
+let moteurs = {};
+let minuteurInstallation = null;
+
+function majMoteurs(m) {
+  if (!m) return;
+  moteurs = m;
+  let enCours = false;
+  for (const [nom, zone] of Object.entries(ZONES_INSTALLATION)) {
+    const info = m[nom], inst = info.installation;
+    const bouton = $(zone.bouton), texte = $(zone.texte), barre = $(zone.barre);
+    const actif = !!inst && ['telechargement', 'extraction'].includes(inst.phase);
+    enCours = enCours || actif;
+    bouton.hidden = !etat.local || info.installe || actif;
+    bouton.textContent = `Installer le moteur (${taille(info.taille)})`;
+    // Le moteur de texte reprend les DLL CUDA du moteur d'images
+    bouton.disabled = nom === 'texte' && !m.image.installe;
+    barre.parentElement.hidden = !actif;
+    texte.classList.toggle('alerte', inst?.phase === 'erreur' && !info.installe);
+    if (actif) {
+      barre.style.width = Math.round(inst.fait / inst.total * 100) + '%';
+      texte.textContent = inst.phase === 'extraction'
+        ? `Installation de ${info.nom}…`
+        : `Téléchargement de ${info.nom} : ${taille(inst.fait)} sur ${taille(inst.total)}`;
+    } else if (info.installe) texte.textContent = nom === 'image' ? '' : `${info.nom} ${info.version} installé.`;
+    else if (inst?.phase === 'erreur') texte.textContent = inst.erreur;
+    else if (nom === 'texte' && !m.image.installe) texte.textContent = 'Installe d\'abord le moteur d\'images.';
+    else texte.textContent = nom === 'image' ? `Téléchargé une seule fois depuis la version officielle de ${info.nom}.` : `${info.nom} n'est pas encore installé.`;
+  }
+  if (enCours) suivreInstallation();
+}
+
+function suivreInstallation() {
+  clearTimeout(minuteurInstallation);
+  minuteurInstallation = setTimeout(async () => {
+    let e;
+    try { e = await api('/api/etat'); } catch { suivreInstallation(); return; }
+    const avant = moteurs;
+    majProblemes(e.problemes, e.local);
+    majMoteurs(e.moteurs);
+    for (const [nom, info] of Object.entries(e.moteurs)) {
+      if (info.installe && !avant[nom]?.installe) note(`${info.nom} est installé`);
+      if (info.installation?.phase === 'erreur' && avant[nom]?.installation?.phase !== 'erreur') note(info.installation.erreur, 'erreur');
+    }
+  }, 1000);
+}
+
+async function installerMoteur(nom) {
+  try {
+    await api('/api/installer-moteur', { moteur: nom });
+    majMoteurs((await api('/api/etat')).moteurs);
+  } catch (err) { note(err.message, 'erreur'); }
+}
+$('#config-installer').addEventListener('click', () => installerMoteur('image'));
+$('#installer-texte').addEventListener('click', () => installerMoteur('texte'));
+
+function majMoteurAmelioration() {
+  const choix = $('#r-amelio-moteur').value;
+  document.querySelectorAll('[data-moteur]').forEach(bloc => bloc.hidden = bloc.dataset.moteur !== choix);
+}
+$('#r-amelio-moteur').addEventListener('change', majMoteurAmelioration);
+
 // ---------- Visionneuse ----------
 $('#resultat').addEventListener('click', () => {
   $('#grande').src = $('#resultat').src;
@@ -1104,9 +1196,9 @@ function majBadge(nom) {
   $('#badge-modele').textContent = nom ? nomCourt(nom) + ' · local' : 'local';
 }
 
-function remplirModeles(select, valeur, facultatif) {
+function remplirModeles(select, valeur, facultatif, libelleVide = 'Aucun (modification d\'image désactivée)') {
   select.innerHTML = '';
-  if (facultatif) select.append(new Option('Aucun (modification d\'image désactivée)', ''));
+  if (facultatif) select.append(new Option(libelleVide, ''));
   for (const m of infosReglages.modeles) select.append(new Option(`${m.nom}  ·  ${taille(m.taille)}`, m.nom));
   if (valeur && !infosReglages.modeles.some(m => m.nom === valeur)) select.append(new Option(`${valeur}  ·  introuvable`, valeur));
   select.value = valeur || '';
@@ -1119,11 +1211,12 @@ function remplirReglages(r) {
   remplirModeles($('#r-vae'), r.vae);
   remplirLoras(r.loras || []);
   remplirOllama(r.amelioration_modele);
+  remplirModeles($('#r-llm-local'), r.amelioration_modele_local, true, 'Désactivée');
+  remplirModeles($('#r-llm-vision'), r.amelioration_vision_locale, true, 'Aucune');
   const methode = $('#r-methode');
   methode.innerHTML = '';
   infosReglages.methodes.forEach(m => methode.append(new Option(m, m)));
   for (const champ of document.querySelectorAll('#form-reglages [data-cle]')) {
-    if (champ.tagName === 'SELECT' && champ.id !== 'r-methode') continue;
     const v = r[champ.dataset.cle];
     if (champ.type === 'checkbox') champ.checked = !!v;
     else champ.value = v ?? '';
@@ -1224,7 +1317,9 @@ $('#ouvrir-reglages').addEventListener('click', async () => {
   try {
     await chargerReglages();
     remplirReglages(infosReglages.reglages);
+    majMoteurAmelioration();
     $('#modale-reglages').classList.add('ouverte');
+    api('/api/etat').then(e => majMoteurs(e.moteurs)).catch(() => {});
   } catch (err) { note(err.message, 'erreur'); }
 });
 $('#actualiser-modeles').addEventListener('click', async () => {
@@ -1270,11 +1365,13 @@ $('#modale-reglages').addEventListener('mousedown', e => { if (e.target.id === '
   $('#copier').hidden = !(navigator.clipboard?.write && window.ClipboardItem);
   try {
     const e = await api('/api/etat');
+    etat.local = e.local;
     $('#telephone').hidden = !e.local;
     $('#ouvrir-reglages').hidden = !e.local;
     majBadge(e.modele);
     majLorasActifs(e.loras_actifs);
     majProblemes(e.problemes, e.local);
+    majMoteurs(e.moteurs);
     majAmelioration(e.amelioration);
     $('#version').textContent = 'Prisme v' + e.version;
     // Ouvre sur la derniere image creee plutot que sur une scene vide

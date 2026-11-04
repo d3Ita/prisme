@@ -1,6 +1,8 @@
 """Serveur local de Prisme : sert l'interface web et lance sd-cli (stable-diffusion.cpp)."""
 
 import base64
+import hashlib
+import shutil
 import ctypes
 import ipaddress
 import json
@@ -12,6 +14,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import zipfile
 import urllib.error
 import urllib.request
 import threading
@@ -23,7 +26,7 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.2.3'
+VERSION = '1.3.0'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
@@ -38,6 +41,33 @@ MODELES = RACINE / 'models'
 LORAS = MODELES / 'loras'
 IMAGES = RACINE / 'images'
 SD_CLI = RACINE / 'sd' / 'sd-cli.exe'
+LLAMA_SERVEUR = RACINE / 'llama' / 'llama-server.exe'
+TELECHARGEMENTS = RACINE / '.telechargements'
+
+# Moteurs installes par Prisme au premier lancement : versions officielles testees, verifiees par empreinte
+MOTEURS = {
+    'image': {
+        'nom': 'stable-diffusion.cpp', 'version': 'master-1039-290148d', 'dossier': 'sd', 'executable': 'sd-cli.exe',
+        'archives': [
+            {'url': 'https://github.com/leejet/stable-diffusion.cpp/releases/download/master-1039-290148d/'
+                    'sd-master-290148d-bin-win-cuda12-x64.zip',
+             'taille': 361586913, 'sha256': 'e389e1009037c3c5d4d00f07fb4f96d011734e1b887b994c7a9fce309ef555d2'},
+            {'url': 'https://github.com/leejet/stable-diffusion.cpp/releases/download/master-1039-290148d/'
+                    'cudart-sd-bin-win-cu12-x64.zip',
+             'taille': 563452046, 'sha256': 'fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d'},
+        ],
+    },
+    'texte': {
+        'nom': 'llama.cpp', 'version': 'b12100', 'dossier': 'llama', 'executable': 'llama-server.exe',
+        'archives': [
+            {'url': 'https://github.com/ggml-org/llama.cpp/releases/download/b12100/llama-b12100-bin-win-cuda-12.4-x64.zip',
+             'taille': 287009354, 'sha256': 'b281eb49c5771013dd79bdd187432de6bc3352fd3a47c26d88e8d6572cf3dbea'},
+        ],
+        # Meme generation CUDA que le moteur d'images : ses DLL sont reprises par lien, sans les retelecharger
+        'requiert': 'image',
+        'dll_partagees': ['cublas64_12.dll', 'cublasLt64_12.dll', 'cudart64_12.dll'],
+    },
+}
 EDGE = Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe')
 FICHIER_CODE = DONNEES / 'code-acces.txt'
 FICHIER_REGLAGES = DONNEES / 'reglages.json'
@@ -87,6 +117,10 @@ REGLAGES_DEFAUT = {
     'amelioration_consigne': CONSIGNE_AMELIORATION,
     'amelioration_consigne_modif': CONSIGNE_MODIFICATION,
     'ollama_adresse': 'http://127.0.0.1:11434',
+    # 'integre' : modele de langage du dossier models lance par llama.cpp ; 'ollama' : modele servi par Ollama
+    'amelioration_moteur': 'integre',
+    'amelioration_modele_local': '',
+    'amelioration_vision_locale': '',
 }
 METHODES = ['euler', 'euler_a', 'heun', 'dpm2', 'dpm++2s_a', 'dpm++2m', 'dpm++2mv2', 'ipndm', 'ipndm_v', 'lcm',
             'ddim_trailing', 'tcd', 'res_multistep', 'res_2s', 'er_sde', 'euler_cfg_pp', 'euler_a_cfg_pp', 'euler_ge',
@@ -130,7 +164,8 @@ def valider_reglages(donnees):
     """Renvoie (reglages, erreur) : les modeles sont des chemins relatifs au dossier models."""
     r = lire_reglages()
     try:
-        for cle in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae'):
+        for cle in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae', 'amelioration_modele_local',
+                    'amelioration_vision_locale'):
             nom = str(donnees.get(cle, r[cle])).strip().replace('\\', '/')
             if nom and ('..' in Path(nom).parts or Path(nom).anchor):
                 return None, 'Les modèles doivent être dans le dossier models.'
@@ -157,6 +192,7 @@ def valider_reglages(donnees):
         r['amelioration_consigne_modif'] = str(donnees.get('amelioration_consigne_modif', r['amelioration_consigne_modif'])).strip() \
             or CONSIGNE_MODIFICATION
         r['ollama_adresse'] = str(donnees.get('ollama_adresse', r['ollama_adresse'])).strip().rstrip('/')
+        r['amelioration_moteur'] = str(donnees.get('amelioration_moteur', r['amelioration_moteur']))
         [float(x) for x in r['sigmas'].split(',') if r['sigmas']]
     except (TypeError, ValueError):
         return None, 'Une valeur est invalide.'
@@ -170,6 +206,8 @@ def valider_reglages(donnees):
         return None, 'Méthode d\'échantillonnage inconnue.'
     if r['sigmas'] and len(r['sigmas'].split(',')) != r['etapes'] + 1:
         return None, f'Il faut {r["etapes"] + 1} sigmas pour {r["etapes"]} étapes, ou laisser le champ vide.'
+    if r['amelioration_moteur'] not in ('integre', 'ollama'):
+        return None, 'Moteur d\'amélioration inconnu.'
     if not re.match(r'^https?://[^/\s]+$', r['ollama_adresse']):
         return None, 'Adresse d\'Ollama invalide (exemple : http://127.0.0.1:11434).'
     if any(not -2 <= l['force'] <= 2 for l in r['loras']):
@@ -192,7 +230,7 @@ def problemes_configuration(r):
     """Ce qui empeche de generer, pour guider au premier lancement."""
     problemes = []
     if not SD_CLI.is_file():
-        problemes.append(f'Moteur introuvable : place sd-cli.exe et ses DLL dans {SD_CLI.parent}')
+        problemes.append('Moteur d\'images non installé')
     roles = {'modele_diffusion': 'Modèle de dessin', 'modele_texte': 'Encodeur de texte', 'vae': 'VAE'}
     for cle, nom in roles.items():
         if not r[cle]:
@@ -241,7 +279,96 @@ def modele_voit_les_images(r):
     return capacites_ollama[nom]
 
 
+class MoteurTexte:
+    """Lance llama-server le temps d'une amelioration, puis l'arrete pour liberer la carte graphique."""
+
+    def __init__(self, r):
+        self.modele = MODELES / r['amelioration_modele_local']
+        self.vision = MODELES / r['amelioration_vision_locale'] if r['amelioration_vision_locale'] else None
+        self.processus = None
+
+    def __enter__(self):
+        if not LLAMA_SERVEUR.is_file():
+            raise RuntimeError('Le moteur de texte n\'est pas installé : installe-le dans les Réglages.')
+        if not self.modele.is_file():
+            raise RuntimeError(f'Modèle de langage introuvable : {self.modele.name}')
+        with socket.socket() as s:
+            s.bind(('127.0.0.1', 0))
+            self.port = s.getsockname()[1]
+        commande = [str(LLAMA_SERVEUR), '-m', str(self.modele), '-ngl', '99', '-c', '8192',
+                    '--host', '127.0.0.1', '--port', str(self.port), '--no-webui']
+        if self.vision and self.vision.is_file():
+            commande += ['--mmproj', str(self.vision)]
+        self.journal = tempfile.TemporaryFile()
+        self.processus = subprocess.Popen(commande, stdout=self.journal, stderr=subprocess.STDOUT,
+                                          creationflags=subprocess.CREATE_NO_WINDOW)
+        limite = time.time() + 300
+        while time.time() < limite:
+            if self.processus.poll() is not None:
+                self.journal.seek(0)
+                fin = self.journal.read().decode('utf-8', 'replace').strip().splitlines()[-3:]
+                raise RuntimeError('Le moteur de texte s\'est arrêté : ' + ' '.join(fin))
+            try:
+                with urllib.request.urlopen(f'http://127.0.0.1:{self.port}/health', timeout=2) as reponse:
+                    if reponse.status == 200:
+                        return self
+            except OSError:
+                time.sleep(0.5)
+        raise RuntimeError('Le moteur de texte a mis trop longtemps à démarrer.')
+
+    def discuter(self, messages, temperature):
+        corps = json.dumps({'messages': messages, 'temperature': temperature, 'max_tokens': 400}).encode()
+        requete = urllib.request.Request(f'http://127.0.0.1:{self.port}/v1/chat/completions', corps,
+                                         {'Content-Type': 'application/json'})
+        try:
+            with urllib.request.urlopen(requete, timeout=300) as reponse:
+                return json.load(reponse)['choices'][0]['message']['content']
+        except (OSError, KeyError, ValueError) as e:
+            raise RuntimeError(f'Le moteur de texte n\'a pas répondu : {e}') from None
+
+    def __exit__(self, *erreur):
+        if self.processus and self.processus.poll() is None:
+            self.processus.kill()
+            self.processus.wait()
+        if self.processus:
+            self.journal.close()
+
+
+def nettoyer_reponse(texte):
+    # Certains modeles ecrivent leur raisonnement entre balises avant la reponse
+    return re.sub(r'<think>.*?</think>', '', texte or '', flags=re.S).strip().strip('"«» ').strip()
+
+
+def amelioration_active(r):
+    if r['amelioration_moteur'] == 'ollama':
+        return r['amelioration_modele']
+    return Path(r['amelioration_modele_local']).stem if r['amelioration_modele_local'] else ''
+
+
 def ameliorer_description(r, texte, image=None):
+    if r['amelioration_moteur'] == 'ollama':
+        return ameliorer_avec_ollama(r, texte, image)
+    consigne = r['amelioration_consigne_modif'] if image is not None else r['amelioration_consigne']
+    contenu = texte
+    if image is not None:
+        if r['amelioration_vision_locale']:
+            contenu = [{'type': 'text', 'text': texte},
+                       {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,' + base64.b64encode(image).decode()}}]
+        else:
+            contenu = f"Demande de modification (l'image n'est pas visible) : {texte}"
+    messages = [{'role': 'system', 'content': consigne}, {'role': 'user', 'content': contenu}]
+    resultat = ''
+    with MoteurTexte(r) as moteur:
+        for temperature in (0.6, 0.3):
+            resultat = nettoyer_reponse(moteur.discuter(messages, temperature))
+            if resultat and not CARACTERES_CJK.search(resultat):
+                break
+    if not resultat:
+        raise RuntimeError('Le modèle n\'a rien renvoyé.')
+    return CARACTERES_CJK.sub('', resultat).strip()
+
+
+def ameliorer_avec_ollama(r, texte, image=None):
     """Avec une image de depart, produit une consigne de modification au lieu d'une nouvelle description."""
     message = {'role': 'user', 'content': texte}
     if image is not None:
@@ -262,9 +389,7 @@ def ameliorer_description(r, texte, image=None):
             'keep_alive': 0 if dernier else '30s',
             'options': {'temperature': temperature},
         }, delai=300)
-        resultat = reponse.get('message', {}).get('content', '')
-        # Certains modeles ecrivent leur raisonnement entre balises avant la reponse
-        resultat = re.sub(r'<think>.*?</think>', '', resultat, flags=re.S).strip().strip('"«» ').strip()
+        resultat = nettoyer_reponse(reponse.get('message', {}).get('content', ''))
         if resultat and not CARACTERES_CJK.search(resultat):
             if not dernier:
                 appel_ollama(r, '/api/generate', {'model': r['amelioration_modele'], 'keep_alive': 0})
@@ -272,6 +397,103 @@ def ameliorer_description(r, texte, image=None):
     if not resultat:
         raise RuntimeError('Le modèle n\'a rien renvoyé.')
     return CARACTERES_CJK.sub('', resultat).strip()
+
+
+installations = {}
+verrou_installations = threading.Lock()
+
+
+def moteur_installe(nom):
+    return (RACINE / MOTEURS[nom]['dossier'] / MOTEURS[nom]['executable']).is_file()
+
+
+def extraire_zip(archive, dossier):
+    """Extrait sans laisser un fichier sortir du dossier ; retire un dossier racine commun s'il y en a un."""
+    with zipfile.ZipFile(archive) as z:
+        membres = [m for m in z.infolist() if not m.is_dir()]
+        for m in membres:
+            chemin = Path(m.filename.replace('\\', '/'))
+            if chemin.anchor or '..' in chemin.parts:
+                raise RuntimeError(f'Archive refusée : chemin interdit ({m.filename})')
+        racines = {Path(m.filename.replace('\\', '/')).parts[0] for m in membres}
+        retirer = len(racines) == 1 and all(len(Path(m.filename).parts) > 1 for m in membres)
+        for m in membres:
+            parties = Path(m.filename.replace('\\', '/')).parts[1 if retirer else 0:]
+            cible = dossier.joinpath(*parties)
+            cible.parent.mkdir(parents=True, exist_ok=True)
+            with z.open(m) as source, open(cible, 'wb') as destination:
+                shutil.copyfileobj(source, destination)
+
+
+def telecharger(archive, destination, progression):
+    """Telecharge une archive en verifiant sa taille et son empreinte SHA-256."""
+    empreinte = hashlib.sha256()
+    requete = urllib.request.Request(archive['url'], headers={'User-Agent': f'Prisme/{VERSION}'})
+    with urllib.request.urlopen(requete, timeout=60) as reponse, open(destination, 'wb') as fichier:
+        while True:
+            bloc = reponse.read(1024 * 1024)
+            if not bloc:
+                break
+            fichier.write(bloc)
+            empreinte.update(bloc)
+            progression(len(bloc))
+    if destination.stat().st_size != archive['taille'] or empreinte.hexdigest() != archive['sha256']:
+        raise RuntimeError('Le fichier téléchargé ne correspond pas à la version attendue (empreinte différente).')
+
+
+def installer_moteur(nom):
+    moteur = MOTEURS[nom]
+    dossier = RACINE / moteur['dossier']
+    provisoire = RACINE / f'.{moteur["dossier"]}.installation'
+    suivi = installations[nom]
+
+    def avancer(octets):
+        with verrou_installations:
+            suivi['fait'] += octets
+
+    try:
+        if moteur.get('requiert') and not moteur_installe(moteur['requiert']):
+            raise RuntimeError('Installe d\'abord le moteur d\'images.')
+        shutil.rmtree(provisoire, ignore_errors=True)
+        provisoire.mkdir(parents=True)
+        TELECHARGEMENTS.mkdir(exist_ok=True)
+        for archive in moteur['archives']:
+            fichier = TELECHARGEMENTS / archive['url'].rsplit('/', 1)[1]
+            telecharger(archive, fichier, avancer)
+            with verrou_installations:
+                suivi['phase'] = 'extraction'
+            extraire_zip(fichier, provisoire)
+            fichier.unlink()
+            with verrou_installations:
+                suivi['phase'] = 'telechargement'
+        source = RACINE / MOTEURS.get(moteur.get('requiert'), {}).get('dossier', '')
+        for dll in moteur.get('dll_partagees', []):
+            try:
+                os.link(source / dll, provisoire / dll)
+            except OSError:
+                shutil.copy2(source / dll, provisoire / dll)
+        if not (provisoire / moteur['executable']).is_file():
+            raise RuntimeError(f'{moteur["executable"]} est absent de l\'archive.')
+        shutil.rmtree(dossier, ignore_errors=True)
+        provisoire.rename(dossier)
+        try:
+            TELECHARGEMENTS.rmdir()
+        except OSError:
+            pass
+        with verrou_installations:
+            suivi['phase'] = 'termine'
+    except Exception as e:
+        shutil.rmtree(provisoire, ignore_errors=True)
+        with verrou_installations:
+            suivi.update(phase='erreur', erreur=str(e) if isinstance(e, RuntimeError) else f'Installation impossible : {e}')
+
+
+def etat_moteurs():
+    with verrou_installations:
+        return {nom: {'installe': moteur_installe(nom), 'nom': m['nom'], 'version': m['version'],
+                      'taille': sum(a['taille'] for a in m['archives']),
+                      'installation': dict(installations[nom]) if nom in installations else None}
+                for nom, m in MOTEURS.items()}
 
 
 def lister_loras():
@@ -605,7 +827,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             copie['modele'] = r['modele_diffusion']
             copie['version'] = VERSION
             copie['problemes'] = problemes_configuration(r)
-            copie['amelioration'] = {'modele': r['amelioration_modele'], 'auto': r['amelioration_auto']}
+            copie['amelioration'] = {'modele': amelioration_active(r), 'auto': r['amelioration_auto']}
+            copie['moteurs'] = etat_moteurs()
             copie['loras_actifs'] = [{'nom': Path(l['nom']).stem, 'force': l['force']} for l in loras_actifs(r)]
             self.envoyer(200, copie)
         elif chemin == '/api/ollama-modeles':
@@ -694,7 +917,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 image = base64.b64decode(str(donnees['source_data']).partition(',')[2])
             if not texte:
                 return self.envoyer(400, {'erreur': 'Écris d\'abord une description à améliorer.'})
-            if not r['amelioration_modele']:
+            if not amelioration_active(r):
                 return self.envoyer(400, {'erreur': 'Choisis un modèle d\'amélioration dans les Réglages.'})
             # Le modele de langage et la generation ne tiennent pas ensemble en memoire video
             if etat.get('occupe') or not amelioration_en_cours.acquire(blocking=False):
@@ -705,6 +928,20 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 self.envoyer(502, {'erreur': str(e)})
             finally:
                 amelioration_en_cours.release()
+
+        elif chemin == '/api/installer-moteur':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            nom = str(self.lire_json().get('moteur') or '')
+            if nom not in MOTEURS:
+                return self.envoyer(400, {'erreur': 'Moteur inconnu.'})
+            with verrou_installations:
+                if installations.get(nom, {}).get('phase') in ('telechargement', 'extraction'):
+                    return self.envoyer(409, {'erreur': 'Installation déjà en cours.'})
+                installations[nom] = {'phase': 'telechargement', 'fait': 0,
+                                      'total': sum(a['taille'] for a in MOTEURS[nom]['archives']), 'erreur': None}
+            threading.Thread(target=installer_moteur, args=(nom,), daemon=True).start()
+            self.envoyer(200, {})
 
         elif chemin == '/api/supprimer':
             nom = str(self.lire_json().get('nom') or '')

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>Prisme</title>
 <link rel="icon" type="image/png" href="/logo.png">
 <link rel="apple-touch-icon" href="/logo.png">
@@ -232,6 +232,13 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 .etiquette { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; }
 .etiquette small { font-weight: 400; color: var(--texte-3); }
 .aide-plus { margin: 8px 0 0; font-size: 12.5px; color: var(--texte-3); }
+.section-tel { display: none; margin-bottom: 16px; }
+.panneau-plus .formats { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
+.panneau-plus .format { flex-direction: column; justify-content: center; height: auto; padding: 10px 4px 8px; gap: 6px; border: 1px solid var(--bordure); border-radius: 12px; }
+.panneau-plus .format span { display: inline; }
+.panneau-plus .format.actif { border-color: var(--accent); }
+.panneau-plus .groupe { display: flex; }
+.panneau-plus .groupe button { flex: 1; height: 36px; }
 .seed { position: relative; }
 .seed .champ { padding-right: 40px; }
 .seed .bouton-icone { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
@@ -391,30 +398,53 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
 
 /* Telephone */
 @media (max-width: 720px) {
-  .entete { padding: 8px 12px; gap: 4px; }
-  .entete h1 { font-size: 16px; }
+  .entete { padding: 8px 10px 8px 14px; gap: 2px; }
+  .entete h1 { font-size: 17px; }
   .recherche, .serveur, .bouton-entete span { display: none; }
-  .bouton-entete { padding: 0 9px; }
-  .fil { padding: 18px 12px 10px; }
-  .fil-contenu { gap: 20px; }
-  .demande { max-width: 88%; }
+  .bouton-entete { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .fil { padding: 14px 12px 8px; }
+  .fil-contenu { gap: 18px; }
+  .demande { max-width: 86%; padding: 9px 13px; }
+  .reponse { display: block; }
   .avatar { display: none; }
-  .images, .images.multi { width: 100%; }
-  .images.multi { grid-template-columns: 1fr; }
-  .barre-outils { flex-wrap: nowrap; gap: 2px; }
-  .outil-compo { padding: 0 7px; }
-  .groupe button { min-width: 24px; padding: 0 5px; }
-  .actions-image { position: static; opacity: 1; transform: none; border-radius: 0; background: var(--surface); box-shadow: none; backdrop-filter: none; justify-content: space-around; }
-  .action-image span { display: none; }
-  .accueil h2 { font-size: 23px; }
-  .bas { padding: 4px 10px calc(10px + env(safe-area-inset-bottom)); }
-  .compositeur { padding: 8px 8px 6px 12px; border-radius: 18px; }
+  .images, .images.multi { width: 100%; grid-template-columns: 1fr; }
+  .carte-image { border-radius: 16px; }
+  .actions-image { position: static; opacity: 1; transform: none; border-radius: 0; background: var(--surface); box-shadow: none; backdrop-filter: none; justify-content: space-around; padding: 2px; }
+  .action-image { height: 42px; padding: 0 12px; }
+  .action-image span, .images.multi .action-image span { display: none; }
+  .accueil { padding-top: 4px; }
+  .accueil > img { width: 60px; height: 60px; border-radius: 15px; }
+  .accueil h2 { font-size: 23px; margin-top: 14px; }
+  .accueil p { font-size: 14.5px; }
+  .accueil .titre-exemples { margin-top: 20px; }
+  .exemples { flex-direction: column; align-items: stretch; }
+  .exemple { border-radius: 14px; }
+
+  /* Zone d'ecriture sur une ligne, comme une messagerie ; le reste passe dans le panneau d'options */
+  .bas { padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); }
+  .compositeur { position: relative; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px; padding: 5px; border-radius: 24px; }
+  .barre-outils { display: contents; }
+  .piece-jointe { order: 0; flex-basis: calc(100% - 4px); margin: 2px 2px 4px; }
+  #depot { order: 1; }
+  .plus { order: 2; position: static; }
+  #prompt { order: 3; flex: 1; min-width: 0; min-height: 40px; max-height: 140px; padding: 8px 6px; }
+  #retablir { order: 4; }
+  #ameliorer { order: 5; }
+  #generer { order: 6; }
+  .separateur, .barre-outils .espace { display: none; }
+  .barre-outils > .outil-compo, .plus > summary { width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 50%; }
+  .barre-outils > .outil-compo span { display: none; }
+  .envoyer { width: 40px; height: 40px; padding: 0; margin: 0; justify-content: center; border-radius: 50%; }
   .envoyer span { display: none; }
-  .envoyer { padding: 0 12px; }
-  .separateur { display: none; }
+  .panneau-plus { left: 0; right: 0; width: auto; bottom: calc(100% + 8px); padding: 16px; border-radius: 18px; }
+  .section-tel { display: block; }
   .sous-compo { display: none; }
-  .notes { top: 60px; width: calc(100% - 28px); }
+  .notes { top: 62px; width: calc(100% - 24px); }
+  .note { max-width: 100%; }
   .champ { font-size: 16px; }
+
+  .visionneuse img { max-width: 100vw; max-height: 86vh; border-radius: 0; }
+  .visionneuse .precedente, .visionneuse .suivante { top: auto; bottom: 22px; transform: none; }
   .reglage { grid-template-columns: 1fr; gap: 6px; }
   .reglage .note-champ { grid-column: 1; margin-top: 0; }
   .pc { display: none !important; }
@@ -551,6 +581,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <details class="plus" id="plus">
           <summary class="outil-compo" title="Plus d'options"><svg class="i"><use href="#i-plus"/></svg><span class="pc">Options</span></summary>
           <div class="panneau-plus">
+            <div class="section-tel"><p class="etiquette">Format</p><div id="place-formats"></div></div>
+            <div class="section-tel"><p class="etiquette">Nombre d'images</p><div id="place-nombre"></div></div>
             <p class="etiquette">Variante <small>· vide = au hasard</small></p>
             <div class="seed">
               <input class="champ" id="seed" inputmode="numeric" placeholder="Au hasard" autocomplete="off">
@@ -560,7 +592,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
           </div>
         </details>
         <div class="espace"></div>
-        <button type="button" class="outil-compo" id="retablir" hidden title="Revenir au texte que tu avais écrit">Rétablir</button>
+        <button type="button" class="outil-compo" id="retablir" hidden title="Revenir au texte que tu avais écrit"><svg class="i"><use href="#i-reprendre"/></svg><span>Rétablir</span></button>
         <button type="button" class="outil-compo" id="ameliorer" hidden title="Réécrire la description en plus détaillé"><svg class="i"><use href="#i-ameliorer"/></svg><span>Améliorer</span></button>
         <button type="button" class="envoyer" id="generer" title="Créer (Entrée)"><svg class="i"><use href="#i-fleche"/></svg><span>Créer</span></button>
       </div>
@@ -791,7 +823,7 @@ function definirSource(source) {
   } else if (etat.format === 'source') {
     choisirFormat('carre');
   }
-  prompt.placeholder = source ? 'Décris le changement à faire sur cette image…' : 'Décris l\'image à créer, ou le changement à faire sur ton image…';
+  majPlaceholder();
   majBoutonCreer();
 }
 
@@ -1342,6 +1374,34 @@ function filtrees() {
   return f ? etat.images.filter(i => i.prompt.toLowerCase().includes(f)) : etat.images;
 }
 $('#filtre').addEventListener('input', () => { rendreFil(); descendre(); });
+
+// ---------- Telephone : format et nombre d'images dans le panneau d'options ----------
+const TELEPHONE = matchMedia('(max-width: 720px)');
+const ancreFormats = document.createComment('formats'), ancreNombre = document.createComment('nombre');
+$('#formats').before(ancreFormats);
+$('#nombre').before(ancreNombre);
+function placerOutils() {
+  if (TELEPHONE.matches) { $('#place-formats').append($('#formats')); $('#place-nombre').append($('#nombre')); }
+  else { ancreFormats.after($('#formats')); ancreNombre.after($('#nombre')); }
+  majPlaceholder();
+}
+function majPlaceholder() {
+  prompt.placeholder = TELEPHONE.matches
+    ? (etat.source ? 'Décris le changement…' : 'Décris ton image…')
+    : (etat.source ? 'Décris le changement à faire sur cette image…' : 'Décris l\'image à créer, ou le changement à faire sur ton image…');
+}
+TELEPHONE.addEventListener('change', placerOutils);
+placerOutils();
+
+// Visionneuse : balayer vers la gauche ou la droite change d'image
+let departBalayage = null;
+$('#visionneuse').addEventListener('touchstart', e => { departBalayage = e.touches[0].clientX; }, { passive: true });
+$('#visionneuse').addEventListener('touchend', e => {
+  if (departBalayage === null) return;
+  const ecart = e.changedTouches[0].clientX - departBalayage;
+  departBalayage = null;
+  if (Math.abs(ecart) > 50) { voisine(ecart < 0 ? 1 : -1); e.preventDefault(); }
+});
 
 // ---------- Apparence ----------
 function appliquerTheme(theme) {

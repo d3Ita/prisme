@@ -851,19 +851,31 @@ def generer(params):
 # Permet d'installer Prisme comme une application (ecran d'accueil du telephone, fenetre du PC) avec son logo
 MANIFESTE = json.dumps({
     'name': 'Prisme', 'short_name': 'Prisme', 'start_url': '/', 'display': 'standalone',
-    'background_color': '#0e0e12', 'theme_color': '#16161c', 'lang': 'fr',
+    'background_color': '#f6f4ef', 'theme_color': '#f6f4ef', 'lang': 'fr',
     'icons': [{'src': '/logo.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'}],
 }, ensure_ascii=False).encode('utf-8')
 
 PAGE_CONNEXION = '''<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prisme</title><link rel="icon" href="/logo.png"><meta name="theme-color" content="#16161c">
-<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#0e0e12;color:#ececf1;font:15px system-ui,sans-serif;text-align:center;padding:24px">
-<div style="width:100%;max-width:340px;overflow-wrap:anywhere">
-  <img src="/logo.png" alt="" width="96" height="96" style="border-radius:22px">
-  <h1 style="font-size:21px;margin:18px 0 8px">Connexion à Prisme</h1>
-  <p id="etat" style="color:#a1a1b0;margin:0 0 18px">Envoi de la demande…</p>
-  <div id="code" style="font:600 40px ui-monospace,Consolas,monospace;letter-spacing:10px;color:#8b7dff;min-height:48px"></div>
-  <button id="relancer" hidden style="margin-top:18px;height:42px;padding:0 20px;border:0;border-radius:10px;background:#6d5dfc;color:#fff;font:600 15px system-ui">Redemander l'accès</button>
+<title>Prisme</title><link rel="icon" href="/logo.png"><meta name="theme-color" content="#f6f4ef">
+<style>
+:root { --fond: #f6f4ef; --carte: #fff; --bordure: #e7e3da; --texte: #1f2430; --texte-2: #575d6b; --accent: #2f5bea; --sur-accent: #fff; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --fond: #1b1a18; --carte: #242320; --bordure: #383632; --texte: #f1eee8; --texte-2: #bdb8ae; --accent: #f07a5a; --sur-accent: #2a140d; color-scheme: dark; } }
+body { margin: 0; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 20px;
+  background: var(--fond); color: var(--texte); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; }
+.carte { width: 100%; max-width: 360px; padding: 28px 22px; border-radius: 22px; background: var(--carte); border: 1px solid var(--bordure); overflow-wrap: anywhere; }
+img { border-radius: 18px; }
+h1 { font-size: 22px; margin: 16px 0 6px; }
+#etat { color: var(--texte-2); margin: 0 0 18px; }
+#code { font: 600 40px ui-monospace, Consolas, monospace; letter-spacing: 10px; color: var(--accent); min-height: 48px; }
+button { margin-top: 18px; height: 46px; padding: 0 22px; border: 0; border-radius: 12px; background: var(--accent); color: var(--sur-accent); font: 600 16px system-ui, sans-serif; }
+</style>
+<body>
+<div class="carte">
+  <img src="/logo.png" alt="" width="80" height="80">
+  <h1>Connexion à Prisme</h1>
+  <p id="etat">Envoi de la demande…</p>
+  <div id="code"></div>
+  <button id="relancer" hidden>Redemander l'accès</button>
 </div>
 <script>
 const etat = document.getElementById('etat'), code = document.getElementById('code'), relancer = document.getElementById('relancer');

@@ -45,7 +45,7 @@ Most local image tools ask you to install Python, manage dependencies, or wire n
 | | Prisme | Node-based tools (ComfyUI…) |
 |---|---|---|
 | Install | One program, engines installed in one click | Python, dependencies, custom nodes |
-| Learning curve | A text box and a Generate button | Graphs of nodes |
+| Learning curve | A conversation: type, press Enter, get your image | Graphs of nodes |
 | Phone access | Built in | Extra setup |
 | Advanced workflows | Settings, LoRA, samplers | Virtually unlimited |
 
@@ -55,9 +55,10 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 
 - **Create** images from a description, 1 to 4 per run
 - **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
-- **Edit** an existing image: drag, paste or pick a starting image
+- **Edit** an existing image: click **Modifier** under a result, or drag, paste or attach any picture
 - **Formats**: square, landscape, portrait, or the starting image's proportions
-- **History** with search, full-screen viewer, reuse of prompt and seed, and delete to the Recycle Bin or Trash
+- **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt and delete to the Recycle Bin or Trash
+- **Light and dark themes**, or follow the system
 - **Settings**: models, LoRA, steps, CFG, sampler, sigmas, memory options
 - **Phone access** on the same Wi-Fi: type the address, approve the device on the PC
 - **Automatic engine install** on first launch, from pinned official releases verified by SHA-256
@@ -147,7 +148,7 @@ A short prompt ("a cat on a roof at night") usually gives a weaker image than a 
 
 1. Put a GGUF language model in `models` (and its `mmproj` vision file so it can see images).
 2. In **Réglages → Amélioration de la description**, keep the **Intégré** engine, click **Installer le moteur** (llama.cpp, about 290 MB, once), then choose the model and vision file.
-3. Click **Améliorer** above the prompt. **Rétablir** brings your text back.
+3. Click **Améliorer** in the writing area. **Rétablir** brings your text back.
 
 With a starting image, the model looks at the picture and writes an edit instruction that only describes what changes. The language model runs only for the time of the request, then frees the GPU for generation. If you already use [Ollama](https://ollama.com), you can select it instead.
 

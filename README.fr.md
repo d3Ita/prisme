@@ -47,7 +47,8 @@ Application locale pour créer et modifier des images par intelligence artificie
 - **Installation automatique** des moteurs au premier lancement : seuls le programme et les modèles sont à télécharger
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
-- **Historique** avec recherche, visionneuse plein écran, réutilisation de la description et du seed, mise à la corbeille
+- **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description et mise à la corbeille
+- **Thème clair ou sombre**, ou celui du système
 - **Réglages** : choix des modèles, LoRA, étapes, CFG, échantillonneur, sigmas, options mémoire
 - **Téléphone** : utilisation depuis un téléphone sur le même Wi-Fi, protégée par un code d'accès (QR code)
 - **Un seul programme** pour Windows, macOS ou Linux, sans Python à installer
@@ -142,13 +143,13 @@ Tu peux renommer le fichier du VAE (par exemple `qwen-image-vae.safetensors`) po
 
 | Action | Comment |
 |---|---|
-| Générer | Écrire une description puis **Générer**, ou `Ctrl` + `Entrée` |
-| Modifier une image | **Modifier** sous une image, ou glisser une image dans « Image de départ » |
+| Créer une image | Écrire une description en bas, puis `Entrée` ou **Créer** (`Maj` + `Entrée` pour aller à la ligne) |
+| Modifier une image | **Modifier** sur une image du fil, ou glisser, coller ou joindre une image avec le bouton **Image** |
 | Changer de modèle | **Réglages → Modèles**, puis **Enregistrer** |
 | Ajouter un LoRA | Le placer dans `models/loras`, puis **Réglages → LoRA → Actualiser** |
 | Utiliser le téléphone | Taper l'adresse affichée par **Téléphone**, puis **Autoriser** sur le PC (ou scanner le QR code) |
 | Arrêter Prisme | **Quitter** en haut à droite, ou fermer la fenêtre |
-| Parcourir l'historique | Clic sur une vignette, ou flèches ← → |
+| Revoir ses images | Faire défiler le fil, ou cliquer sur une image puis flèches ← → |
 
 Les réglages sont enregistrés dans `app/reglages.json`, les images dans `images/`. Prisme s'arrête quelques secondes après la fermeture de sa fenêtre sur le PC, et après 30 minutes sans aucune activité. Les deux se règlent dans **Réglages → Application** : désactive l'arrêt à la fermeture pour continuer à l'utiliser depuis le téléphone fenêtre fermée. Le bouton **Quitter** l'arrête immédiatement, avec les moteurs en cours.
 
@@ -158,7 +159,7 @@ Une description courte (« un chat sur un toit la nuit ») donne souvent une ima
 
 1. Place un modèle de langage au format GGUF dans `models` (et, pour qu'il voie les images, son fichier de vision `mmproj`).
 2. Dans **Réglages → Amélioration de la description**, garde le moteur **Intégré**, clique sur **Installer le moteur** (llama.cpp, environ 290 Mo, une seule fois), puis choisis le modèle et la vision.
-3. Clique sur **Améliorer** au-dessus de la description : le texte détaillé remplace le tien, tu peux le modifier, et **Rétablir** revient à ton texte.
+3. Clique sur **Améliorer** dans la zone d'écriture : le texte détaillé remplace le tien, tu peux le modifier, et **Rétablir** revient à ton texte.
 
 Si tu utilises déjà [Ollama](https://ollama.com), choisis le moteur **Ollama** et l'un de ses modèles à la place.
 

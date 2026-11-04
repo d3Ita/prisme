@@ -23,12 +23,16 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.2.1'
+VERSION = '1.2.2'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
 RESSOURCES = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
-RACINE = Path(sys.executable).resolve().parent if EXE else Path(__file__).resolve().parent.parent
+# PRISME_RACINE fait travailler le serveur sur un autre dossier, par exemple un dossier temporaire pour les tests
+if os.environ.get('PRISME_RACINE'):
+    RACINE = Path(os.environ['PRISME_RACINE']).resolve()
+else:
+    RACINE = Path(sys.executable).resolve().parent if EXE else Path(__file__).resolve().parent.parent
 DONNEES = RACINE / 'app'
 MODELES = RACINE / 'models'
 LORAS = MODELES / 'loras'
@@ -128,7 +132,7 @@ def valider_reglages(donnees):
     try:
         for cle in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae'):
             nom = str(donnees.get(cle, r[cle])).strip().replace('\\', '/')
-            if nom and ('..' in Path(nom).parts or Path(nom).is_absolute()):
+            if nom and ('..' in Path(nom).parts or Path(nom).anchor):
                 return None, 'Les modèles doivent être dans le dossier models.'
             r[cle] = nom
         r['etapes'] = int(donnees.get('etapes', r['etapes']))
@@ -141,7 +145,7 @@ def valider_reglages(donnees):
         loras = []
         for l in donnees.get('loras', r['loras']) or []:
             nom = str(l.get('nom', '')).strip().replace('\\', '/')
-            if not nom or '..' in Path(nom).parts or Path(nom).is_absolute() or re.search(r'[:<>]', nom) \
+            if not nom or '..' in Path(nom).parts or Path(nom).anchor or re.search(r'[:<>]', nom) \
                     or Path(nom).suffix.lower() not in EXTENSIONS_LORA:
                 return None, f'Nom de LoRA invalide : {nom}'
             loras.append({'nom': nom, 'force': round(float(l.get('force', 1.0)), 2), 'actif': bool(l.get('actif', True))})

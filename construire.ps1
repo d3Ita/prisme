@@ -14,6 +14,10 @@ if (-not (Test-Path $python)) {
     if ($LASTEXITCODE -ne 0) { throw 'Installation de PyInstaller impossible' }
 }
 
+# Pas d'exe si un test echoue
+& $python -m unittest discover -s (Join-Path $racine 'tests')
+if ($LASTEXITCODE -ne 0) { throw "Les tests ont echoue : l'exe n'a pas ete construit" }
+
 $icone = Join-Path $travail 'icone.ico'
 & $python (Join-Path $racine 'app\icone.py') $icone
 if ($LASTEXITCODE -ne 0) { throw "Creation de l'icone impossible" }

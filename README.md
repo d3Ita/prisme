@@ -41,6 +41,21 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 
 Prisme fonctionne uniquement sur ce PC tant que l'accès depuis le téléphone n'est pas activé (voir plus bas).
 
+### Alertes de Windows ou de l'antivirus
+
+`Prisme.exe` n'est pas signé numériquement : signer un programme demande un certificat payant. Il est aussi produit avec PyInstaller, que les antivirus confondent parfois avec des logiciels malveillants. Au premier lancement, tu peux donc voir :
+
+- **Windows SmartScreen** (« Windows a protégé votre ordinateur ») : clique sur **Informations complémentaires**, puis **Exécuter quand même**.
+- **Une alerte de ton antivirus** : c'est en général un faux positif.
+
+Pour vérifier que ton fichier est bien celui publié, compare son empreinte SHA-256 avec celle indiquée dans la release :
+
+```powershell
+Get-FileHash .\Prisme.exe -Algorithm SHA256
+```
+
+Si tu préfères ne pas faire confiance à l'exe, construis-le toi-même à partir du code (voir plus bas) ou lance directement `app\serveur.py`.
+
 ## Utilisation
 
 | Action | Comment |
@@ -87,7 +102,15 @@ Avec Python 3 installé :
 powershell -ExecutionPolicy Bypass -File .\construire.ps1
 ```
 
-Le script crée un environnement dans `.construction/`, y installe PyInstaller et Pillow, puis produit `Prisme.exe` à la racine.
+Le script crée un environnement dans `.construction/`, y installe PyInstaller et Pillow, lance les tests, puis produit `Prisme.exe` à la racine. Si un test échoue, l'exe n'est pas construit.
+
+### Tests
+
+```powershell
+py -3 -m unittest discover -s tests -v
+```
+
+Les tests vérifient la validation des réglages, la lecture des images et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages ni tes images. Ils sont aussi lancés automatiquement sur GitHub à chaque envoi.
 
 Pour lancer sans construire :
 
@@ -103,6 +126,18 @@ py -3 app\serveur.py
 | `app/index.html` | Interface complète : HTML, CSS et JavaScript sans dépendance |
 | `app/icone.py` | Dessin de l'icône de l'exécutable |
 | `construire.ps1` | Construction de `Prisme.exe` |
+| `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
+| `.github/workflows/tests.yml` | Lancement des tests sur GitHub |
+
+## Usage responsable
+
+Prisme n'applique aucun filtre de contenu : tu es responsable des images que tu crées, modifies et partages, dans le respect de la loi de ton pays. En particulier :
+
+- **Pas d'image d'une vraie personne sans son accord**, surtout pour la mettre en scène, la dénuder ou lui attribuer des propos ou des actes.
+- **Aucun contenu sexuel impliquant des mineurs**, réels ou fictifs.
+- **Pas de tromperie** : ne fais pas passer une image créée ou modifiée pour une vraie photo dans le but de tromper, et indique qu'elle est générée par IA quand tu la publies.
+- **Respecte les droits des autres** : œuvres, marques et images protégées.
+- **Respecte les licences des modèles** que tu utilises : certaines interdisent des usages précis.
 
 ## Licence
 

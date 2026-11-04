@@ -1,178 +1,153 @@
 <p align="center">
-  <img src="docs/logo.png" alt="Logo de Prisme" width="128">
+  <img src="docs/logo.png" alt="Prisme logo" width="128">
 </p>
 
 <h1 align="center">Prisme</h1>
 
 <p align="center">
-  <strong>Crée et modifie des images par IA, en local sur ton PC.</strong>
+  <strong>Local AI image generation and editing for Windows. One exe, no Python, nothing sent to the cloud.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/d3Ita/prisme/releases/latest"><img src="https://img.shields.io/github/v/release/d3Ita/prisme?label=version&color=6d5dfc" alt="Dernière version"></a>
+  <a href="https://github.com/d3Ita/prisme/releases/latest"><img src="https://img.shields.io/github/v/release/d3Ita/prisme?label=version&color=6d5dfc" alt="Latest version"></a>
   <a href="https://github.com/d3Ita/prisme/actions/workflows/tests.yml"><img src="https://github.com/d3Ita/prisme/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-a855f7" alt="Licence MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-a855f7" alt="MIT license"></a>
   <br>
-  <img src="https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white" alt="Python 3.12 et 3.13">
-  <img src="https://img.shields.io/badge/JavaScript-sans%20d%C3%A9pendance-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript sans dépendance">
-  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows 10 et 11">
-  <img src="https://img.shields.io/badge/GPU-NVIDIA%20CUDA-76B900?logo=nvidia&logoColor=white" alt="Carte graphique NVIDIA">
-  <a href="https://github.com/leejet/stable-diffusion.cpp"><img src="https://img.shields.io/badge/moteur-stable--diffusion.cpp-555" alt="Moteur stable-diffusion.cpp"></a>
-  <img src="https://img.shields.io/badge/langue-fran%C3%A7ais-0055A4" alt="Interface en français">
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows 10 and 11">
+  <img src="https://img.shields.io/badge/GPU-NVIDIA%20CUDA-76B900?logo=nvidia&logoColor=white" alt="NVIDIA GPU">
+  <a href="https://github.com/leejet/stable-diffusion.cpp"><img src="https://img.shields.io/badge/engine-stable--diffusion.cpp-555" alt="stable-diffusion.cpp engine"></a>
+  <img src="https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white" alt="Python 3.12 and 3.13">
+  <img src="https://img.shields.io/badge/UI-French-0055A4" alt="French interface">
 </p>
 
 <p align="center">
-  <a href="#installation">Installation</a> ·
-  <a href="#utilisation">Utilisation</a> ·
-  <a href="#construire-depuis-les-sources">Construire</a> ·
-  <a href="#sécurité">Sécurité</a> ·
-  <a href="#licence">Licence</a>
+  <strong>English</strong> · <a href="README.fr.md">Français</a>
 </p>
 
-Application locale pour créer et modifier des images par intelligence artificielle sur Windows. Tout tourne sur ton PC : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp).
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#phone-access">Phone access</a> ·
+  <a href="#security">Security</a> ·
+  <a href="#build-from-source">Build</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-![Aperçu de Prisme](docs/apercu.png)
+![Prisme demo: a short idea, enhanced, generated, then edited](docs/demo.gif)
 
-## Fonctions
+## Why Prisme?
 
-- **Création** d'images à partir d'une description, de 1 à 4 images par lancement
-- **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
-- **Installation automatique** des moteurs au premier lancement : seuls l'exe et les modèles sont à télécharger
-- **Modification** d'une image existante : glisser, coller ou choisir une image de départ
-- **Formats** carré, paysage, portrait, ou proportions de l'image de départ
-- **Historique** avec recherche, visionneuse plein écran, réutilisation de la description et du seed, mise à la corbeille
-- **Réglages** : choix des modèles, LoRA, étapes, CFG, échantillonneur, sigmas, options mémoire
-- **Téléphone** : utilisation depuis un téléphone sur le même Wi-Fi, protégée par un code d'accès (QR code)
-- **Exécutable** Windows unique, sans Python à installer
+Most local image tools ask you to install Python, manage dependencies, or wire nodes together. Prisme is a single 9 MB exe: download it, add your models, click **Install engine**, and start creating. Everything runs on your own GPU through [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). No account, no subscription, and your images never leave your PC.
 
-## Prérequis
+| | Prisme | Node-based tools (ComfyUI…) |
+|---|---|---|
+| Install | One exe, engines installed in one click | Python, dependencies, custom nodes |
+| Learning curve | A text box and a Generate button | Graphs of nodes |
+| Phone access | Built in | Extra setup |
+| Advanced workflows | Settings, LoRA, samplers | Virtually unlimited |
 
-- Windows 10 ou 11 avec une carte graphique NVIDIA (8 Go de mémoire vidéo ou plus conseillés)
-- Des modèles compatibles avec stable-diffusion.cpp, au format GGUF ou safetensors
-- Une connexion Internet au premier lancement, pour l'installation des moteurs
+Prisme aims to be the simplest way to run image models locally, not the most powerful one.
 
-Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un encodeur de texte de type LLM (`--llm`), un VAE et, pour la modification d'image, un encodeur d'image (`--llm_vision`).
+## Features
 
-## Installation
+- **Create** images from a description, 1 to 4 per run
+- **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
+- **Edit** an existing image: drag, paste or pick a starting image
+- **Formats**: square, landscape, portrait, or the starting image's proportions
+- **History** with search, full-screen viewer, reuse of prompt and seed, and delete to the Recycle Bin
+- **Settings**: models, LoRA, steps, CFG, sampler, sigmas, memory options
+- **Phone access** on the same Wi-Fi: type the address, approve the device on the PC
+- **Automatic engine install** on first launch, from pinned official releases verified by SHA-256
 
-1. Télécharge `Prisme.exe` depuis la page [Releases](../../releases), ou construis-le (voir plus bas).
-2. Place tes modèles dans un dossier `models` à côté de l'exe (et tes LoRA dans `models/loras`, si tu en as).
-3. Lance `Prisme.exe`, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp (environ 925 Mo, une seule fois).
-4. Clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
+## Requirements
 
-Les moteurs sont téléchargés depuis les versions officielles de [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) et de [llama.cpp](https://github.com/ggml-org/llama.cpp) sur GitHub. Prisme vérifie l'empreinte SHA-256 de chaque fichier avant de l'installer, et refuse tout fichier différent de la version testée. Ensuite, le dossier ressemble à ceci :
+- Windows 10 or 11 with an NVIDIA GPU (8 GB of VRAM or more recommended)
+- Models compatible with stable-diffusion.cpp, in GGUF or safetensors format
+- An internet connection on first launch, to install the engines
+
+Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), a VAE and, for editing, an image encoder (`--llm_vision`). The interface is in French.
+
+## Quick start
+
+1. Download `Prisme.exe` from the [Releases](../../releases) page.
+2. Put your models in a `models` folder next to the exe (LoRA go in `models/loras`).
+3. Run `Prisme.exe` and click **Installer le moteur** (Install engine): Prisme downloads stable-diffusion.cpp once, about 925 MB.
+4. Click **Choisir les modèles** (Choose models) and pick a file for each role.
 
 ```
 Prisme.exe
-models/    tes modèles .gguf / .safetensors
-  loras/   tes LoRA (facultatif)
-sd/        moteur d'images, installé par Prisme
-llama/     moteur de texte, installé par Prisme si tu l'actives
-images/    tes images
+models/    your .gguf / .safetensors models
+  loras/   your LoRA (optional)
+sd/        image engine, installed by Prisme
+llama/     text engine, installed by Prisme if you enable it
+images/    your images
 ```
 
-Prisme fonctionne uniquement sur ce PC tant que l'accès depuis le téléphone n'est pas activé (voir plus bas).
+### Windows or antivirus warnings
 
-### Alertes de Windows ou de l'antivirus
-
-`Prisme.exe` n'est pas signé numériquement : signer un programme demande un certificat payant. Il est aussi produit avec PyInstaller, que les antivirus confondent parfois avec des logiciels malveillants. Au premier lancement, tu peux donc voir :
-
-- **Windows SmartScreen** (« Windows a protégé votre ordinateur ») : clique sur **Informations complémentaires**, puis **Exécuter quand même**.
-- **Une alerte de ton antivirus** : c'est en général un faux positif.
-
-Pour vérifier que ton fichier est bien celui publié, compare son empreinte SHA-256 avec celle indiquée dans la release :
+`Prisme.exe` is not code-signed (a signing certificate costs money) and is built with PyInstaller, which antivirus software sometimes flags by mistake. If **Windows SmartScreen** appears, click **More info**, then **Run anyway**. To check that your file is the published one, compare its SHA-256 with the one in the release notes:
 
 ```powershell
 Get-FileHash .\Prisme.exe -Algorithm SHA256
 ```
 
-Si tu préfères ne pas faire confiance à l'exe, construis-le toi-même à partir du code (voir plus bas) ou lance directement `app\serveur.py`.
+You can also build the exe yourself or run `app\serveur.py` directly.
 
-## Utilisation
+## Prompt enhancement
 
-| Action | Comment |
-|---|---|
-| Générer | Écrire une description puis **Générer**, ou `Ctrl` + `Entrée` |
-| Modifier une image | **Modifier** sous une image, ou glisser une image dans « Image de départ » |
-| Changer de modèle | **Réglages → Modèles**, puis **Enregistrer** |
-| Ajouter un LoRA | Le placer dans `models/loras`, puis **Réglages → LoRA → Actualiser** |
-| Utiliser le téléphone | Taper l'adresse affichée par **Téléphone**, puis **Autoriser** sur le PC (ou scanner le QR code) |
-| Arrêter Prisme | **Quitter** en haut à droite, ou fermer la fenêtre |
-| Parcourir l'historique | Clic sur une vignette, ou flèches ← → |
+A short prompt ("a cat on a roof at night") usually gives a weaker image than a detailed one. Prisme can rewrite it with a language model running on your PC:
 
-Les réglages sont enregistrés dans `app/reglages.json`, les images dans `images/`. Prisme s'arrête quelques secondes après la fermeture de sa fenêtre sur le PC, et après 30 minutes sans aucune activité. Les deux se règlent dans **Réglages → Application** : désactive l'arrêt à la fermeture pour continuer à l'utiliser depuis le téléphone fenêtre fermée. Le bouton **Quitter** l'arrête immédiatement, avec les moteurs en cours.
+1. Put a GGUF language model in `models` (and its `mmproj` vision file so it can see images).
+2. In **Réglages → Amélioration de la description**, keep the **Intégré** engine, click **Installer le moteur** (llama.cpp, about 290 MB, once), then choose the model and vision file.
+3. Click **Améliorer** above the prompt. **Rétablir** brings your text back.
 
-### Amélioration de la description
+With a starting image, the model looks at the picture and writes an edit instruction that only describes what changes. The language model runs only for the time of the request, then frees the GPU for generation. If you already use [Ollama](https://ollama.com), you can select it instead.
 
-Une description courte (« un chat sur un toit la nuit ») donne souvent une image moins réussie qu'une description détaillée. Prisme peut la faire réécrire par un modèle de langage, directement sur ton PC :
+## Phone access
 
-1. Place un modèle de langage au format GGUF dans `models` (et, pour qu'il voie les images, son fichier de vision `mmproj`).
-2. Dans **Réglages → Amélioration de la description**, garde le moteur **Intégré**, clique sur **Installer le moteur** (llama.cpp, environ 290 Mo, une seule fois), puis choisis le modèle et la vision.
-3. Clique sur **Améliorer** au-dessus de la description : le texte détaillé remplace le tien, tu peux le modifier, et **Rétablir** revient à ton texte.
+Network access is **off by default**. Turn it on in **Réglages → Application → Accès depuis le téléphone**, restart Prisme and allow it through the Windows firewall. The **Téléphone** button then shows the address to type, for example `192.168.1.22:7861`.
 
-Si tu utilises déjà [Ollama](https://ollama.com), choisis le moteur **Ollama** et l'un de ses modèles à la place.
+On the phone, open that address: it shows a 4-digit code, and Prisme asks you on the PC to **Autoriser** (approve) the device after checking the code matches. The phone then stays connected. A QR code is also available for a direct connection. Don't enable network access on public Wi-Fi: the connection is not encrypted.
 
-Avec une image de départ, l'amélioration ne décrit pas une nouvelle scène : elle transforme ta demande (« ajoute de la neige ») en consigne de modification précise, qui nomme les éléments à changer et demande de garder tout le reste identique. Si le modèle de langage sait lire les images, comme les modèles de vision, Prisme lui envoie l'image de départ pour qu'il s'appuie sur ce qu'elle contient.
+To stop Prisme, click **Quitter** or close its window: the server shuts down a few seconds later.
 
-L'option **Améliorer automatiquement** le fait avant chaque génération. Les deux consignes (création et modification) se changent dans les Réglages. Le modèle de langage est lancé seulement le temps de l'amélioration, puis retiré de la carte graphique pour laisser la place à la génération.
+## Security
 
-### Téléphone
+- The server only listens on your PC unless phone access is enabled.
+- Other devices need a random 128-bit access code, received through the QR code or after you approve them on the PC. After 10 wrong codes or refused requests, a device is blocked for 15 minutes.
+- Websites open in your browser can neither control Prisme nor read its data: requests from another origin or host name are rejected.
+- Settings, models and folders are only reachable from the PC.
 
-L'accès depuis le réseau local est **désactivé par défaut**. Pour l'activer : **Réglages → Application → Accès depuis le téléphone**, puis relance Prisme. Windows demande alors d'autoriser Prisme sur le réseau : accepte. Ensuite, le bouton **Téléphone** affiche l'adresse à taper (par exemple `192.168.1.22:7861`) et un QR code.
+## Build from source
 
-Sur le téléphone, tape simplement l'adresse : la page affiche un code à 4 chiffres, et Prisme te demande sur le PC d'**Autoriser** cet appareil après avoir vérifié que le code est le même. Le téléphone reste ensuite connecté. Le QR code permet de se connecter directement, sans autorisation.
-
-Le téléphone doit être sur le même réseau que le PC. Le lien du QR code contient un code d'accès enregistré dans `app/code-acces.txt` : supprimer ce fichier puis relancer Prisme en crée un nouveau et déconnecte les appareils déjà reliés. N'active pas cet accès sur un réseau public (gare, café, hôtel) : la connexion n'est pas chiffrée.
-
-## Sécurité
-
-- Le serveur de Prisme n'écoute que ce PC, sauf si l'accès depuis le téléphone est activé.
-- Les autres appareils du réseau doivent présenter un code d'accès aléatoire de 128 bits, reçu par le QR code ou après une autorisation donnée sur le PC. Après 10 codes faux ou demandes refusées, un appareil est bloqué 15 minutes.
-- Les sites web ouverts dans ton navigateur ne peuvent ni piloter Prisme ni lire ses données : les requêtes venant d'une autre origine ou d'un autre nom d'hôte sont refusées.
-- Les réglages, les modèles et l'ouverture des dossiers ne sont accessibles que depuis le PC.
-
-## Construire depuis les sources
-
-Avec Python 3 installé :
+With Python 3 installed:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\construire.ps1
 ```
 
-Le script crée un environnement dans `.construction/`, y installe PyInstaller et Pillow, lance les tests, puis produit `Prisme.exe` à la racine. Si un test échoue, l'exe n'est pas construit.
-
-### Tests
+The script creates an environment in `.construction/`, installs PyInstaller and Pillow, runs the tests, then builds `Prisme.exe`. If a test fails, no exe is built. To run without building: `py -3 app\serveur.py`.
 
 ```powershell
 py -3 -m unittest discover -s tests -v
 ```
 
-Les tests vérifient la validation des réglages, la lecture des images et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages ni tes images. Ils sont aussi lancés automatiquement sur GitHub à chaque envoi.
+The tests cover settings validation, image metadata, engine installation and access protections. They run in a temporary folder and also run on GitHub for every push.
 
-Pour lancer sans construire :
-
-```powershell
-py -3 app\serveur.py
-```
-
-## Structure du code
-
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| `app/serveur.py` | Serveur local (bibliothèque standard Python uniquement) : API, lancement de sd-cli, accès réseau |
-| `app/index.html` | Interface complète : HTML, CSS et JavaScript sans dépendance |
-| `app/icone.py` | Icône de l'exécutable, faite à partir du logo |
-| `app/logo.png`, `docs/logo.png` | Logo de l'application et du README |
-| `construire.ps1` | Construction de `Prisme.exe` |
-| `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
-| `.github/workflows/tests.yml` | Lancement des tests sur GitHub |
+| `app/serveur.py` | Local server, Python standard library only: API, engines, network access |
+| `app/index.html` | The whole interface: HTML, CSS and JavaScript with no dependency |
+| `app/icone.py` | Exe icon and splash screen, made from the logo |
+| `construire.ps1` | Builds `Prisme.exe` |
+| `tests/test_serveur.py` | Server tests |
 
-## Usage responsable
+## Responsible use
 
-Prisme est conçu pour un usage légal et éthique. Chaque utilisateur est seul responsable des images qu'il crée, modifie ou partage avec Prisme, et doit respecter la loi de son pays ainsi que les droits et l'image des autres personnes.
+Prisme is designed for legal and ethical use. Each user is solely responsible for the images they create, edit or share with Prisme, and must respect the law of their country and the rights and image of other people.
 
-L'auteur de Prisme décline toute responsabilité en cas d'utilisation abusive, illégale ou contraire à l'éthique du logiciel. Comme l'indique la [licence MIT](LICENSE), Prisme est fourni « en l'état », sans aucune garantie.
+The author of Prisme accepts no liability for any abusive, illegal or unethical use of the software. As stated in the [MIT license](LICENSE), Prisme is provided "as is", without warranty of any kind.
 
-## Licence
+## License
 
-Prisme est distribué sous licence [MIT](LICENSE).
+Prisme is released under the [MIT license](LICENSE).

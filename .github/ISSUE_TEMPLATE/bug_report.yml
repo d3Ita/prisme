@@ -1,0 +1,30 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: probleme
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Prisme version
+      description: Shown at the bottom of the Réglages window.
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: input
+    id: materiel
+    attributes:
+      label: GPU and VRAM
+      placeholder: "RTX 4070 SUPER, 12 GB"
+  - type: textarea
+    id: erreur
+    attributes:
+      label: Error message
+      description: Paste the error shown by Prisme, if any. Never paste your access code.
+      render: text

@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest an idea for Prisme
+labels: [enhancement]
+body:
+  - type: textarea
+    id: besoin
+    attributes:
+      label: What problem would it solve?
+      description: Describe the situation where you miss this feature.
+    validations:
+      required: true
+  - type: textarea
+    id: idee
+    attributes:
+      label: Your idea
+      description: How you imagine it working.

@@ -393,10 +393,13 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
   .mobile { display: inline !important; }
 }
 
+/* Sans les libelles des outils, la description sous l'image garde de la place */
+@media (max-width: 1440px) {
+  .outil span { display: none; }
+}
 @media (max-width: 1180px) {
   .corps { grid-template-columns: 340px minmax(0, 1fr) 220px; }
   .grille { grid-template-columns: 1fr; }
-  .outil span { display: none; }
 }
 </style>
 </head>
@@ -455,7 +458,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
             <button type="button" class="bouton-lien" id="retablir" hidden title="Revenir au texte que tu avais écrit">Rétablir</button>
             <button type="button" class="bouton-lien" id="ameliorer" hidden title="Réécrire la description en plus détaillé"><svg class="i"><use href="#i-etincelle"/></svg><span>Améliorer</span></button>
             <small id="compteur">0 caractère</small></span></h2>
-          <textarea class="champ" id="prompt" placeholder="Décris l'image voulue, ou le changement à faire sur l'image de départ…" spellcheck="true"></textarea>
+          <textarea class="champ" id="prompt" placeholder="Décris l'image voulue, ou le changement à faire sur l'image de départ…" spellcheck="false"></textarea>
           <div class="aide"><span>Plus c'est précis, meilleur est le résultat</span><span class="pc"><kbd>Ctrl</kbd> + <kbd>Entrée</kbd></span></div>
         </section>
 

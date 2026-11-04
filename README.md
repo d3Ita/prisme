@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="Logo de Prisme" width="112">
+  <img src="docs/logo.png" alt="Logo de Prisme" width="128">
 </p>
 
 <h1 align="center">Prisme</h1>

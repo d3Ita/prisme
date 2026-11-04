@@ -131,12 +131,9 @@ py -3 app\serveur.py
 
 ## Usage responsable
 
-Tu es responsable des images que tu crées, modifies et partages avec Prisme. Utilise-le dans le respect de la loi de ton pays, des personnes et des droits des autres :
+Prisme est conçu pour un usage légal et éthique. Chaque utilisateur est seul responsable des images qu'il crée, modifie ou partage avec Prisme, et doit respecter la loi de son pays ainsi que les droits et l'image des autres personnes.
 
-- respecte l'image, la vie privée et la dignité des personnes réelles, et demande leur accord ;
-- ne crée ni ne diffuse aucun contenu illégal ;
-- ne présente pas une image générée comme une vraie photo pour tromper quelqu'un ;
-- respecte les droits d'auteur et les licences des modèles que tu utilises.
+L'auteur de Prisme décline toute responsabilité en cas d'utilisation abusive, illégale ou contraire à l'éthique du logiciel. Comme l'indique la [licence MIT](LICENSE), Prisme est fourni « en l'état », sans aucune garantie.
 
 ## Licence
 

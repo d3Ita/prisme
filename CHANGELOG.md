@@ -2,7 +2,7 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
-## Not released yet
+## 1.8.0 · 2026-11-05
 
 - **English interface**: Prisme follows the device's language (English, or French on French devices) and the language can be chosen in **Settings → Application → Language**. The phone connection page follows the phone's language.
 - Sizes, dates and times are shown in the chosen language.

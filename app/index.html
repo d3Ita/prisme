@@ -308,6 +308,15 @@ textarea.champ.sigmas { min-height: 0; height: 58px; font: 12px ui-monospace, Co
 .bouton-lien { height: 26px; padding: 0 8px; border-radius: 6px; border: 0; background: transparent; color: var(--accent-2); font-size: 12px; }
 .bouton-lien:hover { background: var(--accent-doux); }
 
+/* Amelioration de la description */
+.actions-description { display: flex; align-items: center; gap: 2px; }
+.actions-description .bouton-lien { display: inline-flex; align-items: center; gap: 5px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.actions-description .bouton-lien svg { width: 14px; height: 14px; }
+.actions-description .bouton-lien:disabled { opacity: .5; cursor: progress; }
+.actions-description small { margin-left: 6px; }
+textarea.champ.ameliore { border-color: rgba(139, 125, 255, .55); }
+textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize: vertical; }
+
 /* Premier lancement */
 .configuration { max-width: 460px; padding: 26px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--bordure-forte); }
 .configuration .halo { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-doux); color: var(--accent-2); margin-bottom: 14px; }
@@ -402,7 +411,10 @@ textarea.champ.sigmas { min-height: 0; height: 58px; font: 12px ui-monospace, Co
     <aside class="reglages">
       <div class="defile">
         <section class="section">
-          <h2>Description <small id="compteur">0 caractère</small></h2>
+          <h2>Description <span class="actions-description">
+            <button type="button" class="bouton-lien" id="retablir" hidden title="Revenir au texte que tu avais écrit">Rétablir</button>
+            <button type="button" class="bouton-lien" id="ameliorer" hidden title="Réécrire la description en plus détaillé"><svg class="i"><use href="#i-etincelle"/></svg><span>Améliorer</span></button>
+            <small id="compteur">0 caractère</small></span></h2>
           <textarea class="champ" id="prompt" placeholder="Décris l'image voulue, ou le changement à faire sur l'image de départ…" spellcheck="true"></textarea>
           <div class="aide"><span>Plus c'est précis, meilleur est le résultat</span><span class="pc"><kbd>Ctrl</kbd> + <kbd>Entrée</kbd></span></div>
         </section>
@@ -558,6 +570,14 @@ textarea.champ.sigmas { min-height: 0; height: 58px; font: 12px ui-monospace, Co
         <h4>LoRA <span class="liens"><button type="button" class="bouton-lien" id="dossier-loras">Ouvrir le dossier</button></span></h4>
         <div id="liste-loras"></div>
         <p class="note-champ" id="note-loras" style="margin:8px 0 0"></p>
+      </section>
+      <section class="bloc">
+        <h4>Amélioration de la description</h4>
+        <div class="reglage"><label for="r-amelio-modele">Modèle de langage<small>Servi par Ollama</small></label><select class="champ" id="r-amelio-modele" data-cle="amelioration_modele"></select>
+          <p class="note-champ" id="note-ollama"></p></div>
+        <div class="reglage"><label for="r-amelio-auto">Améliorer automatiquement<small>Avant chaque création, pas pour les modifications</small></label><label class="interrupteur"><input type="checkbox" id="r-amelio-auto" data-cle="amelioration_auto"><span></span></label></div>
+        <div class="reglage"><label for="r-amelio-consigne">Consigne<small>Ce que le modèle doit faire</small></label><textarea class="champ consigne" id="r-amelio-consigne" data-cle="amelioration_consigne"></textarea></div>
+        <div class="reglage"><label for="r-ollama">Adresse d'Ollama</label><input class="champ" id="r-ollama" data-cle="ollama_adresse" spellcheck="false"></div>
       </section>
       <section class="bloc">
         <h4>Génération <span class="liens"><button type="button" class="bouton-lien" id="profil-rapide" title="Pour les modèles distillés en 8 étapes">Profil rapide</button></span></h4>
@@ -731,9 +751,14 @@ function tailleVoulue() {
 
 // ---------- Generation ----------
 async function lancer() {
-  if (etat.occupe) return;
-  const texte = prompt.value.trim();
+  if (etat.occupe || etat.ameliorant) return;
+  let texte = prompt.value.trim();
   if (!texte) { note('Écris d\'abord ce que tu veux obtenir.', 'erreur'); prompt.focus(); return; }
+  // Amelioration automatique pour une creation, sauf si le texte vient deja d'etre ameliore
+  if (etat.amelioration?.auto && etat.amelioration.modele && !etat.source && texte !== etat.texteAmeliore) {
+    if (await ameliorer()) texte = prompt.value.trim();
+    else note('Génération avec ta description telle quelle.');
+  }
   const [largeur, hauteur] = tailleVoulue();
   const corps = { prompt: texte, largeur, hauteur, seed: $('#seed').value, nombre: etat.nombre };
   if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
@@ -747,6 +772,53 @@ async function lancer() {
   } catch (err) { note(err.message, 'erreur'); }
 }
 
+// ---------- Amelioration de la description ----------
+function majAmelioration(a) {
+  etat.amelioration = a || { modele: '', auto: false };
+  $('#ameliorer').hidden = !etat.amelioration.modele;
+  $('#ameliorer').title = etat.amelioration.modele
+    ? `Réécrire la description en plus détaillé avec ${etat.amelioration.modele}` : '';
+}
+
+async function ameliorer() {
+  const texte = prompt.value.trim();
+  if (!texte) { note('Écris d\'abord une description à améliorer.', 'erreur'); prompt.focus(); return false; }
+  const bouton = $('#ameliorer');
+  etat.ameliorant = true;
+  bouton.disabled = true; prompt.disabled = true; $('#generer').disabled = true;
+  bouton.querySelector('span').textContent = 'Amélioration…';
+  $('#serveur').textContent = 'Amélioration de la description';
+  try {
+    const { prompt: nouveau } = await api('/api/ameliorer', { prompt: texte });
+    etat.texteOriginal = texte;
+    etat.texteAmeliore = nouveau;
+    prompt.value = nouveau;
+    prompt.classList.add('ameliore');
+    $('#retablir').hidden = false;
+    ajusterPrompt();
+    return true;
+  } catch (err) {
+    note(err.message, 'erreur');
+    return false;
+  } finally {
+    etat.ameliorant = false;
+    bouton.disabled = false; prompt.disabled = false; $('#generer').disabled = false;
+    bouton.querySelector('span').textContent = 'Améliorer';
+    if (!etat.occupe) $('#serveur').textContent = 'Prêt';
+  }
+}
+
+$('#ameliorer').addEventListener('click', ameliorer);
+$('#retablir').addEventListener('click', () => {
+  prompt.value = etat.texteOriginal || '';
+  etat.texteAmeliore = null;
+  prompt.classList.remove('ameliore');
+  $('#retablir').hidden = true;
+  ajusterPrompt();
+  prompt.focus();
+});
+prompt.addEventListener('input', () => prompt.classList.toggle('ameliore', !!etat.texteAmeliore && prompt.value === etat.texteAmeliore));
+
 async function annuler() {
   try { await api('/api/annuler', {}); } catch (err) { note(err.message, 'erreur'); }
 }
@@ -757,7 +829,7 @@ function majInterfaceOccupee(occupe) {
   b.innerHTML = occupe ? '<svg class="i"><use href="#i-x"/></svg><span>Annuler</span>' : '<svg class="i"><use href="#i-etincelle"/></svg><span>Générer</span>';
   $('#calcul').hidden = !occupe;
   $('#serveur').textContent = occupe ? 'Génération en cours' : 'Prêt';
-  ['#modifier', '#copier'].forEach(s => $(s).disabled = occupe);
+  ['#modifier', '#copier', '#ameliorer'].forEach(s => $(s).disabled = occupe);
 }
 
 function majCalcul(e) {
@@ -1046,6 +1118,7 @@ function remplirReglages(r) {
   remplirModeles($('#r-vision'), r.modele_vision, true);
   remplirModeles($('#r-vae'), r.vae);
   remplirLoras(r.loras || []);
+  remplirOllama(r.amelioration_modele);
   const methode = $('#r-methode');
   methode.innerHTML = '';
   infosReglages.methodes.forEach(m => methode.append(new Option(m, m)));
@@ -1107,6 +1180,29 @@ function majLorasActifs(actifs) {
   }
 }
 
+async function remplirOllama(valeur) {
+  const liste = $('#r-amelio-modele');
+  // Garde la valeur enregistree le temps de la reponse d'Ollama
+  liste.innerHTML = '';
+  liste.append(new Option('Désactivée', ''));
+  if (valeur) liste.append(new Option(valeur, valeur));
+  liste.value = valeur || '';
+  const n = $('#note-ollama');
+  n.textContent = 'Recherche des modèles d\'Ollama…';
+  n.classList.remove('alerte');
+  let modeles = [], erreur = '';
+  try { const r = await api('/api/ollama-modeles'); modeles = r.modeles; erreur = r.erreur || ''; }
+  catch (err) { erreur = err.message; }
+  const choisi = liste.value;
+  liste.innerHTML = '';
+  liste.append(new Option('Désactivée', ''));
+  modeles.forEach(m => liste.append(new Option(`${m.nom}  ·  ${taille(m.taille)}`, m.nom)));
+  if (choisi && !modeles.some(m => m.nom === choisi)) liste.append(new Option(`${choisi}  ·  introuvable`, choisi));
+  liste.value = choisi;
+  n.textContent = erreur || (modeles.length ? `${modeles.length} modèles disponibles dans Ollama.` : 'Aucun modèle dans Ollama.');
+  n.classList.toggle('alerte', !!erreur);
+}
+
 function verifierSigmas() {
   const valeurs = $('#r-sigmas').value.split(',').map(x => x.trim()).filter(Boolean);
   const voulu = (+$('#r-etapes').value || 0) + 1;
@@ -1157,7 +1253,7 @@ $('#form-reglages').addEventListener('submit', async e => {
   try {
     const { reglages } = await api('/api/reglages', lireFormulaire());
     majBadge(reglages.modele_diffusion);
-    api('/api/etat').then(e => { majLorasActifs(e.loras_actifs); majProblemes(e.problemes, e.local); }).catch(() => {});
+    api('/api/etat').then(e => { majLorasActifs(e.loras_actifs); majProblemes(e.problemes, e.local); majAmelioration(e.amelioration); }).catch(() => {});
     $('#modale-reglages').classList.remove('ouverte');
     note('Réglages enregistrés');
   } catch (err) { note(err.message, 'erreur'); }
@@ -1179,6 +1275,7 @@ $('#modale-reglages').addEventListener('mousedown', e => { if (e.target.id === '
     majBadge(e.modele);
     majLorasActifs(e.loras_actifs);
     majProblemes(e.problemes, e.local);
+    majAmelioration(e.amelioration);
     $('#version').textContent = 'Prisme v' + e.version;
     // Ouvre sur la derniere image creee plutot que sur une scene vide
     if (etat.images.length && !etat.courant) afficher(etat.images[0].nom);

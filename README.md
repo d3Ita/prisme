@@ -7,6 +7,7 @@ Application locale pour créer et modifier des images par intelligence artificie
 ## Fonctions
 
 - **Création** d'images à partir d'une description, de 1 à 4 images par lancement
+- **Amélioration de la description** par un modèle de langage local (Ollama), à la demande ou automatiquement
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
 - **Historique** avec recherche, visionneuse plein écran, réutilisation de la description et du seed, mise à la corbeille
@@ -19,6 +20,8 @@ Application locale pour créer et modifier des images par intelligence artificie
 - Windows 10 ou 11 avec une carte graphique NVIDIA (8 Go de mémoire vidéo ou plus conseillés)
 - [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp/releases), version CUDA pour Windows
 - Des modèles compatibles avec stable-diffusion.cpp, au format GGUF ou safetensors
+
+Facultatif : [Ollama](https://ollama.com) avec un modèle de langage, pour améliorer les descriptions.
 
 Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un encodeur de texte de type LLM (`--llm`), un VAE et, pour la modification d'image, un encodeur d'image (`--llm_vision`).
 
@@ -50,6 +53,16 @@ Au premier lancement, Windows peut demander d'autoriser l'accès au réseau. Acc
 | Parcourir l'historique | Clic sur une vignette, ou flèches ← → |
 
 Les réglages sont enregistrés dans `app/reglages.json`, les images dans `images/`. L'application s'arrête seule après 30 minutes sans fenêtre ouverte (modifiable dans les Réglages).
+
+### Amélioration de la description
+
+Une description courte (« un chat sur un toit la nuit ») donne souvent une image moins réussie qu'une description détaillée. Prisme peut la faire réécrire par un modèle de langage servi par Ollama :
+
+1. Installe [Ollama](https://ollama.com) et télécharge un modèle de langage (`ollama pull <modèle>`).
+2. Dans **Réglages → Amélioration de la description**, choisis ce modèle.
+3. Clique sur **Améliorer** au-dessus de la description : le texte détaillé remplace le tien, tu peux le modifier, et **Rétablir** revient à ton texte.
+
+L'option **Améliorer automatiquement** le fait avant chaque création (pas pour les modifications d'image). La consigne donnée au modèle et l'adresse d'Ollama se changent dans les Réglages. Le modèle de langage est déchargé de la carte graphique dès sa réponse, pour laisser la place à la génération.
 
 ### Téléphone
 

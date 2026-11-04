@@ -11,6 +11,8 @@ import socket
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 import threading
 import time
 from collections import deque
@@ -20,7 +22,7 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
@@ -34,6 +36,16 @@ SD_CLI = RACINE / 'sd' / 'sd-cli.exe'
 EDGE = Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe')
 FICHIER_CODE = DONNEES / 'code-acces.txt'
 FICHIER_REGLAGES = DONNEES / 'reglages.json'
+
+CONSIGNE_AMELIORATION = (
+    "Tu réécris des descriptions d'images pour un générateur d'images. "
+    "Garde exactement le sujet et l'intention de l'utilisateur, sans rien ajouter qui change le sens. "
+    "Précise le cadrage, la lumière, l'ambiance, les matières, les couleurs et le style photo ou illustration. "
+    "Réponds uniquement par la description finale, en anglais, en un seul paragraphe de 60 à 90 mots. "
+    "Écris tout en anglais : aucun mot ni caractère chinois ou d'une autre langue."
+)
+# Certains modeles glissent parfois quelques mots en chinois : on redemande alors une fois
+CARACTERES_CJK = re.compile(r'[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]')
 
 # Aucun modele impose : ils se choisissent dans les Reglages au premier lancement
 REGLAGES_DEFAUT = {
@@ -52,6 +64,11 @@ REGLAGES_DEFAUT = {
     'arret_auto_minutes': 30,
     # [{'nom': 'fichier.safetensors', 'force': 1.0, 'actif': True}], fichiers du dossier models/loras
     'loras': [],
+    # Amelioration de la description par un modele de langage servi par Ollama (vide = desactivee)
+    'amelioration_modele': '',
+    'amelioration_auto': False,
+    'amelioration_consigne': CONSIGNE_AMELIORATION,
+    'ollama_adresse': 'http://127.0.0.1:11434',
 }
 METHODES = ['euler', 'euler_a', 'heun', 'dpm2', 'dpm++2s_a', 'dpm++2m', 'dpm++2mv2', 'ipndm', 'ipndm_v', 'lcm',
             'ddim_trailing', 'tcd', 'res_multistep', 'res_2s', 'er_sde', 'euler_cfg_pp', 'euler_a_cfg_pp', 'euler_ge',
@@ -69,6 +86,7 @@ dernier_contact = time.time()
 etat = {'occupe': False}
 processus = None
 annule = False
+amelioration_en_cours = threading.Lock()
 cache_infos = {}
 # Acces reseau du serveur en cours : un changement de reglage s'applique au prochain lancement
 SERVEUR_RESEAU = True
@@ -108,6 +126,11 @@ def valider_reglages(donnees):
                 return None, f'Nom de LoRA invalide : {nom}'
             loras.append({'nom': nom, 'force': round(float(l.get('force', 1.0)), 2), 'actif': bool(l.get('actif', True))})
         r['loras'] = loras
+        r['amelioration_modele'] = str(donnees.get('amelioration_modele', r['amelioration_modele'])).strip()
+        r['amelioration_auto'] = bool(donnees.get('amelioration_auto', r['amelioration_auto']))
+        r['amelioration_consigne'] = str(donnees.get('amelioration_consigne', r['amelioration_consigne'])).strip() \
+            or CONSIGNE_AMELIORATION
+        r['ollama_adresse'] = str(donnees.get('ollama_adresse', r['ollama_adresse'])).strip().rstrip('/')
         [float(x) for x in r['sigmas'].split(',') if r['sigmas']]
     except (TypeError, ValueError):
         return None, 'Une valeur est invalide.'
@@ -121,6 +144,8 @@ def valider_reglages(donnees):
         return None, 'Méthode d\'échantillonnage inconnue.'
     if r['sigmas'] and len(r['sigmas'].split(',')) != r['etapes'] + 1:
         return None, f'Il faut {r["etapes"] + 1} sigmas pour {r["etapes"]} étapes, ou laisser le champ vide.'
+    if not re.match(r'^https?://[^/\s]+$', r['ollama_adresse']):
+        return None, 'Adresse d\'Ollama invalide (exemple : http://127.0.0.1:11434).'
     if any(not -2 <= l['force'] <= 2 for l in r['loras']):
         return None, 'La force d\'un LoRA doit être entre -2 et 2.'
     if not 1 <= r['arret_auto_minutes'] <= 24 * 60:
@@ -162,6 +187,42 @@ def mettre_a_la_corbeille(chemin):
     operation = _OperationFichier(wFunc=3, pFrom=str(chemin) + '\0', fFlags=0x40 | 0x10 | 0x4 | 0x400)
     resultat = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(operation))
     return resultat == 0 and not operation.fAnyOperationsAborted and not Path(chemin).exists()
+
+
+def appel_ollama(r, chemin, corps=None, delai=10):
+    requete = urllib.request.Request(r['ollama_adresse'] + chemin, json.dumps(corps).encode() if corps else None,
+                                     {'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(requete, timeout=delai) as reponse:
+            return json.load(reponse)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode('utf-8', 'replace')[:200]
+        raise RuntimeError(f'Ollama a refusé la demande : {detail}') from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise RuntimeError('Ollama ne répond pas : lance Ollama ou vérifie son adresse dans les Réglages.') from None
+
+
+def ameliorer_description(r, texte):
+    resultat = ''
+    for temperature, dernier in ((0.6, False), (0.3, True)):
+        reponse = appel_ollama(r, '/api/chat', {
+            'model': r['amelioration_modele'],
+            'messages': [{'role': 'system', 'content': r['amelioration_consigne']}, {'role': 'user', 'content': texte}],
+            'stream': False,
+            # Libere la carte graphique pour la generation qui suit, sauf avant une seconde tentative
+            'keep_alive': 0 if dernier else '30s',
+            'options': {'temperature': temperature},
+        }, delai=300)
+        resultat = reponse.get('message', {}).get('content', '')
+        # Certains modeles ecrivent leur raisonnement entre balises avant la reponse
+        resultat = re.sub(r'<think>.*?</think>', '', resultat, flags=re.S).strip().strip('"«» ').strip()
+        if resultat and not CARACTERES_CJK.search(resultat):
+            if not dernier:
+                appel_ollama(r, '/api/generate', {'model': r['amelioration_modele'], 'keep_alive': 0})
+            break
+    if not resultat:
+        raise RuntimeError('Le modèle n\'a rien renvoyé.')
+    return CARACTERES_CJK.sub('', resultat).strip()
 
 
 def lister_loras():
@@ -441,8 +502,17 @@ class Gestionnaire(BaseHTTPRequestHandler):
             copie['modele'] = r['modele_diffusion']
             copie['version'] = VERSION
             copie['problemes'] = problemes_configuration(r)
+            copie['amelioration'] = {'modele': r['amelioration_modele'], 'auto': r['amelioration_auto']}
             copie['loras_actifs'] = [{'nom': Path(l['nom']).stem, 'force': l['force']} for l in loras_actifs(r)]
             self.envoyer(200, copie)
+        elif chemin == '/api/ollama-modeles':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            try:
+                modeles = appel_ollama(lire_reglages(), '/api/tags').get('models', [])
+                self.envoyer(200, {'modeles': [{'nom': m['name'], 'taille': m.get('size', 0)} for m in modeles]})
+            except RuntimeError as e:
+                self.envoyer(200, {'modeles': [], 'erreur': str(e)})
         elif chemin == '/api/acces':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -484,6 +554,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             with verrou:
                 if etat['occupe']:
                     return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
+                if amelioration_en_cours.locked():
+                    return self.envoyer(409, {'erreur': 'Attends la fin de l\'amélioration de la description.'})
                 annule = False
                 etat.clear()
                 etat.update(occupe=True, phase='chargement', etape=0, total=r['etapes'], index=1, nombre=nombre,
@@ -493,6 +565,23 @@ class Gestionnaire(BaseHTTPRequestHandler):
                           source_nom=p.get('source_nom'), source_data=p.get('source_data'))
             threading.Thread(target=generer, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
+
+        elif chemin == '/api/ameliorer':
+            r = lire_reglages()
+            texte = str(self.lire_json().get('prompt', '')).strip()
+            if not texte:
+                return self.envoyer(400, {'erreur': 'Écris d\'abord une description à améliorer.'})
+            if not r['amelioration_modele']:
+                return self.envoyer(400, {'erreur': 'Choisis un modèle d\'amélioration dans les Réglages.'})
+            # Le modele de langage et la generation ne tiennent pas ensemble en memoire video
+            if etat.get('occupe') or not amelioration_en_cours.acquire(blocking=False):
+                return self.envoyer(409, {'erreur': 'Attends la fin du calcul en cours.'})
+            try:
+                self.envoyer(200, {'prompt': ameliorer_description(r, texte)})
+            except RuntimeError as e:
+                self.envoyer(502, {'erreur': str(e)})
+            finally:
+                amelioration_en_cours.release()
 
         elif chemin == '/api/supprimer':
             nom = str(self.lire_json().get('nom') or '')

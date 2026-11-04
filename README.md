@@ -131,13 +131,12 @@ py -3 app\serveur.py
 
 ## Usage responsable
 
-Prisme n'applique aucun filtre de contenu : tu es responsable des images que tu crées, modifies et partages, dans le respect de la loi de ton pays. En particulier :
+Tu es responsable des images que tu crées, modifies et partages avec Prisme. Utilise-le dans le respect de la loi de ton pays, des personnes et des droits des autres :
 
-- **Pas d'image d'une vraie personne sans son accord**, surtout pour la mettre en scène, la dénuder ou lui attribuer des propos ou des actes.
-- **Aucun contenu sexuel impliquant des mineurs**, réels ou fictifs.
-- **Pas de tromperie** : ne fais pas passer une image créée ou modifiée pour une vraie photo dans le but de tromper, et indique qu'elle est générée par IA quand tu la publies.
-- **Respecte les droits des autres** : œuvres, marques et images protégées.
-- **Respecte les licences des modèles** que tu utilises : certaines interdisent des usages précis.
+- respecte l'image, la vie privée et la dignité des personnes réelles, et demande leur accord ;
+- ne crée ni ne diffuse aucun contenu illégal ;
+- ne présente pas une image générée comme une vraie photo pour tromper quelqu'un ;
+- respecte les droits d'auteur et les licences des modèles que tu utilises.
 
 ## Licence
 

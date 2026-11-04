@@ -71,8 +71,8 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 
 <table>
   <tr>
-    <td><img src="docs/captures/ordinateur-sombre.png" alt="Prisme en thème sombre : une demande et son image, comme une conversation"></td>
-    <td><img src="docs/captures/modeles.png" alt="Fenêtre des modèles conseillés, téléchargés en un clic"></td>
+    <td><img src="docs/captures/fr/ordinateur-sombre.png" alt="Prisme en thème sombre : une demande et son image, comme une conversation"></td>
+    <td><img src="docs/captures/fr/modeles.png" alt="Fenêtre des modèles conseillés, téléchargés en un clic"></td>
   </tr>
   <tr>
     <td align="center">Thème sombre sur ordinateur</td>
@@ -81,8 +81,8 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 </table>
 <table>
   <tr>
-    <td><img src="docs/captures/telephone.png" alt="Prisme sur un téléphone" width="260"></td>
-    <td><img src="docs/captures/telephone-options.png" alt="Panneau d'options du téléphone : format, nombre d'images, variante" width="260"></td>
+    <td><img src="docs/captures/fr/telephone.png" alt="Prisme sur un téléphone" width="260"></td>
+    <td><img src="docs/captures/fr/telephone-options.png" alt="Panneau d'options du téléphone : format, nombre d'images, variante" width="260"></td>
   </tr>
   <tr>
     <td align="center">Sur un téléphone, avec le Wi-Fi de la maison</td>

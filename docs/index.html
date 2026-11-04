@@ -88,7 +88,8 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--fond); color: var(--texte); font: 17px/1.6 var(--police); -webkit-font-smoothing: antialiased; }
 a { color: var(--accent-2); }
-img { max-width: 100%; display: block; }
+/* La hauteur suit la largeur : les attributs width et height ne servent qu'a reserver la place */
+img { max-width: 100%; height: auto; display: block; }
 .largeur { width: min(1120px, 100% - 32px); margin: 0 auto; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
@@ -171,6 +172,9 @@ summary::-webkit-details-marker { display: none; }
 summary::after { content: "+"; position: absolute; right: 4px; top: 12px; font-size: 24px; color: var(--texte-3); }
 details[open] summary::after { content: "–"; }
 details p { margin: 0 0 18px; color: var(--texte-2); }
+.confidentialite { max-width: 760px; margin: 0 auto; }
+.confidentialite ul { margin: 0; padding-left: 20px; color: var(--texte-2); font-size: 16px; }
+.confidentialite li + li { margin-top: 8px; }
 
 /* Pied de page */
 footer { padding: 44px 0 56px; border-top: 1px solid var(--bordure); color: var(--texte-3); font-size: 14.5px; }
@@ -305,21 +309,21 @@ footer p { margin: 0; max-width: 640px; }
       <div class="captures">
         <div>
           <figure>
-            <img src="captures/ordinateur-sombre.png" width="1280" height="760" loading="lazy" alt="Prisme in dark mode: a request and the image it created">
+            <img src="captures/ordinateur-sombre.png" data-src-fr="captures/fr/ordinateur-sombre.png" width="1280" height="760" loading="lazy" alt="Prisme in dark mode: a request and the image it created">
             <figcaption><span lang="en">A request and its image, like a chat</span><span lang="fr">Une demande et son image, comme une conversation</span></figcaption>
           </figure>
           <figure style="margin-top:22px">
-            <img src="captures/modeles.png" width="1280" height="760" loading="lazy" alt="Recommended models window with one-click downloads">
+            <img src="captures/modeles.png" data-src-fr="captures/fr/modeles.png" width="1280" height="760" loading="lazy" alt="Recommended models window with one-click downloads">
             <figcaption><span lang="en">Recommended models, downloaded in one click</span><span lang="fr">Les modèles conseillés, téléchargés en un clic</span></figcaption>
           </figure>
         </div>
         <div class="telephones">
           <figure>
-            <img src="captures/telephone.png" width="585" height="1266" loading="lazy" alt="Prisme on a phone">
+            <img src="captures/telephone.png" data-src-fr="captures/fr/telephone.png" width="585" height="1266" loading="lazy" alt="Prisme on a phone">
             <figcaption><span lang="en">On a phone</span><span lang="fr">Sur téléphone</span></figcaption>
           </figure>
           <figure>
-            <img src="captures/telephone-options.png" width="585" height="1266" loading="lazy" alt="Phone options: format, number of images, variant">
+            <img src="captures/telephone-options.png" data-src-fr="captures/fr/telephone-options.png" width="585" height="1266" loading="lazy" alt="Phone options: format, number of images, variant">
             <figcaption><span lang="en">Options panel</span><span lang="fr">Panneau d'options</span></figcaption>
           </figure>
         </div>
@@ -404,6 +408,29 @@ footer p { margin: 0; max-width: 640px; }
       </div>
     </div>
   </section>
+  <section id="privacy">
+    <div class="largeur">
+      <h2><span lang="en">Privacy and legal notice</span><span lang="fr">Confidentialité et mentions légales</span></h2>
+      <div class="confidentialite">
+        <ul lang="en">
+          <li><strong>No cookies, no analytics, no advertising.</strong> The author of Prisme collects no data about visitors.</li>
+          <li>Your language choice (EN or FR) is saved only in your browser, so the page opens in that language next time. You can clear it with your browser data.</li>
+          <li>This site is hosted by GitHub, which receives your IP address when you open the page or download a file, like any web host, and the page asks GitHub for the latest version number. See the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</li>
+          <li>The Prisme app sends nothing about you either: your prompts, images and models stay on your computer. It only contacts GitHub (engines, new version check, which can be turned off) and Hugging Face (models) to download files.</li>
+          <li><strong>Publisher:</strong> d3Ita, a non-commercial open-source project by an individual. Contact: <a href="https://github.com/d3Ita/prisme/discussions">GitHub Discussions</a>.</li>
+          <li><strong>Host:</strong> GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, United States.</li>
+        </ul>
+        <ul lang="fr">
+          <li><strong>Pas de cookies, pas de mesure d'audience, pas de publicité.</strong> L'auteur de Prisme ne collecte aucune donnée sur les visiteurs.</li>
+          <li>Ton choix de langue (EN ou FR) est enregistré seulement dans ton navigateur, pour ouvrir la page dans cette langue la prochaine fois. Tu peux l'effacer avec les données de ton navigateur.</li>
+          <li>Ce site est hébergé par GitHub, qui reçoit ton adresse IP quand tu ouvres la page ou télécharges un fichier, comme tout hébergeur, et la page demande à GitHub le numéro de la dernière version. Voir la <a href="https://docs.github.com/fr/site-policy/privacy-policies/github-general-privacy-statement">déclaration de confidentialité de GitHub</a>.</li>
+          <li>L'appli Prisme n'envoie rien sur toi non plus : tes descriptions, tes images et tes modèles restent sur ton ordinateur. Elle contacte seulement GitHub (moteurs, recherche de nouvelle version, désactivable) et Hugging Face (modèles) pour télécharger des fichiers.</li>
+          <li><strong>Éditeur :</strong> d3Ita, projet open source non commercial d'un particulier. Contact : <a href="https://github.com/d3Ita/prisme/discussions">Discussions GitHub</a>.</li>
+          <li><strong>Hébergeur :</strong> GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer>
@@ -415,14 +442,22 @@ footer p { margin: 0; max-width: 640px; }
     <p>
       <a href="https://github.com/d3Ita/prisme">GitHub</a> ·
       <a href="https://github.com/d3Ita/prisme/blob/main/CHANGELOG.md">Changelog</a> ·
-      <a href="https://github.com/d3Ita/prisme/discussions">Discussions</a>
+      <a href="https://github.com/d3Ita/prisme/discussions">Discussions</a> ·
+      <a href="#privacy"><span lang="en">Privacy</span><span lang="fr">Confidentialité</span></a>
     </p>
   </div>
 </footer>
 
 <script>
-  // La demo montre l'interface dans la langue de la page
-  const majDemo = () => { document.getElementById('demo').src = document.documentElement.dataset.langue === 'fr' ? 'demo-fr.gif' : 'demo.gif'; };
+  // La demo et les captures montrent l'interface dans la langue de la page
+  const majDemo = () => {
+    const fr = document.documentElement.dataset.langue === 'fr';
+    document.getElementById('demo').src = fr ? 'demo-fr.gif' : 'demo.gif';
+    document.querySelectorAll('[data-src-fr]').forEach(img => {
+      img.dataset.srcEn = img.dataset.srcEn || img.getAttribute('src');
+      img.src = fr ? img.dataset.srcFr : img.dataset.srcEn;
+    });
+  };
   majDemo();
   document.querySelectorAll('.langues button').forEach(b => b.addEventListener('click', () => {
     document.documentElement.dataset.langue = b.dataset.choix;

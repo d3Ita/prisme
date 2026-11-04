@@ -180,7 +180,7 @@ On Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` first cr
 python3 -m unittest discover -s tests -v
 ```
 
-The tests cover settings validation, image metadata, engine installation, archive extraction, model links and access protections. They run in a temporary folder, and GitHub runs them for every push, then builds the three versions.
+The tests cover settings validation, image metadata, engine installation, archive extraction, model links and access protections. They run in a temporary folder, and GitHub runs them on Windows and Linux for every push, then builds both versions. The macOS version is built on demand.
 
 | File | Role |
 |---|---|

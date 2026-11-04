@@ -10,11 +10,12 @@ permissions:
 
 jobs:
   tests:
+    # macOS n'est pas teste a chaque envoi : les machines Mac de GitHub sont souvent indisponibles
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-24.04, macos-latest]
+        os: [windows-latest, ubuntu-24.04]
         python: ['3.12', '3.13']
     steps:
       - uses: actions/checkout@v4

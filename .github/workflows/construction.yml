@@ -1,7 +1,9 @@
 name: Construction
 
-# Construit Prisme pour les trois systemes, verifie que chaque programme demarre,
-# puis garde les fichiers comme artefacts (ils ne sont pas publies automatiquement)
+# Construit Prisme, verifie que chaque programme demarre, puis garde les fichiers
+# comme artefacts (ils ne sont pas publies automatiquement).
+# Windows et Linux a chaque envoi ; macOS seulement en lancement manuel (Actions → Construction → Run workflow),
+# car les machines Mac de GitHub sont souvent indisponibles
 on:
   push:
     branches: [main]
@@ -20,9 +22,6 @@ jobs:
           - os: windows-latest
             programme: Prisme.exe
             fichier: Prisme.exe
-          - os: macos-latest
-            programme: .construction/dist/Prisme.app/Contents/MacOS/Prisme
-            fichier: dist/Prisme-macOS-arm64.zip
           - os: ubuntu-24.04
             programme: .construction/dist/prisme
             fichier: dist/Prisme-Linux-x64.tar.gz
@@ -36,30 +35,33 @@ jobs:
       - name: Construction
         run: python construire.py
       - name: Essai du programme
-        shell: python
         env:
           PRISME_RACINE: ${{ runner.temp }}/prisme-essai
-          PROGRAMME: ${{ matrix.programme }}
-        run: |
-          import json, os, subprocess, time, urllib.request
-          processus = subprocess.Popen([os.path.abspath(os.environ['PROGRAMME']), '--sans-fenetre'])
-          etat = None
-          for _ in range(60):
-              try:
-                  with urllib.request.urlopen('http://127.0.0.1:7861/api/etat', timeout=2) as reponse:
-                      etat = json.load(reponse)
-                  break
-              except OSError:
-                  time.sleep(1)
-          assert etat, 'Le programme ne repond pas'
-          print('version', etat['version'], '| problemes', etat['problemes'])
-          demande = urllib.request.Request('http://127.0.0.1:7861/api/quitter', data=b'{}', method='POST',
-                                           headers={'Content-Type': 'application/json'})
-          urllib.request.urlopen(demande, timeout=5).close()
-          processus.wait(timeout=30)
-          print('arret propre, code', processus.returncode)
+        run: python .github/scripts/essai_programme.py ${{ matrix.programme }}
       - uses: actions/upload-artifact@v4
         with:
           name: Prisme-${{ runner.os }}
           path: ${{ matrix.fichier }}
+          if-no-files-found: error
+
+  construire-mac:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Outils de construction
+        run: python -m pip install pyinstaller pillow
+      - name: Construction
+        run: python construire.py
+      - name: Essai du programme
+        env:
+          PRISME_RACINE: ${{ runner.temp }}/prisme-essai
+        run: python .github/scripts/essai_programme.py .construction/dist/Prisme.app/Contents/MacOS/Prisme
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Prisme-macOS
+          path: dist/Prisme-macOS-arm64.zip
           if-no-files-found: error

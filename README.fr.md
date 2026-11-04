@@ -197,7 +197,7 @@ Sous Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` crée 
 python3 -m unittest discover -s tests -v
 ```
 
-Les tests vérifient la validation des réglages, la lecture des images, l'installation des moteurs, l'extraction des archives, les liens vers les modèles et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages ni tes images. GitHub les lance à chaque envoi, puis construit les trois versions.
+Les tests vérifient la validation des réglages, la lecture des images, l'installation des moteurs, l'extraction des archives, les liens vers les modèles et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages ni tes images. GitHub les lance sous Windows et Linux à chaque envoi, puis construit ces deux versions. La version macOS est construite à la demande.
 
 Pour lancer sans construire :
 
@@ -216,7 +216,7 @@ python3 app/serveur.py
 | `construire.py` | Construction de Prisme pour le système en cours |
 | `construire.ps1` | Préparation de Python sous Windows, puis `construire.py` |
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
-| `.github/workflows/` | Tests et construction des trois versions sur GitHub |
+| `.github/workflows/` | Tests et construction sur GitHub |
 
 Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md).
 

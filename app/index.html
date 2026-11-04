@@ -221,8 +221,10 @@ function traduire(texte) {
     if (traduits.some((t, i) => t !== morceaux[i])) r = traduits.join('');
   }
   if (r === undefined) return texte;
-  // Garde les espaces autour du texte, qui separent les mots des elements voisins
-  return texte.match(/^\s*/)[0] + r + texte.match(/\s*$/)[0];
+  // Garde les espaces autour du texte, qui separent les mots des elements voisins ; en anglais,
+  // pas d'espace avant la ponctuation (« ci-dessous : » devient « below: »)
+  const avant = /^[:;,.!?]/.test(r) ? '' : texte.match(/^\s*/)[0];
+  return avant + r + texte.match(/\s*$/)[0];
 }
 
 const ATTRIBUTS_TRADUITS = ['placeholder', 'title', 'aria-label', 'alt'];

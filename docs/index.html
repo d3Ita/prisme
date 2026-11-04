@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prisme · Free local AI image generator for Windows, macOS and Linux</title>
+<meta name="description" content="Prisme is a free, open-source desktop app to create and edit AI images on your own computer. No cloud, no subscription, no complicated setup: download it, let it install the engine and models, and type what you want.">
+<link rel="canonical" href="https://d3ita.github.io/prisme/">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1a18" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Prisme">
+<meta property="og:title" content="Prisme · Local AI image generation, as simple as sending a message">
+<meta property="og:description" content="Free and open source. Create and edit AI images on your own computer: no cloud, no subscription, no complicated setup.">
+<meta property="og:url" content="https://d3ita.github.io/prisme/">
+<meta property="og:image" content="https://d3ita.github.io/prisme/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Prisme",
+  "description": "Free, open-source desktop app to create and edit AI images locally, on your own graphics card. It installs the stable-diffusion.cpp engine and recommended models, and offers a chat-like interface.",
+  "applicationCategory": "MultimediaApplication",
+  "applicationSubCategory": "AI image generator",
+  "operatingSystem": "Windows 10, Windows 11, macOS (Apple Silicon), Linux",
+  "url": "https://d3ita.github.io/prisme/",
+  "downloadUrl": "https://github.com/d3Ita/prisme/releases/latest",
+  "image": "https://d3ita.github.io/prisme/logo.png",
+  "screenshot": "https://d3ita.github.io/prisme/apercu.png",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "inLanguage": ["en", "fr"],
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "author": { "@type": "Person", "name": "d3Ita", "url": "https://github.com/d3Ita" },
+  "sameAs": ["https://github.com/d3Ita/prisme"]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Is Prisme free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits." } },
+    { "@type": "Question", "name": "Does Prisme work offline?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. An internet connection is needed once, to download the engine and the models. After that, creating and editing images runs entirely on your computer." } },
+    { "@type": "Question", "name": "What hardware does Prisme need?", "acceptedAnswer": { "@type": "Answer", "text": "A graphics card with 8 GB of video memory or more: NVIDIA, AMD or Intel on Windows, any Vulkan card on Linux, or an Apple Silicon Mac." } },
+    { "@type": "Question", "name": "Is Prisme an alternative to ComfyUI?", "acceptedAnswer": { "@type": "Answer", "text": "For creating and editing images from a description, yes, with a much simpler interface. For complex multi-step workflows, ComfyUI stays more powerful." } }
+  ]
+}
+</script>
+<script>
+  // Langue : celle choisie, sinon celle du navigateur (francais pour les navigateurs en francais)
+  (() => {
+    let choix = null;
+    try { choix = localStorage.getItem('prisme-site-langue'); } catch {}
+    const langue = choix || ((navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+    document.documentElement.dataset.langue = langue;
+    document.documentElement.lang = langue;
+  })();
+</script>
+<style>
+:root {
+  --fond: #f6f4ef; --surface: #ffffff; --surface-2: #fbfaf7; --surface-3: #efece5;
+  --bordure: #e7e3da; --bordure-forte: #d5cfc3;
+  --texte: #1f2430; --texte-2: #575d6b; --texte-3: #858a95;
+  --accent: #2f5bea; --accent-2: #2448c4; --accent-doux: rgba(47, 91, 234, .09); --sur-accent: #fff;
+  --ombre: 0 24px 60px rgba(31, 36, 48, .14); --ombre-douce: 0 1px 2px rgba(31, 36, 48, .06), 0 4px 14px rgba(31, 36, 48, .05);
+  --police: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --police-titre: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #1b1a18; --surface: #242320; --surface-2: #2a2926; --surface-3: #34322e;
+    --bordure: #383632; --bordure-forte: #4a4742;
+    --texte: #f1eee8; --texte-2: #bdb8ae; --texte-3: #8d887f;
+    --accent: #f07a5a; --accent-2: #f59478; --accent-doux: rgba(240, 122, 90, .13); --sur-accent: #2a140d;
+    --ombre: 0 24px 60px rgba(0, 0, 0, .45); --ombre-douce: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .18);
+    color-scheme: dark;
+  }
+}
+:root[data-langue="en"] body [lang="fr"], :root[data-langue="fr"] body [lang="en"] { display: none !important; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 17px/1.6 var(--police); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent-2); }
+img { max-width: 100%; display: block; }
+.largeur { width: min(1120px, 100% - 32px); margin: 0 auto; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* En-tete */
+.entete { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--fond) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--bordure); }
+.entete .largeur { display: flex; align-items: center; gap: 22px; height: 62px; }
+.marque { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--texte); font: 650 19px var(--police-titre); }
+.marque img { width: 32px; height: 32px; border-radius: 8px; }
+.entete nav { display: flex; gap: 22px; margin-left: auto; }
+.entete nav a { color: var(--texte-2); text-decoration: none; font-size: 15px; }
+.entete nav a:hover { color: var(--texte); }
+.langues { display: flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--surface-3); }
+.langues button { border: 0; background: transparent; color: var(--texte-2); font: 600 13px var(--police); padding: 4px 9px; border-radius: 7px; cursor: pointer; }
+:root[data-langue="en"] .langues [data-choix="en"], :root[data-langue="fr"] .langues [data-choix="fr"] { background: var(--surface); color: var(--texte); box-shadow: var(--ombre-douce); }
+
+/* Accroche */
+.accroche { padding: 72px 0 40px; text-align: center; }
+.accroche .pastille { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 999px; background: var(--accent-doux); color: var(--accent-2); font-size: 14px; font-weight: 600; text-decoration: none; }
+.accroche h1 { margin: 20px auto 16px; max-width: 820px; font: 700 clamp(36px, 5.4vw, 60px)/1.08 var(--police-titre); letter-spacing: -.02em; }
+.accroche p.sous { margin: 0 auto; max-width: 640px; color: var(--texte-2); font-size: 19px; }
+.boutons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 30px 0 12px; }
+.bouton { display: inline-flex; align-items: center; gap: 9px; height: 50px; padding: 0 24px; border-radius: 14px; font-weight: 650; font-size: 16px; text-decoration: none; transition: background .15s, transform .1s; }
+.bouton svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.bouton.principal { background: var(--accent); color: var(--sur-accent); }
+.bouton.principal:hover { background: var(--accent-2); }
+.bouton.secondaire { background: var(--surface); color: var(--texte); border: 1px solid var(--bordure-forte); }
+.bouton.secondaire:hover { background: var(--surface-3); }
+.bouton:active { transform: translateY(1px); }
+.petit { color: var(--texte-3); font-size: 14px; }
+.demo { margin: 44px auto 0; width: 100%; max-width: min(980px, 100%); height: auto; border-radius: 18px; overflow: hidden; border: 1px solid var(--bordure); box-shadow: var(--ombre); background: var(--surface); }
+
+/* Sections */
+section { padding: 72px 0; }
+section h2 { margin: 0 0 12px; font: 700 clamp(28px, 3.6vw, 38px)/1.15 var(--police-titre); letter-spacing: -.01em; text-align: center; }
+section .intro { margin: 0 auto 42px; max-width: 620px; text-align: center; color: var(--texte-2); }
+.etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: etape; }
+.etape { padding: 26px; border-radius: 18px; background: var(--surface); border: 1px solid var(--bordure); box-shadow: var(--ombre-douce); }
+.etape::before { counter-increment: etape; content: counter(etape); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--sur-accent); font-weight: 700; margin-bottom: 14px; }
+.etape h3, .carte h3 { margin: 0 0 6px; font: 650 19px var(--police-titre); }
+.etape p, .carte p { margin: 0; color: var(--texte-2); font-size: 16px; }
+.cartes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.carte { padding: 24px; border-radius: 18px; background: var(--surface); border: 1px solid var(--bordure); }
+.carte .icone { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-doux); color: var(--accent-2); margin-bottom: 14px; }
+.carte .icone svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* Dans une grille, une image ne doit pas elargir sa colonne au-dela de l'ecran */
+.etapes > *, .cartes > *, .systemes > *, .captures > *, .telephones > * { min-width: 0; }
+.alterne { background: var(--surface-2); border-top: 1px solid var(--bordure); border-bottom: 1px solid var(--bordure); }
+
+/* Captures */
+.captures { display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
+.captures figure { margin: 0; }
+.captures img { border-radius: 14px; border: 1px solid var(--bordure); box-shadow: var(--ombre-douce); }
+.captures figcaption { margin-top: 10px; color: var(--texte-2); font-size: 15px; text-align: center; }
+.telephones { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* Comparaison et materiel */
+.tableau { overflow-x: auto; border-radius: 16px; border: 1px solid var(--bordure); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 16px; }
+th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--bordure); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-weight: 650; background: var(--surface-2); }
+td:first-child { font-weight: 600; }
+.note-tableau { margin: 14px 0 0; color: var(--texte-3); font-size: 14.5px; text-align: center; }
+
+/* Telechargements */
+.systemes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.systeme { display: flex; flex-direction: column; padding: 26px; border-radius: 18px; background: var(--surface); border: 1px solid var(--bordure); }
+.systeme h3 { margin: 0 0 4px; font: 650 21px var(--police-titre); display: flex; align-items: center; gap: 10px; }
+.systeme .etiquette { font-size: 12.5px; font-weight: 650; padding: 2px 9px; border-radius: 999px; background: var(--surface-3); color: var(--texte-2); }
+.systeme p { color: var(--texte-2); font-size: 15.5px; margin: 6px 0 18px; flex: 1; }
+.systeme .bouton { justify-content: center; height: 46px; }
+.version { margin-top: 18px; text-align: center; }
+
+/* FAQ */
+.faq { max-width: 760px; margin: 0 auto; }
+details { border-bottom: 1px solid var(--bordure); padding: 4px 0; }
+summary { cursor: pointer; list-style: none; padding: 16px 34px 16px 0; font-weight: 650; font-size: 18px; position: relative; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; position: absolute; right: 4px; top: 12px; font-size: 24px; color: var(--texte-3); }
+details[open] summary::after { content: "–"; }
+details p { margin: 0 0 18px; color: var(--texte-2); }
+
+/* Pied de page */
+footer { padding: 44px 0 56px; border-top: 1px solid var(--bordure); color: var(--texte-3); font-size: 14.5px; }
+footer .largeur { display: flex; flex-wrap: wrap; gap: 14px 28px; justify-content: space-between; }
+footer a { color: var(--texte-2); }
+footer p { margin: 0; max-width: 640px; }
+
+@media (max-width: 860px) {
+  .entete nav { display: none; }
+  .langues { margin-left: auto; }
+  .accroche { padding: 48px 0 24px; }
+  .etapes, .cartes, .systemes, .captures { grid-template-columns: 1fr; }
+  section { padding: 54px 0; }
+  .demo { margin-top: 32px; border-radius: 14px; }
+}
+</style>
+</head>
+<body>
+
+<header class="entete">
+  <div class="largeur">
+    <a class="marque" href="#"><img src="logo.png" alt="" width="32" height="32">Prisme</a>
+    <nav>
+      <a href="#how"><span lang="en">How it works</span><span lang="fr">Comment ça marche</span></a>
+      <a href="#features"><span lang="en">Features</span><span lang="fr">Fonctions</span></a>
+      <a href="#download"><span lang="en">Download</span><span lang="fr">Télécharger</span></a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/d3Ita/prisme">GitHub</a>
+    </nav>
+    <div class="langues" role="group" aria-label="Language">
+      <button type="button" data-choix="en">EN</button>
+      <button type="button" data-choix="fr">FR</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="accroche largeur">
+    <a class="pastille" href="https://github.com/d3Ita/prisme/releases/latest">
+      <span lang="en">Free &amp; open source · <span class="numero-version">latest version</span></span>
+      <span lang="fr">Gratuit et open source · <span class="numero-version">dernière version</span></span>
+    </a>
+    <h1>
+      <span lang="en">Local AI image generation, as simple as sending a message</span>
+      <span lang="fr">Créer des images par IA sur ton ordinateur, aussi simplement qu'un message</span>
+    </h1>
+    <p class="sous">
+      <span lang="en">Prisme creates and edits images on your own graphics card. No cloud, no subscription, no Python, no node editor: download it, let it install everything, and type what you want.</span>
+      <span lang="fr">Prisme crée et modifie des images avec ta propre carte graphique. Sans cloud, sans abonnement, sans Python ni éditeur de nœuds : télécharge-le, laisse-le tout installer, et écris ce que tu veux.</span>
+    </p>
+    <div class="boutons">
+      <a class="bouton principal" href="https://github.com/d3Ita/prisme/releases/latest/download/Prisme.exe">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span lang="en">Download for Windows</span><span lang="fr">Télécharger pour Windows</span>
+      </a>
+      <a class="bouton secondaire" href="#download"><span lang="en">macOS and Linux</span><span lang="fr">macOS et Linux</span></a>
+    </div>
+    <p class="petit">
+      <span lang="en">11 MB · Windows 10 and 11 · NVIDIA, AMD and Intel graphics cards</span>
+      <span lang="fr">11 Mo · Windows 10 et 11 · cartes graphiques NVIDIA, AMD et Intel</span>
+    </p>
+    <img class="demo" id="demo" src="demo.gif" width="960" height="570" alt="Prisme demo: a short idea is enhanced, turned into an image, then edited">
+  </div>
+
+  <section id="how">
+    <div class="largeur">
+      <h2><span lang="en">Three steps, then just write</span><span lang="fr">Trois étapes, puis il suffit d'écrire</span></h2>
+      <p class="intro">
+        <span lang="en">An internet connection is needed only once, for the downloads. After that, Prisme works offline.</span>
+        <span lang="fr">Internet ne sert qu'une fois, pour les téléchargements. Ensuite, Prisme marche hors ligne.</span>
+      </p>
+      <div class="etapes">
+        <div class="etape">
+          <h3><span lang="en">Download Prisme</span><span lang="fr">Télécharge Prisme</span></h3>
+          <p><span lang="en">One small program. Nothing else to install: no Python, no dependencies.</span><span lang="fr">Un seul petit programme. Rien d'autre à installer : ni Python, ni dépendances.</span></p>
+        </div>
+        <div class="etape">
+          <h3><span lang="en">Install in two clicks</span><span lang="fr">Installe en deux clics</span></h3>
+          <p><span lang="en">Prisme picks the right engine for your graphics card and downloads tested, official models, checking every file.</span><span lang="fr">Prisme choisit le bon moteur pour ta carte graphique et télécharge des modèles officiels testés, en vérifiant chaque fichier.</span></p>
+        </div>
+        <div class="etape">
+          <h3><span lang="en">Type and press Enter</span><span lang="fr">Écris et appuie sur Entrée</span></h3>
+          <p><span lang="en">Your requests and images follow each other like a chat. Click Edit on any result to change it.</span><span lang="fr">Tes demandes et tes images se suivent comme une conversation. Clique sur Modifier pour changer un résultat.</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="alterne">
+    <div class="largeur">
+      <h2><span lang="en">Everything you need, nothing you don't</span><span lang="fr">L'essentiel, sans le superflu</span></h2>
+      <p class="intro"><span lang="en">Prisme aims to be the simplest way to run image models locally, not the most complex one.</span><span lang="fr">Prisme veut être la façon la plus simple de faire tourner des modèles d'images en local, pas la plus compliquée.</span></p>
+      <div class="cartes">
+        <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h3><span lang="en">Private and offline</span><span lang="fr">Privé et hors ligne</span></h3>
+          <p><span lang="en">Prompts, models and images stay on your computer. No account, no tracking.</span><span lang="fr">Descriptions, modèles et images restent sur ton ordinateur. Pas de compte, pas de pistage.</span></p>
+        </div>
+        <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+          <h3><span lang="en">Edit any image</span><span lang="fr">Modifie n'importe quelle image</span></h3>
+          <p><span lang="en">Drop a photo or reuse a result, then describe the change: "add snow on the roof".</span><span lang="fr">Dépose une photo ou reprends un résultat, puis décris le changement : « ajoute de la neige sur le toit ».</span></p>
+        </div>
+        <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><path d="M4 6h12M4 11h8M4 16h5M14.5 19.5l6-6-2-2-6 6-.5 2.5z"/></svg></div>
+          <h3><span lang="en">Better prompts, locally</span><span lang="fr">De meilleures descriptions, en local</span></h3>
+          <p><span lang="en">A local language model turns a short idea into a detailed description, and looks at your image for edits.</span><span lang="fr">Un modèle de langage local détaille une idée courte, et regarde ton image pour les modifications.</span></p>
+        </div>
+        <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg></div>
+          <h3><span lang="en">Use it from your phone</span><span lang="fr">Utilise-le depuis ton téléphone</span></h3>
+          <p><span lang="en">On the home Wi-Fi, approve your phone once and create from the couch, with the PC's graphics card.</span><span lang="fr">Sur le Wi-Fi de la maison, autorise ton téléphone une fois et crée depuis le canapé, avec la carte graphique du PC.</span></p>
+        </div>
+        <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4v4H7zM15 10h2M15 14h2"/></svg></div>
+          <h3><span lang="en">Your graphics card</span><span lang="fr">Ta carte graphique</span></h3>
+          <p><span lang="en">NVIDIA (CUDA), AMD and Intel (Vulkan) on Windows, Vulkan on Linux, Metal on Apple Silicon Macs.</span><span lang="fr">NVIDIA (CUDA), AMD et Intel (Vulkan) sous Windows, Vulkan sous Linux, Metal sur les Mac à puce Apple.</span></p>
+        </div>
+        <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9M12 3v9l6 3"/></svg></div>
+          <h3><span lang="en">Open and checked</span><span lang="fr">Ouvert et vérifié</span></h3>
+          <p><span lang="en">MIT license, automated tests, and engines and models verified by SHA-256 before use.</span><span lang="fr">Licence MIT, tests automatiques, et moteurs et modèles vérifiés par SHA-256 avant usage.</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screenshots">
+    <div class="largeur">
+      <h2><span lang="en">See it in action</span><span lang="fr">À quoi ça ressemble</span></h2>
+      <p class="intro"><span lang="en">Light and dark themes, in English and French, on a computer or a phone.</span><span lang="fr">Thème clair ou sombre, en français ou en anglais, sur ordinateur ou téléphone.</span></p>
+      <div class="captures">
+        <div>
+          <figure>
+            <img src="captures/ordinateur-sombre.png" width="1280" height="760" loading="lazy" alt="Prisme in dark mode: a request and the image it created">
+            <figcaption><span lang="en">A request and its image, like a chat</span><span lang="fr">Une demande et son image, comme une conversation</span></figcaption>
+          </figure>
+          <figure style="margin-top:22px">
+            <img src="captures/modeles.png" width="1280" height="760" loading="lazy" alt="Recommended models window with one-click downloads">
+            <figcaption><span lang="en">Recommended models, downloaded in one click</span><span lang="fr">Les modèles conseillés, téléchargés en un clic</span></figcaption>
+          </figure>
+        </div>
+        <div class="telephones">
+          <figure>
+            <img src="captures/telephone.png" width="585" height="1266" loading="lazy" alt="Prisme on a phone">
+            <figcaption><span lang="en">On a phone</span><span lang="fr">Sur téléphone</span></figcaption>
+          </figure>
+          <figure>
+            <img src="captures/telephone-options.png" width="585" height="1266" loading="lazy" alt="Phone options: format, number of images, variant">
+            <figcaption><span lang="en">Options panel</span><span lang="fr">Panneau d'options</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alterne">
+    <div class="largeur">
+      <h2><span lang="en">An easy alternative to ComfyUI</span><span lang="fr">Une alternative simple à ComfyUI</span></h2>
+      <p class="intro"><span lang="en">Prisme doesn't try to beat node editors at their own game. It removes the setup.</span><span lang="fr">Prisme ne cherche pas à battre les éditeurs de nœuds sur leur terrain. Il supprime l'installation.</span></p>
+      <div class="tableau">
+        <table>
+          <thead><tr><th></th><th>Prisme</th><th><span lang="en">Node-based tools (ComfyUI…)</span><span lang="fr">Outils à nœuds (ComfyUI…)</span></th></tr></thead>
+          <tbody>
+            <tr><td><span lang="en">Install</span><span lang="fr">Installation</span></td><td><span lang="en">One program, engine and models in two clicks</span><span lang="fr">Un programme, moteur et modèles en deux clics</span></td><td><span lang="en">Python, dependencies, custom nodes</span><span lang="fr">Python, dépendances, nœuds supplémentaires</span></td></tr>
+            <tr><td><span lang="en">Learning curve</span><span lang="fr">Prise en main</span></td><td><span lang="en">Type, press Enter</span><span lang="fr">Écrire, appuyer sur Entrée</span></td><td><span lang="en">Graphs of nodes</span><span lang="fr">Graphes de nœuds</span></td></tr>
+            <tr><td><span lang="en">Phone access</span><span lang="fr">Téléphone</span></td><td><span lang="en">Built in</span><span lang="fr">Intégré</span></td><td><span lang="en">Extra setup</span><span lang="fr">À configurer</span></td></tr>
+            <tr><td><span lang="en">Advanced workflows</span><span lang="fr">Chaînes avancées</span></td><td><span lang="en">Settings, LoRA, samplers</span><span lang="fr">Réglages, LoRA, échantillonneurs</span></td><td><span lang="en">Virtually unlimited</span><span lang="fr">Presque illimitées</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="largeur">
+      <h2><span lang="en">Download Prisme</span><span lang="fr">Télécharger Prisme</span></h2>
+      <p class="intro"><span lang="en">A graphics card with 8 GB of video memory or more is recommended, plus about 16 GB of free disk space for the engine and models.</span><span lang="fr">Une carte graphique avec 8 Go de mémoire vidéo ou plus est conseillée, et environ 16 Go libres sur le disque pour le moteur et les modèles.</span></p>
+      <div class="systemes">
+        <div class="systeme">
+          <h3>Windows</h3>
+          <p><span lang="en">Windows 10 or 11 with an NVIDIA, AMD or Intel graphics card. Not code-signed yet: if SmartScreen appears, click More info, then Run anyway.</span><span lang="fr">Windows 10 ou 11 avec une carte NVIDIA, AMD ou Intel. Pas encore signé : si SmartScreen apparaît, clique sur Informations complémentaires, puis Exécuter quand même.</span></p>
+          <a class="bouton principal" href="https://github.com/d3Ita/prisme/releases/latest/download/Prisme.exe">Prisme.exe</a>
+        </div>
+        <div class="systeme">
+          <h3>macOS <span class="etiquette"><span lang="en">Experimental</span><span lang="fr">Expérimental</span></span></h3>
+          <p><span lang="en">Apple Silicon (M1 or later). The app is not notarized: open System Settings → Privacy &amp; Security and click Open Anyway.</span><span lang="fr">Puce Apple (M1 ou plus récente). L'appli n'est pas notariée : ouvre Réglages Système → Confidentialité et sécurité, puis Ouvrir quand même.</span></p>
+          <a class="bouton secondaire" href="https://github.com/d3Ita/prisme/releases/latest/download/Prisme-macOS-arm64.zip">Prisme-macOS-arm64.zip</a>
+        </div>
+        <div class="systeme">
+          <h3>Linux <span class="etiquette"><span lang="en">Experimental</span><span lang="fr">Expérimental</span></span></h3>
+          <p><span lang="en">x64 with a Vulkan driver (Ubuntu 24.04 or similar). If libraries are missing, Prisme tells you which ones to install.</span><span lang="fr">x64 avec un pilote Vulkan (Ubuntu 24.04 ou équivalent). S'il manque des bibliothèques, Prisme indique lesquelles installer.</span></p>
+          <a class="bouton secondaire" href="https://github.com/d3Ita/prisme/releases/latest/download/Prisme-Linux-x64.tar.gz">Prisme-Linux-x64.tar.gz</a>
+        </div>
+      </div>
+      <p class="version petit">
+        <span lang="en">Checksums, release notes and earlier versions are on the <a href="https://github.com/d3Ita/prisme/releases">Releases page</a>.</span>
+        <span lang="fr">Les empreintes, les notes de version et les versions précédentes sont sur la <a href="https://github.com/d3Ita/prisme/releases">page Releases</a>.</span>
+      </p>
+    </div>
+  </section>
+
+  <section id="faq" class="alterne">
+    <div class="largeur">
+      <h2><span lang="en">Questions</span><span lang="fr">Questions fréquentes</span></h2>
+      <div class="faq">
+        <details>
+          <summary><span lang="en">Is Prisme free?</span><span lang="fr">Prisme est-il gratuit ?</span></summary>
+          <p><span lang="en">Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits. The recommended models are free to download too; check each model's license on its page.</span><span lang="fr">Oui. Prisme est open source sous licence MIT, sans compte, sans abonnement et sans crédits. Les modèles conseillés sont gratuits aussi ; vérifie la licence de chacun sur sa page.</span></p>
+        </details>
+        <details>
+          <summary><span lang="en">Does it work offline?</span><span lang="fr">Est-ce que ça marche sans Internet ?</span></summary>
+          <p><span lang="en">Yes, once the engine and the models are downloaded. The only optional connection is a version check on GitHub at launch, which you can turn off.</span><span lang="fr">Oui, une fois le moteur et les modèles téléchargés. La seule connexion facultative est la recherche d'une nouvelle version sur GitHub au lancement, qui se désactive.</span></p>
+        </details>
+        <details>
+          <summary><span lang="en">What hardware do I need?</span><span lang="fr">Quel matériel faut-il ?</span></summary>
+          <p><span lang="en">A graphics card with 8 GB of video memory or more. On an NVIDIA RTX 4070 SUPER (12 GB), a 1024 × 1024 image takes 25 to 50 seconds, model loading included. Other cards haven't been measured yet: results are welcome in the project's Discussions.</span><span lang="fr">Une carte graphique avec 8 Go de mémoire vidéo ou plus. Sur une NVIDIA RTX 4070 SUPER (12 Go), une image de 1024 × 1024 prend 25 à 50 secondes, chargement des modèles compris. Les autres cartes n'ont pas encore été mesurées : tes résultats sont les bienvenus dans les Discussions du projet.</span></p>
+        </details>
+        <details>
+          <summary><span lang="en">Which models does it use?</span><span lang="fr">Quels modèles utilise-t-il ?</span></summary>
+          <p><span lang="en">Prisme downloads a tested set of official, general-purpose models from Hugging Face (Qwen-Image 2.1 Turbo and Qwen3-VL). It also runs other models supported by stable-diffusion.cpp, in GGUF or safetensors format, plus LoRA.</span><span lang="fr">Prisme télécharge un ensemble testé de modèles officiels et généralistes depuis Hugging Face (Qwen-Image 2.1 Turbo et Qwen3-VL). Il fait aussi tourner d'autres modèles pris en charge par stable-diffusion.cpp, en GGUF ou safetensors, ainsi que les LoRA.</span></p>
+        </details>
+        <details>
+          <summary><span lang="en">Is it an alternative to ComfyUI?</span><span lang="fr">Est-ce une alternative à ComfyUI ?</span></summary>
+          <p><span lang="en">For creating and editing images from a description, yes, with a much simpler interface. For complex multi-step workflows, ComfyUI stays more powerful.</span><span lang="fr">Pour créer et modifier des images à partir d'une description, oui, avec une interface bien plus simple. Pour des chaînes de traitement complexes, ComfyUI reste plus puissant.</span></p>
+        </details>
+        <details>
+          <summary><span lang="en">Is it safe to use from my phone?</span><span lang="fr">Est-ce sûr depuis mon téléphone ?</span></summary>
+          <p><span lang="en">Phone access is off by default. When you turn it on, each device needs a random access code or your approval on the PC. The connection isn't encrypted, so use it on your home Wi-Fi, not on public networks.</span><span lang="fr">L'accès depuis le téléphone est désactivé par défaut. Une fois activé, chaque appareil a besoin d'un code d'accès aléatoire ou de ton autorisation sur le PC. La connexion n'est pas chiffrée : utilise-la sur le Wi-Fi de la maison, pas sur un réseau public.</span></p>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="largeur">
+    <p>
+      <span lang="en">Prisme is designed for legal and ethical use. Each user is responsible for the images they create, edit or share. Released under the <a href="https://github.com/d3Ita/prisme/blob/main/LICENSE">MIT license</a>.</span>
+      <span lang="fr">Prisme est conçu pour un usage légal et éthique. Chaque utilisateur est responsable des images qu'il crée, modifie ou partage. Distribué sous <a href="https://github.com/d3Ita/prisme/blob/main/LICENSE">licence MIT</a>.</span>
+    </p>
+    <p>
+      <a href="https://github.com/d3Ita/prisme">GitHub</a> ·
+      <a href="https://github.com/d3Ita/prisme/blob/main/CHANGELOG.md">Changelog</a> ·
+      <a href="https://github.com/d3Ita/prisme/discussions">Discussions</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+  // La demo montre l'interface dans la langue de la page
+  const majDemo = () => { document.getElementById('demo').src = document.documentElement.dataset.langue === 'fr' ? 'demo-fr.gif' : 'demo.gif'; };
+  majDemo();
+  document.querySelectorAll('.langues button').forEach(b => b.addEventListener('click', () => {
+    document.documentElement.dataset.langue = b.dataset.choix;
+    document.documentElement.lang = b.dataset.choix;
+    try { localStorage.setItem('prisme-site-langue', b.dataset.choix); } catch {}
+    majDemo();
+  }));
+  // Numero de la derniere version, lu sur GitHub ; la page reste correcte sans lui
+  fetch('https://api.github.com/repos/d3Ita/prisme/releases/latest')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d?.tag_name) document.querySelectorAll('.numero-version').forEach(e => e.textContent = 'v' + d.tag_name.replace(/^v/, '')); })
+    .catch(() => {});
+</script>
+</body>
+</html>

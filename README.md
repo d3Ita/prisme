@@ -28,6 +28,7 @@
 </p>
 
 <p align="center">
+  <a href="https://d3ita.github.io/prisme/"><strong>Website</strong></a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#features">Features</a> ·
   <a href="#recommended-models">Models</a> ·

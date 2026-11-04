@@ -29,6 +29,7 @@
 </p>
 
 <p align="center">
+  <a href="https://d3ita.github.io/prisme/"><strong>Site</strong></a> ·
   <a href="#installation">Installation</a> ·
   <a href="#modèles-conseillés">Modèles</a> ·
   <a href="#utilisation">Utilisation</a> ·
@@ -40,7 +41,7 @@
 
 Application locale pour créer et modifier des images par intelligence artificielle sur Windows, macOS et Linux. Tout tourne sur ton ordinateur : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). Il faut Internet une seule fois, pour télécharger le moteur et les modèles : ensuite, Prisme marche hors ligne.
 
-![Démonstration de Prisme : une idée courte, améliorée, générée, puis modifiée](docs/demo.gif)
+![Démonstration de Prisme : une idée courte, améliorée, générée, puis modifiée](docs/demo-fr.gif)
 
 ### Pour qui ?
 

@@ -28,7 +28,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.6.0'
+VERSION = '1.7.0'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
 PORT = int(os.environ.get('PRISME_PORT') or 7861)
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
@@ -94,6 +94,19 @@ MOTEURS_PAR_SYSTEME = {
         'dll_partagees': ['cublas64_12.dll', 'cublasLt64_12.dll', 'cudart64_12.dll'],
     },
   },
+  # Windows sans carte NVIDIA : versions Vulkan, pour les cartes AMD et Intel
+  'windows-vulkan': {
+    'image': {
+        'nom': 'stable-diffusion.cpp', 'version': 'master-1039-290148d', 'dossier': 'sd', 'executable': 'sd-cli.exe',
+        'archives': [{'url': SD_VERSION + 'sd-master-290148d-bin-win-vulkan-x64.zip', 'taille': 29800696,
+                      'sha256': 'd333b2b3fd0a26e5a0917341e6a730c95335e551f342f5bf8b5b4f4ccf0b3cf1'}],
+    },
+    'texte': {
+        'nom': 'llama.cpp', 'version': 'b12100', 'dossier': 'llama', 'executable': 'llama-server.exe',
+        'archives': [{'url': LLAMA_VERSION + 'llama-b12100-bin-win-vulkan-x64.zip', 'taille': 37660126,
+                      'sha256': '7cf10d097449202aad72a7207d48ddfcfeb8ef719fd093b1727a93cdca4913b2'}],
+    },
+  },
   # Linux : versions Vulkan, qui marchent avec les cartes NVIDIA, AMD et Intel
   'linux': {
     'image': {
@@ -121,7 +134,27 @@ MOTEURS_PAR_SYSTEME = {
     },
   },
 }
-MOTEURS = MOTEURS_PAR_SYSTEME[SYSTEME]
+ACCELERATIONS = {'windows': 'CUDA', 'windows-vulkan': 'Vulkan', 'linux': 'Vulkan', 'mac': 'Metal'}
+
+
+def carte_nvidia():
+    """Le pilote NVIDIA installe nvcuda.dll dans System32 : sans lui, les moteurs CUDA ne peuvent pas marcher."""
+    return (Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32' / 'nvcuda.dll').is_file()
+
+
+def choisir_moteurs():
+    """Moteurs adaptes a cette machine. Sous Windows, PRISME_ACCELERATION=cuda ou vulkan force le choix."""
+    if not WINDOWS:
+        return SYSTEME
+    force = os.environ.get('PRISME_ACCELERATION', '').strip().lower()
+    if force in ('cuda', 'vulkan'):
+        return 'windows' if force == 'cuda' else 'windows-vulkan'
+    return 'windows' if carte_nvidia() else 'windows-vulkan'
+
+
+JEU_MOTEURS = choisir_moteurs()
+MOTEURS = MOTEURS_PAR_SYSTEME[JEU_MOTEURS]
+ACCELERATION = ACCELERATIONS[JEU_MOTEURS]
 FICHIER_CODE = DONNEES / 'code-acces.txt'
 FICHIER_REGLAGES = DONNEES / 'reglages.json'
 
@@ -176,6 +209,8 @@ REGLAGES_DEFAUT = {
     'amelioration_moteur': 'integre',
     'amelioration_modele_local': '',
     'amelioration_vision_locale': '',
+    # Une fois au lancement, Prisme demande a GitHub le numero de la derniere version
+    'verifier_mises_a_jour': True,
 }
 METHODES = ['euler', 'euler_a', 'heun', 'dpm2', 'dpm++2s_a', 'dpm++2m', 'dpm++2mv2', 'ipndm', 'ipndm_v', 'lcm',
             'ddim_trailing', 'tcd', 'res_multistep', 'res_2s', 'er_sde', 'euler_cfg_pp', 'euler_a_cfg_pp', 'euler_ge',
@@ -245,7 +280,8 @@ def valider_reglages(donnees):
         r['cfg'] = float(donnees.get('cfg', r['cfg']))
         r['methode'] = str(donnees.get('methode', r['methode']))
         r['sigmas'] = ','.join(x.strip() for x in str(donnees.get('sigmas', r['sigmas'])).split(',') if x.strip())
-        for cle in ('dechargement_cpu', 'vae_tuiles', 'flash_attention', 'acces_reseau', 'arret_fermeture'):
+        for cle in ('dechargement_cpu', 'vae_tuiles', 'flash_attention', 'acces_reseau', 'arret_fermeture',
+                    'verifier_mises_a_jour'):
             r[cle] = bool(donnees.get(cle, r[cle]))
         r['arret_auto_minutes'] = int(donnees.get('arret_auto_minutes', r['arret_auto_minutes']))
         loras = []
@@ -636,9 +672,191 @@ def installer_moteur(nom):
 def etat_moteurs():
     with verrou_installations:
         return {nom: {'installe': moteur_installe(nom), 'nom': m['nom'], 'version': m['version'], 'requiert': m.get('requiert'),
+                      'acceleration': ACCELERATION,
                       'taille': sum(a['taille'] for a in m['archives']),
                       'installation': dict(installations[nom]) if nom in installations else None}
                 for nom, m in MOTEURS.items()}
+
+
+# Modeles conseilles, telechargeables depuis Prisme : modeles officiels et generalistes, verifies par empreinte
+HF = 'https://huggingface.co/'
+DESSIN = HF + 'AtomicChat/Qwen-Image-2.1-Turbo-GGUF/resolve/main/'
+VL8B = HF + 'Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/'
+MODELES_CONSEILLES = [
+    {'id': 'dessin-q4', 'role': 'Modèle de dessin', 'titre': 'Qwen-Image 2.1 Turbo · Q4_K',
+     'detail': 'Léger : cartes graphiques de 8 Go', 'conseille': True, 'profil_rapide': True,
+     'fichier': 'Qwen-Image-2.1-Turbo-AD-Q4_K.gguf', 'url': DESSIN + 'Qwen-Image-2.1-Turbo-AD-Q4_K.gguf',
+     'taille': 4201694944, 'sha256': '4bb73c53cbe284bbd6d69b9fdc59539c531f0389dd2aa567663d777f8130bc59',
+     'remplit': ['modele_diffusion']},
+    {'id': 'dessin-q8', 'role': 'Modèle de dessin', 'titre': 'Qwen-Image 2.1 Turbo · Q8_0',
+     'detail': 'Meilleure qualité : cartes de 12 Go ou plus', 'conseille': False, 'profil_rapide': True,
+     'fichier': 'Qwen-Image-2.1-Turbo-Q8_0.gguf', 'url': DESSIN + 'Qwen-Image-2.1-Turbo-Q8_0.gguf',
+     'taille': 7591577312, 'sha256': '8d74ae0be534df394ea2d29f04b77f879318c9e0df20a3e208e6bedbf89b4159',
+     'remplit': ['modele_diffusion']},
+    {'id': 'texte-q8', 'role': 'Encodeur de texte', 'titre': 'Qwen3-VL 8B · Q8_0',
+     'detail': 'Conseillé, sert aussi à améliorer les descriptions', 'conseille': True,
+     'fichier': 'Qwen3VL-8B-Instruct-Q8_0.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q8_0.gguf',
+     'taille': 8709519456, 'sha256': '0d264b3941185d00a74f75c4245521dae088ff1efc90ab8d1754e83f5844adb0',
+     'remplit': ['modele_texte', 'amelioration_modele_local']},
+    {'id': 'texte-q4', 'role': 'Encodeur de texte', 'titre': 'Qwen3-VL 8B · Q4_K_M',
+     'detail': 'Plus léger, modifications un peu plus granuleuses', 'conseille': False,
+     'fichier': 'Qwen3VL-8B-Instruct-Q4_K_M.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q4_K_M.gguf',
+     'taille': 5027784800, 'sha256': '67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2',
+     'remplit': ['modele_texte', 'amelioration_modele_local']},
+    {'id': 'vision-f16', 'role': 'Vision', 'titre': 'Vision Qwen3-VL 8B · F16',
+     'detail': 'Pour modifier une image de départ', 'conseille': True,
+     'fichier': 'mmproj-Qwen3VL-8B-Instruct-F16.gguf', 'url': VL8B + 'mmproj-Qwen3VL-8B-Instruct-F16.gguf',
+     'taille': 1159029824, 'sha256': 'ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38',
+     'remplit': ['modele_vision', 'amelioration_vision_locale']},
+    {'id': 'vae', 'role': 'VAE', 'titre': 'VAE Qwen-Image 2.1 Turbo',
+     'detail': 'Produit l\'image finale', 'conseille': True,
+     'fichier': 'qwen-image-vae.safetensors', 'url': HF + 'Qwen/Qwen-Image-2.1-Turbo/resolve/main/vae/diffusion_pytorch_model.safetensors',
+     'taille': 675508656, 'sha256': '71879ffd5321e6d10c3c87513e2b474b1252efa7f3dec2969214a9bf06a6dd5c',
+     'remplit': ['vae']},
+]
+MODELES_PAR_ID = {m['id']: m for m in MODELES_CONSEILLES}
+SIGMAS_RAPIDE = '1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0'
+# Etat de chaque telechargement : attente, telechargement, verification, termine, annule, erreur
+telechargements_modeles = {}
+file_modeles = deque()
+verrou_modeles = threading.Lock()
+travailleur_modeles = None
+
+
+def empreinte_fichier(chemin):
+    empreinte = hashlib.sha256()
+    with open(chemin, 'rb') as f:
+        while bloc := f.read(8 * 1024 * 1024):
+            empreinte.update(bloc)
+    return empreinte.hexdigest()
+
+
+def utiliser_modele(modele):
+    """Choisit le modele telecharge dans les reglages, pour chaque role encore vide ou introuvable."""
+    r = lire_reglages()
+    change = False
+    for cle in modele['remplit']:
+        if not r[cle] or not (MODELES / r[cle]).is_file():
+            r[cle] = modele['fichier']
+            change = True
+            # Ce modele Turbo demande peu d'etapes : profil rapide, sauf si l'utilisateur a deja regle les etapes
+            if cle == 'modele_diffusion' and modele.get('profil_rapide') and r['etapes'] == REGLAGES_DEFAUT['etapes']:
+                r.update(etapes=8, cfg=1.0, methode='euler', sigmas=SIGMAS_RAPIDE)
+    if change:
+        DONNEES.mkdir(exist_ok=True)
+        FICHIER_REGLAGES.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
+
+
+def telecharger_modele(modele):
+    """Telecharge un modele dans models/ en reprenant un telechargement interrompu, puis verifie son empreinte."""
+    suivi = telechargements_modeles[modele['id']]
+    final = MODELES / modele['fichier']
+    partiel = MODELES / (modele['fichier'] + '.partiel')
+    try:
+        MODELES.mkdir(parents=True, exist_ok=True)
+        deja = partiel.stat().st_size if partiel.exists() else 0
+        if deja > modele['taille']:
+            partiel.unlink()
+            deja = 0
+        with verrou_modeles:
+            suivi['fait'] = deja
+        libre = shutil.disk_usage(MODELES).free
+        if libre < modele['taille'] - deja + 200 * 1024 * 1024:
+            raise RuntimeError(f'Pas assez de place sur le disque : il faut {(modele["taille"] - deja) / 1e9:.1f} Go libres.')
+        en_tetes = {'User-Agent': f'Prisme/{VERSION}'}
+        if deja:
+            en_tetes['Range'] = f'bytes={deja}-'
+        with urllib.request.urlopen(urllib.request.Request(modele['url'], headers=en_tetes), timeout=60) as reponse:
+            # Un serveur qui ne reprend pas renvoie tout le fichier : on recommence du debut
+            if deja and reponse.status != 206:
+                deja = 0
+            with verrou_modeles:
+                suivi['fait'] = deja
+            with open(partiel, 'ab' if deja else 'wb') as fichier:
+                while bloc := reponse.read(1024 * 1024):
+                    if suivi.get('annule'):
+                        raise InterruptedError
+                    fichier.write(bloc)
+                    with verrou_modeles:
+                        suivi['fait'] += len(bloc)
+        with verrou_modeles:
+            suivi['phase'] = 'verification'
+        if partiel.stat().st_size != modele['taille'] or empreinte_fichier(partiel) != modele['sha256']:
+            partiel.unlink(missing_ok=True)
+            raise RuntimeError('Le fichier reçu ne correspond pas au modèle attendu (empreinte différente). Réessaie.')
+        partiel.replace(final)
+        utiliser_modele(modele)
+        with verrou_modeles:
+            suivi['phase'] = 'termine'
+    except InterruptedError:
+        # Le morceau deja recu est garde : le prochain telechargement reprend a cet endroit
+        with verrou_modeles:
+            suivi.update(phase='annule')
+    except Exception as e:
+        with verrou_modeles:
+            suivi.update(phase='erreur', erreur=str(e) if isinstance(e, RuntimeError) else f'Téléchargement impossible : {e}')
+
+
+def traiter_file_modeles():
+    """Telecharge les modeles demandes l'un apres l'autre."""
+    global travailleur_modeles
+    while True:
+        with verrou_modeles:
+            if not file_modeles:
+                travailleur_modeles = None
+                return
+            ident = file_modeles.popleft()
+            suivi = telechargements_modeles[ident]
+            if suivi.get('annule'):
+                suivi['phase'] = 'annule'
+                continue
+            suivi['phase'] = 'telechargement'
+        telecharger_modele(MODELES_PAR_ID[ident])
+
+
+def demander_modele(ident):
+    global travailleur_modeles
+    modele = MODELES_PAR_ID[ident]
+    with verrou_modeles:
+        if telechargements_modeles.get(ident, {}).get('phase') in ('attente', 'telechargement', 'verification'):
+            return
+        telechargements_modeles[ident] = {'phase': 'attente', 'fait': 0, 'total': modele['taille'], 'erreur': None}
+        file_modeles.append(ident)
+        if travailleur_modeles is None:
+            travailleur_modeles = threading.Thread(target=traiter_file_modeles, daemon=True)
+            travailleur_modeles.start()
+
+
+def etat_modeles_conseilles():
+    with verrou_modeles:
+        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'conseille', 'fichier', 'taille')}
+                   | {'present': (MODELES / m['fichier']).is_file(),
+                      'reprise': (MODELES / (m['fichier'] + '.partiel')).is_file(),
+                      'telechargement': dict(telechargements_modeles[m['id']]) if m['id'] in telechargements_modeles else None}
+                   for m in MODELES_CONSEILLES]
+    MODELES.mkdir(parents=True, exist_ok=True)
+    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free}
+
+
+# Avis de nouvelle version : le numero de la derniere version publiee sur GitHub, lu une fois au lancement
+PAGE_VERSIONS = 'https://github.com/d3Ita/prisme/releases/latest'
+mise_a_jour = {}
+
+
+def numero_version(texte):
+    return tuple(int(x) for x in re.findall(r'\d+', texte)[:3])
+
+
+def verifier_mise_a_jour():
+    try:
+        requete = urllib.request.Request('https://api.github.com/repos/d3Ita/prisme/releases/latest',
+                                         headers={'User-Agent': f'Prisme/{VERSION}', 'Accept': 'application/vnd.github+json'})
+        with urllib.request.urlopen(requete, timeout=8) as reponse:
+            derniere = str(json.load(reponse).get('tag_name', ''))
+        if numero_version(derniere) > numero_version(VERSION):
+            mise_a_jour.update(version=derniere.lstrip('v'), url=PAGE_VERSIONS)
+    except Exception:
+        pass
 
 
 def lister_loras():
@@ -1073,6 +1291,10 @@ class Gestionnaire(BaseHTTPRequestHandler):
                                'loras': lister_loras(), 'dossier_loras': str(LORAS)})
         elif chemin == '/api/images':
             self.envoyer(200, lister_images())
+        elif chemin == '/api/modeles-conseilles':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            self.envoyer(200, etat_modeles_conseilles())
         elif chemin == '/api/etat':
             with verrou:
                 copie = dict(etat)
@@ -1091,6 +1313,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                     copie['demandes'] = [{'id': i, 'ip': d['ip'], 'appareil': d['appareil'], 'code': d['code']}
                                          for i, d in demandes.items()
                                          if d['etat'] == 'attente' and time.time() - d['cree'] <= DUREE_DEMANDE]
+                copie['mise_a_jour'] = dict(mise_a_jour) or None
             copie['loras_actifs'] = [{'nom': Path(l['nom']).stem, 'force': l['force']} for l in loras_actifs(r)]
             self.envoyer(200, copie)
         elif chemin == '/api/ollama-modeles':
@@ -1218,6 +1441,20 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 with verrou_echecs:
                     echecs.setdefault(demande['ip'], []).append(time.time())
             self.envoyer(200, {'etat': demande['etat']})
+
+        elif chemin in ('/api/telecharger-modele', '/api/annuler-modele'):
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            ident = str(self.lire_json().get('id') or '')
+            if ident not in MODELES_PAR_ID:
+                return self.envoyer(400, {'erreur': 'Modèle inconnu.'})
+            if chemin == '/api/telecharger-modele':
+                demander_modele(ident)
+            else:
+                with verrou_modeles:
+                    if ident in telechargements_modeles:
+                        telechargements_modeles[ident]['annule'] = True
+            self.envoyer(200, {})
 
         elif chemin == '/api/installer-moteur':
             if not self.est_local():
@@ -1378,6 +1615,8 @@ def main():
         ouvrir_fenetre()
     fermer_demarrage(1.5 if '--sans-fenetre' not in sys.argv else 0)
     threading.Thread(target=surveiller, daemon=True).start()
+    if lire_reglages()['verifier_mises_a_jour'] and not os.environ.get('PRISME_RACINE'):
+        threading.Thread(target=verifier_mise_a_jour, daemon=True).start()
     serveur.serve_forever()
 
 

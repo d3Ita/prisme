@@ -202,6 +202,114 @@ class LiensModelesTest(unittest.TestCase):
             self.assertFalse(any(mot in texte.lower() for mot in self.INTERDITS), fichier)
 
 
+class ModelesConseillesTest(unittest.TestCase):
+    """Catalogue des modeles telechargeables : officiels, tout public, verifies ; reprise et choix automatique."""
+
+    def setUp(self):
+        self.dossier = Path(DOSSIER_TEST.name)
+        serveur.FICHIER_REGLAGES.unlink(missing_ok=True)
+        for f in serveur.MODELES.glob('essai*'):
+            f.unlink()
+
+    def test_catalogue(self):
+        import re
+        self.assertEqual(len(serveur.MODELES_PAR_ID), len(serveur.MODELES_CONSEILLES))
+        for m in serveur.MODELES_CONSEILLES:
+            self.assertTrue(m['url'].startswith('https://huggingface.co/'), m['url'])
+            self.assertFalse(any(mot in (m['url'] + m['fichier']).lower() for mot in LiensModelesTest.INTERDITS), m['url'])
+            self.assertRegex(m['sha256'], r'^[0-9a-f]{64}$')
+            self.assertGreater(m['taille'], 100_000_000)
+            self.assertTrue(serveur.chemin_relatif_sur(m['fichier']) and '/' not in m['fichier'])
+            self.assertTrue(set(m['remplit']) <= set(serveur.REGLAGES_DEFAUT), m['id'])
+        # Un modele conseille par role indispensable
+        for role in ('modele_diffusion', 'modele_texte', 'vae'):
+            self.assertTrue(any(role in m['remplit'] and m['conseille'] for m in serveur.MODELES_CONSEILLES), role)
+
+    def servir(self, contenu):
+        """Petit serveur HTTP local qui sait reprendre un telechargement (en-tete Range)."""
+        import http.server
+
+        class Fichier(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                debut = 0
+                plage = self.headers.get('Range')
+                if plage:
+                    debut = int(plage.split('=')[1].split('-')[0])
+                    self.send_response(206)
+                else:
+                    self.send_response(200)
+                self.send_header('Content-Length', str(len(contenu) - debut))
+                self.end_headers()
+                self.wfile.write(contenu[debut:])
+
+        hote = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Fichier)
+        threading.Thread(target=hote.serve_forever, daemon=True).start()
+        self.addCleanup(hote.server_close)
+        self.addCleanup(hote.shutdown)
+        return f'http://127.0.0.1:{hote.server_address[1]}/modele'
+
+    def modele(self, contenu, **autres):
+        import hashlib
+        m = {'id': 'essai', 'fichier': 'essai-dessin.gguf', 'url': self.servir(contenu), 'taille': len(contenu),
+             'sha256': hashlib.sha256(contenu).hexdigest(), 'remplit': ['modele_diffusion'], 'profil_rapide': True}
+        m.update(autres)
+        serveur.telechargements_modeles[m['id']] = {'phase': 'telechargement', 'fait': 0, 'total': m['taille'], 'erreur': None}
+        return m
+
+    def test_telechargement_repris_puis_choisi(self):
+        contenu = os.urandom(300_000)
+        m = self.modele(contenu)
+        serveur.MODELES.mkdir(parents=True, exist_ok=True)
+        (serveur.MODELES / 'essai-dessin.gguf.partiel').write_bytes(contenu[:120_000])
+        serveur.telecharger_modele(m)
+        self.assertEqual(serveur.telechargements_modeles['essai']['phase'], 'termine')
+        self.assertEqual((serveur.MODELES / 'essai-dessin.gguf').read_bytes(), contenu)
+        self.assertFalse((serveur.MODELES / 'essai-dessin.gguf.partiel').exists())
+        r = serveur.lire_reglages()
+        self.assertEqual(r['modele_diffusion'], 'essai-dessin.gguf')
+        self.assertEqual((r['etapes'], r['cfg'], r['sigmas']), (8, 1.0, serveur.SIGMAS_RAPIDE))
+
+    def test_fichier_different_refuse(self):
+        m = self.modele(os.urandom(50_000), sha256='0' * 64)
+        serveur.telecharger_modele(m)
+        self.assertEqual(serveur.telechargements_modeles['essai']['phase'], 'erreur')
+        self.assertFalse((serveur.MODELES / 'essai-dessin.gguf').exists())
+        self.assertFalse((serveur.MODELES / 'essai-dessin.gguf.partiel').exists())
+        self.assertEqual(serveur.lire_reglages()['modele_diffusion'], '')
+
+    def test_modele_deja_choisi_garde(self):
+        serveur.MODELES.mkdir(parents=True, exist_ok=True)
+        (serveur.MODELES / 'essai-mien.gguf').write_bytes(b'x')
+        serveur.FICHIER_REGLAGES.parent.mkdir(exist_ok=True)
+        serveur.FICHIER_REGLAGES.write_text(json.dumps({'modele_diffusion': 'essai-mien.gguf', 'etapes': 20}), encoding='utf-8')
+        serveur.telecharger_modele(self.modele(os.urandom(20_000)))
+        r = serveur.lire_reglages()
+        self.assertEqual((r['modele_diffusion'], r['etapes']), ('essai-mien.gguf', 20))
+
+
+class ChoixMoteursTest(unittest.TestCase):
+    def test_windows_sans_nvidia_passe_par_vulkan(self):
+        from unittest import mock
+        with mock.patch.object(serveur, 'WINDOWS', True), mock.patch.dict(os.environ, {'PRISME_ACCELERATION': ''}):
+            with mock.patch.object(serveur, 'carte_nvidia', return_value=False):
+                self.assertEqual(serveur.choisir_moteurs(), 'windows-vulkan')
+            with mock.patch.object(serveur, 'carte_nvidia', return_value=True):
+                self.assertEqual(serveur.choisir_moteurs(), 'windows')
+                os.environ['PRISME_ACCELERATION'] = 'vulkan'
+                self.assertEqual(serveur.choisir_moteurs(), 'windows-vulkan')
+        self.assertEqual(set(serveur.MOTEURS_PAR_SYSTEME['windows-vulkan']), {'image', 'texte'})
+        self.assertNotIn('requiert', serveur.MOTEURS_PAR_SYSTEME['windows-vulkan']['texte'])
+
+
+class VersionTest(unittest.TestCase):
+    def test_comparaison(self):
+        self.assertGreater(serveur.numero_version('v1.10.0'), serveur.numero_version('1.9.2'))
+        self.assertEqual(serveur.numero_version('v1.7.0'), serveur.numero_version('1.7.0'))
+        self.assertGreater(serveur.numero_version('2.0'), serveur.numero_version(serveur.VERSION))
+
 class ArretAutomatiqueTest(unittest.TestCase):
     def setUp(self):
         self.reglages = {**serveur.REGLAGES_DEFAUT, 'arret_auto_minutes': 30, 'arret_fermeture': True}

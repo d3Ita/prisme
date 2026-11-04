@@ -345,6 +345,32 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 .carte-modale.demande .petit { font-size: 13px; color: var(--texte-3); margin-bottom: 20px; }
 .boutons-demande { display: flex; gap: 10px; justify-content: center; }
 
+/* Modeles conseilles */
+.carte-modeles { width: min(620px, 100%); max-height: calc(100vh - 32px); padding: 0; display: flex; flex-direction: column; }
+.carte-modeles > header { padding: 22px 24px 14px; border-bottom: 1px solid var(--bordure); }
+.carte-modeles > header p { margin: 4px 0 0; color: var(--texte-2); font-size: 14px; }
+.liste-modeles { overflow-y: auto; padding: 14px 24px 6px; display: flex; flex-direction: column; gap: 18px; }
+.liste-modeles h4 { margin: 0 0 8px; font: 650 14px var(--police-titre); color: var(--texte-2); }
+.modele { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--bordure); }
+.modele + .modele { margin-top: 6px; }
+.modele strong { font-weight: 600; font-size: 14.5px; }
+.modele .conseil { margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--accent-doux); color: var(--accent-2); font-size: 11.5px; font-weight: 600; }
+.modele small { display: block; color: var(--texte-3); font-size: 12.5px; }
+.modele .barre-installation { grid-column: 1 / -1; margin-top: 4px; }
+.modele .etat-modele { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--texte-2); }
+.modele .etat-modele.alerte { color: var(--danger); }
+.modele .present { color: var(--succes); font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 5px; }
+.carte-modeles > footer { display: flex; gap: 8px; align-items: center; padding: 14px 24px; border-top: 1px solid var(--bordure); flex-wrap: wrap; }
+.carte-modeles > footer .espace { flex: 1; }
+/* Avis de nouvelle version */
+.bandeau-maj {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 15; display: flex; align-items: center; gap: 10px;
+  padding: 6px 6px 6px 16px; border-radius: 999px; background: var(--surface); border: 1px solid var(--bordure-forte); box-shadow: var(--ombre-douce); font-size: 14px; white-space: nowrap;
+}
+.bandeau-maj a { color: var(--accent-2); font-weight: 600; text-decoration: none; }
+.bandeau-maj a:hover { text-decoration: underline; }
+@media (max-width: 720px) { .bandeau-maj { top: 60px; max-width: calc(100% - 24px); white-space: normal; } .modele { grid-template-columns: 1fr; } }
+
 /* Reglages */
 .carte-reglages { width: min(700px, 100%); max-height: calc(100vh - 32px); padding: 0; display: flex; flex-direction: column; }
 .carte-reglages > header { padding: 22px 24px 14px; border-bottom: 1px solid var(--bordure); }
@@ -533,6 +559,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <ul id="liste-problemes"></ul>
         <div class="boutons">
           <button class="bouton-primaire" id="config-installer" hidden>Installer le moteur</button>
+          <button class="bouton-primaire" id="config-telecharger" hidden>Télécharger les modèles</button>
           <button class="bouton-secondaire" id="config-reglages">Choisir les modèles</button>
           <button class="bouton-secondaire" id="config-dossier">Ouvrir le dossier models</button>
         </div>
@@ -652,7 +679,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
     </header>
     <div class="contenu-reglages">
       <section class="bloc">
-        <h4>Modèles <span class="liens"><button type="button" class="bouton-lien" id="actualiser-modeles">Actualiser</button><button type="button" class="bouton-lien" id="dossier-modeles">Ouvrir le dossier</button></span></h4>
+        <h4>Modèles <span class="liens"><button type="button" class="bouton-lien" id="ouvrir-modeles">Télécharger</button><button type="button" class="bouton-lien" id="actualiser-modeles">Actualiser</button><button type="button" class="bouton-lien" id="dossier-modeles">Ouvrir le dossier</button></span></h4>
         <div class="reglage"><label for="r-diffusion">Modèle de dessin<small>Fait l'image · <a class="lien-modele" href="https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-diffusion" data-cle="modele_diffusion"></select></div>
         <div class="reglage"><label for="r-texte">Encodeur de texte<small>Comprend la description · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-texte" data-cle="modele_texte"></select></div>
         <div class="reglage"><label for="r-vision">Vision<small>Lit l'image de départ · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vision" data-cle="modele_vision"></select></div>
@@ -704,6 +731,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="reglage"><label>Apparence<small>Pour cet appareil, appliquée tout de suite</small></label><div><div class="groupe" id="apparence">
           <button type="button" data-theme="clair">Clair</button><button type="button" data-theme="sombre">Sombre</button><button type="button" data-theme="auto">Automatique</button></div></div></div>
         <div class="reglage"><label for="r-reseau">Accès depuis le téléphone<small>Pris en compte au prochain lancement</small></label><label class="interrupteur"><input type="checkbox" id="r-reseau" data-cle="acces_reseau"><span></span></label></div>
+        <div class="reglage"><label for="r-maj">Chercher les nouvelles versions<small>Une fois au lancement, sur GitHub</small></label><label class="interrupteur"><input type="checkbox" id="r-maj" data-cle="verifier_mises_a_jour"><span></span></label></div>
         <div class="reglage"><label for="r-arret-fermeture">Arrêter à la fermeture<small>Quand la fenêtre de Prisme se ferme sur le PC</small></label><label class="interrupteur"><input type="checkbox" id="r-arret-fermeture" data-cle="arret_fermeture"><span></span></label></div>
         <div class="reglage"><label for="r-arret">Arrêt automatique<small>Minutes sans fenêtre ouverte</small></label><input class="champ court" id="r-arret" data-cle="arret_auto_minutes" type="number" min="1" max="1440"></div>
       </section>
@@ -716,6 +744,26 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       <button type="submit" class="bouton-primaire">Enregistrer</button>
     </footer>
   </form>
+</div>
+<div class="modale" id="modale-modeles">
+  <div class="carte-modale carte-modeles">
+    <header>
+      <button type="button" class="bouton-icone fermer" data-fermer title="Fermer"><svg class="i"><use href="#i-x"/></svg></button>
+      <h3>Modèles conseillés</h3>
+      <p>Des modèles officiels et tout public, téléchargés depuis Hugging Face et vérifiés. Prisme les choisit tout seul dans les réglages.</p>
+    </header>
+    <div class="liste-modeles" id="liste-modeles"></div>
+    <footer>
+      <span class="version" id="place-disque"></span>
+      <div class="espace"></div>
+      <button type="button" class="bouton-secondaire" data-fermer>Fermer</button>
+      <button type="button" class="bouton-primaire" id="tout-telecharger">Tout télécharger</button>
+    </footer>
+  </div>
+</div>
+<div class="bandeau-maj" id="bandeau-maj" hidden>
+  <span id="texte-maj"></span><a id="lien-maj" href="https://github.com/d3Ita/prisme/releases/latest" target="_blank" rel="noopener">Télécharger</a>
+  <button type="button" class="bouton-icone" id="fermer-maj" title="Masquer"><svg class="i"><use href="#i-x"/></svg></button>
 </div>
 <div class="notes" id="notes"></div>
 
@@ -783,6 +831,7 @@ function ajusterPrompt() {
   prompt.style.height = Math.min(prompt.scrollHeight, 200) + 'px';
 }
 prompt.addEventListener('input', ajusterPrompt);
+addEventListener('resize', ajusterPrompt);
 prompt.addEventListener('keydown', e => {
   if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.isComposing || !matchMedia('(pointer: fine)').matches) return;
   e.preventDefault();
@@ -1267,10 +1316,122 @@ function majProblemes(liste, local) {
   problemes.forEach(p => { const li = document.createElement('li'); li.textContent = p; ul.append(li); });
   $('#config-reglages').hidden = !local;
   $('#config-dossier').hidden = !local;
+  // Le telechargement des modeles est propose tant qu'un modele manque
+  $('#config-telecharger').hidden = !local || !problemes.some(p => !p.startsWith('Moteur') && !p.startsWith('Bibli') && !p.startsWith('Prisme'));
   majScene();
 }
 $('#config-reglages').addEventListener('click', () => $('#ouvrir-reglages').click());
 $('#config-dossier').addEventListener('click', () => api('/api/dossier-modeles', {}).catch(err => note(err.message, 'erreur')));
+
+// ---------- Modeles conseilles ----------
+let minuteurModeles = null;
+const ACTIFS = ['attente', 'telechargement', 'verification'];
+
+function rendreModeles(infos) {
+  const liste = $('#liste-modeles');
+  liste.innerHTML = '';
+  const roles = [...new Set(infos.modeles.map(m => m.role))];
+  for (const role of roles) {
+    const bloc = document.createElement('section');
+    bloc.innerHTML = `<h4></h4>`;
+    bloc.querySelector('h4').textContent = role;
+    for (const m of infos.modeles.filter(x => x.role === role)) {
+      const t = m.telechargement, actif = t && ACTIFS.includes(t.phase);
+      const ligne = document.createElement('div');
+      ligne.className = 'modele';
+      ligne.innerHTML = `<div><strong></strong>${m.conseille ? '<span class="conseil">Conseillé</span>' : ''}<small></small></div><div class="action"></div>`;
+      ligne.querySelector('strong').textContent = m.titre;
+      ligne.querySelector('small').textContent = `${m.detail} · ${taille(m.taille)}`;
+      const action = ligne.querySelector('.action');
+      if (m.present) action.innerHTML = '<span class="present"><svg class="i"><use href="#i-ok"/></svg>Installé</span>';
+      else if (actif) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'bouton-secondaire'; b.textContent = 'Arrêter';
+        b.addEventListener('click', () => api('/api/annuler-modele', { id: m.id }).then(majModeles).catch(err => note(err.message, 'erreur')));
+        action.append(b);
+      } else {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = m.conseille ? 'bouton-primaire' : 'bouton-secondaire';
+        b.textContent = m.reprise ? 'Reprendre' : 'Télécharger';
+        b.addEventListener('click', () => telechargerModeles([m.id]));
+        action.append(b);
+      }
+      if (actif || (t && ['erreur', 'annule'].includes(t.phase) && !m.present)) {
+        const texte = document.createElement('p');
+        texte.className = 'etat-modele' + (t.phase === 'erreur' ? ' alerte' : '');
+        texte.textContent = t.phase === 'attente' ? 'En attente…'
+          : t.phase === 'verification' ? 'Vérification du fichier…'
+          : t.phase === 'telechargement' ? `${taille(t.fait)} sur ${taille(t.total)} · ${Math.floor(t.fait / t.total * 100)} %`
+          : t.phase === 'annule' ? 'Arrêté : tu peux reprendre où le téléchargement s\'était arrêté.' : t.erreur;
+        if (t.phase === 'telechargement') {
+          const barre = document.createElement('div');
+          barre.className = 'barre-installation';
+          barre.innerHTML = '<span></span>';
+          barre.firstChild.style.width = Math.floor(t.fait / t.total * 100) + '%';
+          ligne.append(barre);
+        }
+        ligne.append(texte);
+      }
+      bloc.append(ligne);
+    }
+    liste.append(bloc);
+  }
+  const manquants = infos.modeles.filter(m => m.conseille && !m.present);
+  const restant = manquants.reduce((t, m) => t + m.taille, 0);
+  $('#tout-telecharger').hidden = !manquants.length;
+  $('#tout-telecharger').textContent = `Tout télécharger · ${taille(restant)}`;
+  $('#tout-telecharger').disabled = manquants.every(m => m.telechargement && ACTIFS.includes(m.telechargement.phase));
+  $('#place-disque').textContent = `${taille(infos.libre)} libres sur le disque`;
+}
+
+async function majModeles() {
+  clearTimeout(minuteurModeles);
+  let infos;
+  try { infos = await api('/api/modeles-conseilles'); } catch (err) { note(err.message, 'erreur'); return; }
+  rendreModeles(infos);
+  const enCours = infos.modeles.some(m => m.telechargement && ACTIFS.includes(m.telechargement.phase));
+  const termines = infos.modeles.filter(m => m.present && m.telechargement?.phase === 'termine' && !etat.modelesAnnonces?.has(m.id));
+  if (termines.length) {
+    etat.modelesAnnonces = etat.modelesAnnonces || new Set();
+    termines.forEach(m => etat.modelesAnnonces.add(m.id));
+    note(termines.length > 1 ? 'Modèles installés et choisis dans les réglages' : `${termines[0].titre} est installé`);
+    api('/api/etat').then(e => { majProblemes(e.problemes, e.local); majAmelioration(e.amelioration); }).catch(() => {});
+  }
+  // Le suivi continue tant qu'un telechargement est en cours, meme fenetre fermee
+  if (enCours) minuteurModeles = setTimeout(majModeles, 1000);
+}
+
+async function telechargerModeles(ids) {
+  try {
+    for (const id of ids) await api('/api/telecharger-modele', { id });
+    majModeles();
+  } catch (err) { note(err.message, 'erreur'); }
+}
+
+async function ouvrirModeles() {
+  $('#modale-modeles').classList.add('ouverte');
+  await majModeles();
+}
+$('#config-telecharger').addEventListener('click', ouvrirModeles);
+$('#ouvrir-modeles').addEventListener('click', ouvrirModeles);
+$('#tout-telecharger').addEventListener('click', async () => {
+  const infos = await api('/api/modeles-conseilles').catch(() => null);
+  if (infos) telechargerModeles(infos.modeles.filter(m => m.conseille && !m.present).map(m => m.id));
+});
+
+// ---------- Nouvelle version ----------
+function majVersion(maj) {
+  let masquee = null;
+  try { masquee = localStorage.getItem('prisme-maj-masquee'); } catch {}
+  const visible = !!maj && maj.version !== masquee;
+  $('#bandeau-maj').hidden = !visible;
+  if (visible) $('#texte-maj').textContent = `Prisme ${maj.version} est disponible.`;
+  etat.miseAJour = maj;
+}
+$('#fermer-maj').addEventListener('click', () => {
+  try { localStorage.setItem('prisme-maj-masquee', etat.miseAJour?.version || ''); } catch {}
+  $('#bandeau-maj').hidden = true;
+});
 
 // ---------- Installation des moteurs ----------
 const ZONES_INSTALLATION = {
@@ -1304,7 +1465,7 @@ function majMoteurs(m) {
     } else if (info.installe) texte.textContent = nom === 'image' ? '' : `${info.nom} ${info.version} installé.`;
     else if (inst?.phase === 'erreur') texte.textContent = inst.erreur;
     else if (prerequis) texte.textContent = 'Installe d\'abord le moteur d\'images.';
-    else texte.textContent = nom === 'image' ? `Téléchargé une seule fois depuis la version officielle de ${info.nom}.` : `${info.nom} n'est pas encore installé.`;
+    else texte.textContent = nom === 'image' ? `Téléchargé une seule fois depuis la version officielle de ${info.nom} (${info.acceleration}).` : `${info.nom} n'est pas encore installé.`;
   }
   if (enCours) suivreInstallation();
 }
@@ -1680,6 +1841,8 @@ function finChargement() {
     majProblemes(e.problemes, e.local);
     majMoteurs(e.moteurs);
     majAmelioration(e.amelioration);
+    majVersion(e.mise_a_jour);
+    if (e.local) { majModeles(); setTimeout(() => api('/api/etat').then(x => majVersion(x.mise_a_jour)).catch(() => {}), 10000); }
     $('#version').textContent = 'Prisme v' + e.version;
     // Les actions propres au PC (dossier) n'apparaissent qu'une fois l'appareil connu
     rendreFil();

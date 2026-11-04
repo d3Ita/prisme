@@ -61,13 +61,14 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Light and dark themes**, or follow the system
 - **Settings**: models, LoRA, steps, CFG, sampler, sigmas, memory options
 - **Phone access** on the same Wi-Fi: type the address, approve the device on the PC
-- **Automatic engine install** on first launch, from pinned official releases verified by SHA-256
+- **Automatic engine install** on first launch, from pinned official releases verified by SHA-256: CUDA for NVIDIA cards, Vulkan for AMD and Intel
+- **Model downloads in the app**: one click fetches the recommended official models, resumes if interrupted and checks each file
 
 ## Requirements
 
 | System | Download | GPU | Status |
 |---|---|---|---|
-| Windows 10 or 11 | `Prisme.exe` | NVIDIA (CUDA), 8 GB of VRAM or more recommended | Tested |
+| Windows 10 or 11 | `Prisme.exe` | NVIDIA (CUDA), or AMD and Intel (Vulkan); 8 GB of VRAM or more recommended | Tested |
 | macOS 13 or later | `Prisme-macOS-arm64.zip` | Apple Silicon (M1 or later, Metal), 16 GB of memory or more recommended | Experimental |
 | Linux x64 (Ubuntu 24.04 or similar) | `Prisme-Linux-x64.tar.gz` | Any GPU with a Vulkan driver | Experimental |
 
@@ -78,8 +79,8 @@ Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), 
 ## Quick start
 
 1. Download the file for your system from the [Releases](../../releases) page.
-2. Put your models in a `models` folder (LoRA go in `models/loras`): next to the program on Windows and Linux, in `~/Prisme/models` on macOS.
-3. Start Prisme and click **Installer le moteur** (Install engine): Prisme downloads stable-diffusion.cpp once (about 925 MB on Windows with CUDA, under 40 MB on macOS and Linux).
+2. Click **Télécharger les modèles** (Download models), then **Tout télécharger** to get the [recommended models](#recommended-models) (about 15 GB). You can also put your own models in a `models` folder (LoRA go in `models/loras`): next to the program on Windows and Linux, in `~/Prisme/models` on macOS.
+3. Start Prisme and click **Installer le moteur** (Install engine): Prisme downloads stable-diffusion.cpp once (about 925 MB on Windows with an NVIDIA card, under 40 MB otherwise). Without the NVIDIA driver, Prisme picks the Vulkan version; set `PRISME_ACCELERATION=cuda` or `vulkan` to force a choice.
 4. Click **Choisir les modèles** (Choose models) and pick a file for each role.
 
 ```
@@ -124,7 +125,7 @@ You can also build Prisme yourself or run `app/serveur.py` directly on any syste
 
 ## Recommended models
 
-These official, general-purpose models work with Prisme. Each link opens the model page on Hugging Face: download the files into your `models` folder. The same links are in **Réglages** (Settings), next to each role.
+These official, general-purpose models work with Prisme. The easiest way is **Réglages → Modèles → Télécharger** (or **Télécharger les modèles** on first launch): Prisme downloads them, checks their SHA-256, picks them in the settings and applies the right generation settings. Each link below opens the model page on Hugging Face if you prefer to download by hand.
 
 | Role in Prisme | Recommended file | Where to find it | Lighter option |
 |---|---|---|---|
@@ -166,6 +167,7 @@ To stop Prisme, click **Quitter** or close its window: the server shuts down a f
 - Other devices need a random 128-bit access code, received through the QR code or after you approve them on the PC. After 10 wrong codes or refused requests, a device is blocked for 15 minutes.
 - Websites open in your browser can neither control Prisme nor read its data: requests from another origin or host name are rejected.
 - Settings, models and folders are only reachable from the PC.
+- Once per launch, Prisme asks GitHub for the latest version number to tell you about updates. Nothing else is sent; turn it off in **Réglages → Application**.
 
 ## Build from source
 

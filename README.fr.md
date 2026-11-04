@@ -44,7 +44,8 @@ Application locale pour créer et modifier des images par intelligence artificie
 
 - **Création** d'images à partir d'une description, de 1 à 4 images par lancement
 - **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
-- **Installation automatique** des moteurs au premier lancement : seuls le programme et les modèles sont à télécharger
+- **Installation automatique** des moteurs au premier lancement : CUDA pour les cartes NVIDIA, Vulkan pour les cartes AMD et Intel
+- **Téléchargement des modèles dans l'appli** : un clic récupère les modèles officiels conseillés, reprend si c'est interrompu et vérifie chaque fichier
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
 - **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description et mise à la corbeille
@@ -57,7 +58,7 @@ Application locale pour créer et modifier des images par intelligence artificie
 
 | Système | Fichier | Carte graphique | État |
 |---|---|---|---|
-| Windows 10 ou 11 | `Prisme.exe` | NVIDIA (CUDA), 8 Go de mémoire vidéo ou plus conseillés | Testé |
+| Windows 10 ou 11 | `Prisme.exe` | NVIDIA (CUDA), ou AMD et Intel (Vulkan) ; 8 Go de mémoire vidéo ou plus conseillés | Testé |
 | macOS 13 ou plus récent | `Prisme-macOS-arm64.zip` | Puce Apple (M1 ou plus récente, Metal), 16 Go de mémoire ou plus conseillés | Expérimental |
 | Linux x64 (Ubuntu 24.04 ou équivalent) | `Prisme-Linux-x64.tar.gz` | Toute carte avec un pilote Vulkan | Expérimental |
 
@@ -68,8 +69,8 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 ## Installation
 
 1. Télécharge le fichier de ton système depuis la page [Releases](../../releases), ou construis-le (voir plus bas).
-2. Place tes modèles dans un dossier `models` (et tes LoRA dans `models/loras`, si tu en as) : à côté du programme sous Windows et Linux, dans `~/Prisme/models` sous macOS.
-3. Lance Prisme, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp une seule fois (environ 925 Mo sous Windows avec CUDA, moins de 40 Mo sous macOS et Linux).
+2. Clique sur **Télécharger les modèles**, puis **Tout télécharger** pour récupérer les [modèles conseillés](#modèles-conseillés) (environ 15 Go). Tu peux aussi placer tes propres modèles dans un dossier `models` (et tes LoRA dans `models/loras`) : à côté du programme sous Windows et Linux, dans `~/Prisme/models` sous macOS.
+3. Lance Prisme, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp une seule fois (environ 925 Mo sous Windows avec une carte NVIDIA, moins de 40 Mo sinon). Sans pilote NVIDIA, Prisme choisit la version Vulkan ; la variable `PRISME_ACCELERATION=cuda` ou `vulkan` force le choix.
 4. Clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
 
 Les moteurs sont téléchargés depuis les versions officielles de [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) et de [llama.cpp](https://github.com/ggml-org/llama.cpp) sur GitHub. Prisme vérifie l'empreinte SHA-256 de chaque fichier avant de l'installer, et refuse tout fichier différent de la version testée. Ensuite, le dossier ressemble à ceci :
@@ -121,7 +122,7 @@ Si tu préfères ne pas faire confiance au programme, construis-le toi-même à 
 
 ## Modèles conseillés
 
-Ces modèles officiels et généralistes fonctionnent avec Prisme. Chaque lien ouvre la page du modèle sur Hugging Face : télécharge les fichiers dans ton dossier `models`. Les mêmes liens se trouvent dans les **Réglages**, à côté de chaque rôle.
+Ces modèles officiels et généralistes fonctionnent avec Prisme. Le plus simple : **Réglages → Modèles → Télécharger** (ou **Télécharger les modèles** au premier lancement). Prisme les télécharge, vérifie leur empreinte SHA-256, les choisit dans les réglages et applique les bons réglages de génération. Chaque lien ci-dessous ouvre la page du modèle sur Hugging Face, si tu préfères les télécharger toi-même.
 
 | Rôle dans Prisme | Fichier conseillé | Où le trouver | Plus léger |
 |---|---|---|---|
@@ -181,6 +182,7 @@ Le téléphone doit être sur le même réseau que le PC. Le lien du QR code con
 - Les autres appareils du réseau doivent présenter un code d'accès aléatoire de 128 bits, reçu par le QR code ou après une autorisation donnée sur le PC. Après 10 codes faux ou demandes refusées, un appareil est bloqué 15 minutes.
 - Les sites web ouverts dans ton navigateur ne peuvent ni piloter Prisme ni lire ses données : les requêtes venant d'une autre origine ou d'un autre nom d'hôte sont refusées.
 - Les réglages, les modèles et l'ouverture des dossiers ne sont accessibles que depuis le PC.
+- Une fois par lancement, Prisme demande à GitHub le numéro de la dernière version, pour te prévenir d'une mise à jour. Rien d'autre n'est envoyé ; tu peux le désactiver dans **Réglages → Application**.
 
 ## Construire depuis les sources
 

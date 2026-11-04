@@ -203,7 +203,8 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 }
 #prompt::placeholder { color: var(--texte-3); }
 #prompt.ameliore { color: var(--accent-2); }
-.barre-outils { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.barre-outils { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; margin-top: 6px; }
+.barre-outils:has(#retablir:not([hidden])) .format span { display: none; }
 .outil-compo {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 10px;
   border: 0; background: transparent; color: var(--texte-2); font-size: 14px; white-space: nowrap; list-style: none;
@@ -902,6 +903,7 @@ async function ameliorer() {
     bouton.disabled = false; prompt.disabled = false; $('#generer').disabled = false;
     bouton.querySelector('span').textContent = 'Améliorer';
     if (!etat.occupe) $('#serveur').textContent = 'Prêt';
+    prompt.focus();
   }
 }
 

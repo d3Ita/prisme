@@ -255,6 +255,15 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertEqual(statut, 200)
         self.assertTrue(corps.startswith(b'\x89PNG'))
 
+    def test_logo_et_manifeste_publics_mais_rien_d_autre(self):
+        self.assertEqual(self.distant('/logo.png')[0], 200)
+        statut, _, corps = self.distant('/manifest.webmanifest')
+        self.assertEqual(statut, 200)
+        self.assertEqual(json.loads(corps)['icons'][0]['src'], '/logo.png')
+        self.assertEqual(self.distant('/api/images')[0], 401)
+        # Le controle du nom d'hote s'applique aussi aux fichiers publics
+        self.assertEqual(self.requete('GET', '/logo.png', hote=f'attaquant.example:{self.port}')[0], 403)
+
     def test_localhost_et_ip_acceptes(self):
         self.assertEqual(self.requete('GET', '/api/etat', hote=f'localhost:{self.port}')[0], 200)
         self.assertEqual(self.requete('GET', '/api/etat')[0], 200)

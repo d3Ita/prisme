@@ -19,11 +19,12 @@ if (-not (Test-Path $python)) {
 if ($LASTEXITCODE -ne 0) { throw "Les tests ont echoue : l'exe n'a pas ete construit" }
 
 $icone = Join-Path $travail 'icone.ico'
-& $python (Join-Path $racine 'app\icone.py') (Join-Path $racine 'docs\logo.png') $icone
+$demarrage = Join-Path $travail 'demarrage.png'
+& $python (Join-Path $racine 'app\icone.py') (Join-Path $racine 'docs\logo.png') $icone $demarrage
 if ($LASTEXITCODE -ne 0) { throw "Creation de l'icone impossible" }
 
 & $python -m PyInstaller --noconfirm --clean --onefile --windowed `
-    --name 'Prisme' --icon $icone `
+    --name 'Prisme' --icon $icone --splash $demarrage `
     --add-data "$(Join-Path $racine 'app\index.html');." `
     --add-data "$(Join-Path $racine 'app\logo.png');." `
     --distpath $racine --workpath (Join-Path $travail 'build') --specpath $travail `

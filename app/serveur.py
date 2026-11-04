@@ -26,7 +26,7 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.3.0'
+VERSION = '1.3.1'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
@@ -694,9 +694,16 @@ def generer(params):
             etat['fin'] = time.time()
 
 
+# Permet d'installer Prisme comme une application (ecran d'accueil du telephone, fenetre du PC) avec son logo
+MANIFESTE = json.dumps({
+    'name': 'Prisme', 'short_name': 'Prisme', 'start_url': '/', 'display': 'standalone',
+    'background_color': '#0e0e12', 'theme_color': '#16161c', 'lang': 'fr',
+    'icons': [{'src': '/logo.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'}],
+}, ensure_ascii=False).encode('utf-8')
+
 PAGE_REFUSEE = '''<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Prisme</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0e0e12;color:#ececf1;font:15px system-ui,sans-serif;text-align:center;padding:24px">
-<div><h1 style="font-size:20px">Accès protégé</h1><p style="color:#a1a1b0;max-width:340px">Sur le PC, clique sur « Téléphone » dans Prisme, puis scanne le QR code ou ouvre le lien affiché.</p></div>'''
+<div><img src="/logo.png" alt="" width="88" height="88" style="border-radius:20px"><h1 style="font-size:20px">Accès protégé</h1><p style="color:#a1a1b0;max-width:340px">Sur le PC, clique sur « Téléphone » dans Prisme, puis scanne le QR code ou ouvre le lien affiché.</p></div>'''
 
 
 class Gestionnaire(BaseHTTPRequestHandler):
@@ -800,14 +807,17 @@ class Gestionnaire(BaseHTTPRequestHandler):
             self.send_header('Content-Length', '0')
             self.end_headers()
             return
+        # Logo et manifeste sont publics : le navigateur les demande parfois sans cookie, et ils ne revelent rien
+        if chemin == '/logo.png':
+            return self.envoyer(200, (RESSOURCES / 'logo.png').read_bytes(), 'image/png', cache=True)
+        if chemin == '/manifest.webmanifest':
+            return self.envoyer(200, MANIFESTE, 'application/manifest+json; charset=utf-8')
         if not self.autorise():
             return self.refuser()
         dernier_contact = time.time()
 
         if chemin in ('/', '/index.html'):
             self.envoyer(200, (RESSOURCES / 'index.html').read_bytes(), 'text/html; charset=utf-8')
-        elif chemin == '/logo.png':
-            self.envoyer(200, (RESSOURCES / 'logo.png').read_bytes(), 'image/png', cache=True)
         elif chemin == '/api/reglages':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -1023,6 +1033,15 @@ def surveiller():
             os._exit(0)
 
 
+def fermer_demarrage(delai=0.0):
+    """Ferme l'ecran de demarrage de l'exe, apres un court delai pour laisser la fenetre apparaitre."""
+    try:
+        import pyi_splash
+    except ImportError:
+        return
+    threading.Timer(delai, pyi_splash.close).start()
+
+
 def main():
     # Relance avec python.exe : le pare-feu l'autorise deja, pythonw.exe non
     executable = Path(sys.executable)
@@ -1039,9 +1058,11 @@ def main():
     except OSError:
         # Deja lance : on rouvre seulement la fenetre
         ouvrir_fenetre()
+        fermer_demarrage(1.5)
         return
     if '--sans-fenetre' not in sys.argv:
         ouvrir_fenetre()
+    fermer_demarrage(1.5 if '--sans-fenetre' not in sys.argv else 0)
     threading.Thread(target=surveiller, daemon=True).start()
     serveur.serve_forever()
 

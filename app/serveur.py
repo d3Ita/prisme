@@ -2,6 +2,7 @@
 
 import base64
 import ctypes
+import ipaddress
 import json
 import os
 import random
@@ -22,7 +23,7 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
@@ -71,7 +72,8 @@ REGLAGES_DEFAUT = {
     'dechargement_cpu': True,
     'vae_tuiles': True,
     'flash_attention': True,
-    'acces_reseau': True,
+    # L'acces depuis le reseau local s'active dans les Reglages
+    'acces_reseau': False,
     'arret_auto_minutes': 30,
     # [{'nom': 'fichier.safetensors', 'force': 1.0, 'actif': True}], fichiers du dossier models/loras
     'loras': [],
@@ -91,6 +93,10 @@ EXTENSIONS_LORA = ('.safetensors', '.gguf')
 BALISE_LORA = re.compile(r'<lora:([^:>]+):([^>]+)>')
 
 NOM_IMAGE = re.compile(r'^[\w.-]+\.png$')
+# Taille maximale d'une requete : une image de depart en base64 tient largement dedans
+TAILLE_MAX_REQUETE = 64 * 1024 * 1024
+# Au-dela de ce nombre de codes faux, l'appareil est bloque un moment
+ESSAIS_MAX, FENETRE_ESSAIS = 10, 15 * 60
 PAS = re.compile(r'(\d+)/(\d+)\s*-\s*[\d.,]+\s*(?:s/it|it/s)')
 
 verrou = threading.Lock()
@@ -100,6 +106,8 @@ processus = None
 annule = False
 amelioration_en_cours = threading.Lock()
 cache_infos = {}
+echecs = {}
+verrou_echecs = threading.Lock()
 # Acces reseau du serveur en cours : un changement de reglage s'applique au prochain lancement
 SERVEUR_RESEAU = True
 
@@ -279,9 +287,10 @@ def code_acces():
     DONNEES.mkdir(exist_ok=True)
     if FICHIER_CODE.exists():
         code = FICHIER_CODE.read_text(encoding='utf-8-sig').strip()
-        if code:
+        # Les codes courts des premieres versions se devinaient trop vite : on les remplace
+        if len(code) >= 20:
             return code
-    code = secrets.token_hex(4)
+    code = secrets.token_urlsafe(16)
     FICHIER_CODE.write_text(code, encoding='utf-8')
     return code
 
@@ -383,7 +392,7 @@ def lister_images():
 
 
 def generer(params):
-    global processus, annule
+    global processus
     source_temp = None
     r = params['reglages']
     try:
@@ -471,12 +480,58 @@ class Gestionnaire(BaseHTTPRequestHandler):
     def est_local(self):
         return self.client_address[0] in ('127.0.0.1', '::1')
 
+    def hote_autorise(self):
+        """Contre le DNS rebinding : seules une adresse IP ou localhost, sur le bon port, sont acceptees."""
+        m = re.match(r'^(\[[0-9a-fA-F:.]+\]|[^:\[\]]+):(\d+)$', self.headers.get('Host', ''))
+        if not m or int(m.group(2)) != PORT:
+            return False
+        nom = m.group(1).strip('[]')
+        if nom.lower() == 'localhost':
+            return True
+        try:
+            ipaddress.ip_address(nom)
+            return True
+        except ValueError:
+            return False
+
+    def origine_autorisee(self):
+        """Contre les requetes envoyees par d'autres sites : l'origine, si presente, doit etre Prisme lui-meme."""
+        origine = self.headers.get('Origin')
+        return origine is None or urlparse(origine).netloc == self.headers.get('Host')
+
+    def bloque(self):
+        if self.est_local():
+            return False
+        maintenant = time.time()
+        with verrou_echecs:
+            recents = [t for t in echecs.get(self.client_address[0], []) if maintenant - t < FENETRE_ESSAIS]
+            echecs[self.client_address[0]] = recents
+            return len(recents) >= ESSAIS_MAX
+
+    def noter_echec(self):
+        with verrou_echecs:
+            echecs.setdefault(self.client_address[0], []).append(time.time())
+
+    def controler(self):
+        """Renvoie False (apres avoir repondu) si la requete doit etre rejetee."""
+        if not self.hote_autorise():
+            self.envoyer(403, {'erreur': 'Adresse non autorisée.'})
+            return False
+        if self.bloque():
+            self.envoyer(429, {'erreur': 'Trop de codes faux : réessaie dans quelques minutes.'})
+            return False
+        return True
+
     def autorise(self):
         if self.est_local():
             return True
         cookie = SimpleCookie(self.headers.get('Cookie', ''))
         valeur = cookie['prisme_acces'].value if 'prisme_acces' in cookie else ''
-        return secrets.compare_digest(valeur, CODE)
+        if secrets.compare_digest(valeur, CODE):
+            return True
+        if valeur:
+            self.noter_echec()
+        return False
 
     def refuser(self):
         if urlparse(self.path).path.startswith('/api/'):
@@ -496,10 +551,14 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
     def lire_json(self):
         taille = int(self.headers.get('Content-Length') or 0)
+        if taille > TAILLE_MAX_REQUETE:
+            raise ValueError('requete trop grande')
         return json.loads(self.rfile.read(taille) or b'{}')
 
     def do_GET(self):
         global dernier_contact
+        if not self.controler():
+            return
         url = urlparse(self.path)
         chemin = url.path
 
@@ -507,6 +566,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
         code = parse_qs(url.query).get('code', [''])[0]
         if code:
             if not secrets.compare_digest(code, CODE):
+                self.noter_echec()
                 return self.refuser()
             self.send_response(302)
             self.send_header('Set-Cookie', f'prisme_acces={CODE}; Max-Age=31536000; Path=/; HttpOnly; SameSite=Lax')
@@ -566,11 +626,22 @@ class Gestionnaire(BaseHTTPRequestHandler):
             self.envoyer(404, {'erreur': 'Introuvable'})
 
     def do_POST(self):
-        global dernier_contact, annule
+        if not self.controler():
+            return
+        if not self.origine_autorisee():
+            return self.envoyer(403, {'erreur': 'Requête venant d\'un autre site refusée.'})
+        if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
+            return self.envoyer(415, {'erreur': 'Les requêtes doivent être en JSON.'})
         if not self.autorise():
             return self.refuser()
+        try:
+            self.traiter_post(urlparse(self.path).path)
+        except ValueError:
+            self.envoyer(400, {'erreur': 'Données invalides.'})
+
+    def traiter_post(self, chemin):
+        global dernier_contact, annule
         dernier_contact = time.time()
-        chemin = urlparse(self.path).path
 
         if chemin == '/api/generer':
             try:
@@ -714,7 +785,7 @@ def main():
     executable = Path(sys.executable)
     if not EXE and executable.name.lower() == 'pythonw.exe' and (executable.parent / 'python.exe').exists():
         subprocess.Popen([str(executable.parent / 'python.exe'), __file__] + sys.argv[1:],
-                         creationflags=subprocess.CREATE_NO_WINDOW, cwd=str(APP))
+                         creationflags=subprocess.CREATE_NO_WINDOW, cwd=str(Path(__file__).resolve().parent))
         return
 
     try:

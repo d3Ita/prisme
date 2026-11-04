@@ -39,7 +39,7 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 
 3. Lance `Prisme.exe`. Au premier lancement, l'application indique ce qui manque : clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
 
-Au premier lancement, Windows peut demander d'autoriser l'accès au réseau. Accepte si tu veux utiliser Prisme depuis ton téléphone.
+Prisme fonctionne uniquement sur ce PC tant que l'accès depuis le téléphone n'est pas activé (voir plus bas).
 
 ## Utilisation
 
@@ -68,7 +68,16 @@ L'option **Améliorer automatiquement** le fait avant chaque génération. Les d
 
 ### Téléphone
 
-Le téléphone doit être sur le même réseau que le PC. Le lien du QR code contient un code d'accès enregistré dans `app/code-acces.txt` : supprimer ce fichier puis relancer Prisme en crée un nouveau et déconnecte les appareils déjà reliés.
+L'accès depuis le réseau local est **désactivé par défaut**. Pour l'activer : **Réglages → Application → Accès depuis le téléphone**, puis relance Prisme. Windows demande alors d'autoriser Prisme sur le réseau : accepte. Ensuite, le bouton **Téléphone** affiche un QR code à scanner.
+
+Le téléphone doit être sur le même réseau que le PC. Le lien du QR code contient un code d'accès enregistré dans `app/code-acces.txt` : supprimer ce fichier puis relancer Prisme en crée un nouveau et déconnecte les appareils déjà reliés. N'active pas cet accès sur un réseau public (gare, café, hôtel) : la connexion n'est pas chiffrée.
+
+## Sécurité
+
+- Le serveur de Prisme n'écoute que ce PC, sauf si l'accès depuis le téléphone est activé.
+- Les autres appareils du réseau doivent présenter un code d'accès aléatoire de 128 bits. Après 10 codes faux, un appareil est bloqué 15 minutes.
+- Les sites web ouverts dans ton navigateur ne peuvent ni piloter Prisme ni lire ses données : les requêtes venant d'une autre origine ou d'un autre nom d'hôte sont refusées.
+- Les réglages, les modèles et l'ouverture des dossiers ne sont accessibles que depuis le PC.
 
 ## Construire depuis les sources
 
@@ -94,3 +103,7 @@ py -3 app\serveur.py
 | `app/index.html` | Interface complète : HTML, CSS et JavaScript sans dépendance |
 | `app/icone.py` | Dessin de l'icône de l'exécutable |
 | `construire.ps1` | Construction de `Prisme.exe` |
+
+## Licence
+
+Prisme est distribué sous licence [MIT](LICENSE).

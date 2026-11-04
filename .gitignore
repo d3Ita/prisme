@@ -1,0 +1,29 @@
+# Modeles (plusieurs Go) : a telecharger a part, voir README
+models/
+*.gguf
+*.safetensors
+*.ckpt
+
+# Moteur stable-diffusion.cpp et ses archives : a telecharger a part
+sd/
+zips/
+
+# Images generees
+images/
+
+# Donnees de cette machine : code d'acces du telephone et reglages
+app/code-acces.txt
+app/reglages.json
+
+# Construction de l'exe
+.construction/
+*.exe
+*.spec
+__pycache__/
+*.pyc
+
+# Divers
+.claude/
+*.log
+Thumbs.db
+desktop.ini

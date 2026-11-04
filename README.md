@@ -1,4 +1,33 @@
-# Prisme
+<p align="center">
+  <img src="docs/logo.svg" alt="Logo de Prisme" width="112">
+</p>
+
+<h1 align="center">Prisme</h1>
+
+<p align="center">
+  <strong>Crée et modifie des images par IA, en local sur ton PC.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/d3Ita/prisme/releases/latest"><img src="https://img.shields.io/github/v/release/d3Ita/prisme?label=version&color=6d5dfc" alt="Dernière version"></a>
+  <a href="https://github.com/d3Ita/prisme/actions/workflows/tests.yml"><img src="https://github.com/d3Ita/prisme/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-a855f7" alt="Licence MIT"></a>
+  <br>
+  <img src="https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white" alt="Python 3.12 et 3.13">
+  <img src="https://img.shields.io/badge/JavaScript-sans%20d%C3%A9pendance-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript sans dépendance">
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows 10 et 11">
+  <img src="https://img.shields.io/badge/GPU-NVIDIA%20CUDA-76B900?logo=nvidia&logoColor=white" alt="Carte graphique NVIDIA">
+  <a href="https://github.com/leejet/stable-diffusion.cpp"><img src="https://img.shields.io/badge/moteur-stable--diffusion.cpp-555" alt="Moteur stable-diffusion.cpp"></a>
+  <img src="https://img.shields.io/badge/langue-fran%C3%A7ais-0055A4" alt="Interface en français">
+</p>
+
+<p align="center">
+  <a href="#installation">Installation</a> ·
+  <a href="#utilisation">Utilisation</a> ·
+  <a href="#construire-depuis-les-sources">Construire</a> ·
+  <a href="#sécurité">Sécurité</a> ·
+  <a href="#licence">Licence</a>
+</p>
 
 Application locale pour créer et modifier des images par intelligence artificielle sur Windows. Tout tourne sur ton PC : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp).
 

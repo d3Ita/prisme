@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>Prisme</title>
+  <defs>
+    <linearGradient id="fond" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d5dfc"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="verre" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.08"/>
+    </linearGradient>
+    <clipPath id="cadre">
+      <rect width="128" height="128" rx="30"/>
+    </clipPath>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#fond)"/>
+  <g clip-path="url(#cadre)" stroke-linecap="round">
+    <!-- Rayon de lumiere blanche qui entre dans le prisme -->
+    <line x1="-4" y1="80" x2="47" y2="66" stroke="#ffffff" stroke-width="5"/>
+    <!-- Spectre qui en sort -->
+    <g stroke-width="5">
+      <line x1="80" y1="64" x2="134" y2="44" stroke="#ff6b8b"/>
+      <line x1="80" y1="64" x2="134" y2="56" stroke="#ffc94d"/>
+      <line x1="80" y1="64" x2="134" y2="68" stroke="#3ee0a8"/>
+      <line x1="80" y1="64" x2="134" y2="80" stroke="#5cc8ff"/>
+    </g>
+    <!-- Prisme -->
+    <path d="M64 28 L98 90 H30 Z" fill="url(#verre)" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
+  </g>
+</svg>

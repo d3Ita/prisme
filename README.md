@@ -7,7 +7,7 @@ Application locale pour créer et modifier des images par intelligence artificie
 ## Fonctions
 
 - **Création** d'images à partir d'une description, de 1 à 4 images par lancement
-- **Amélioration de la description** par un modèle de langage local (Ollama), à la demande ou automatiquement
+- **Amélioration de la description** par un modèle de langage local (Ollama), à la demande ou automatiquement, en création comme en modification
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
 - **Historique** avec recherche, visionneuse plein écran, réutilisation de la description et du seed, mise à la corbeille
@@ -62,7 +62,9 @@ Une description courte (« un chat sur un toit la nuit ») donne souvent une ima
 2. Dans **Réglages → Amélioration de la description**, choisis ce modèle.
 3. Clique sur **Améliorer** au-dessus de la description : le texte détaillé remplace le tien, tu peux le modifier, et **Rétablir** revient à ton texte.
 
-L'option **Améliorer automatiquement** le fait avant chaque création (pas pour les modifications d'image). La consigne donnée au modèle et l'adresse d'Ollama se changent dans les Réglages. Le modèle de langage est déchargé de la carte graphique dès sa réponse, pour laisser la place à la génération.
+Avec une image de départ, l'amélioration ne décrit pas une nouvelle scène : elle transforme ta demande (« ajoute de la neige ») en consigne de modification précise, qui nomme les éléments à changer et demande de garder tout le reste identique. Si le modèle de langage sait lire les images, comme les modèles de vision, Prisme lui envoie l'image de départ pour qu'il s'appuie sur ce qu'elle contient.
+
+L'option **Améliorer automatiquement** le fait avant chaque génération. Les deux consignes (création et modification) et l'adresse d'Ollama se changent dans les Réglages. Le modèle de langage est déchargé de la carte graphique dès sa réponse, pour laisser la place à la génération.
 
 ### Téléphone
 

@@ -575,8 +575,9 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
         <h4>Amélioration de la description</h4>
         <div class="reglage"><label for="r-amelio-modele">Modèle de langage<small>Servi par Ollama</small></label><select class="champ" id="r-amelio-modele" data-cle="amelioration_modele"></select>
           <p class="note-champ" id="note-ollama"></p></div>
-        <div class="reglage"><label for="r-amelio-auto">Améliorer automatiquement<small>Avant chaque création, pas pour les modifications</small></label><label class="interrupteur"><input type="checkbox" id="r-amelio-auto" data-cle="amelioration_auto"><span></span></label></div>
-        <div class="reglage"><label for="r-amelio-consigne">Consigne<small>Ce que le modèle doit faire</small></label><textarea class="champ consigne" id="r-amelio-consigne" data-cle="amelioration_consigne"></textarea></div>
+        <div class="reglage"><label for="r-amelio-auto">Améliorer automatiquement<small>Avant chaque génération</small></label><label class="interrupteur"><input type="checkbox" id="r-amelio-auto" data-cle="amelioration_auto"><span></span></label></div>
+        <div class="reglage"><label for="r-amelio-consigne">Consigne de création<small>Sans image de départ</small></label><textarea class="champ consigne" id="r-amelio-consigne" data-cle="amelioration_consigne"></textarea></div>
+        <div class="reglage"><label for="r-amelio-modif">Consigne de modification<small>Avec une image de départ, envoyée au modèle s'il voit les images</small></label><textarea class="champ consigne" id="r-amelio-modif" data-cle="amelioration_consigne_modif"></textarea></div>
         <div class="reglage"><label for="r-ollama">Adresse d'Ollama</label><input class="champ" id="r-ollama" data-cle="ollama_adresse" spellcheck="false"></div>
       </section>
       <section class="bloc">
@@ -755,7 +756,7 @@ async function lancer() {
   let texte = prompt.value.trim();
   if (!texte) { note('Écris d\'abord ce que tu veux obtenir.', 'erreur'); prompt.focus(); return; }
   // Amelioration automatique pour une creation, sauf si le texte vient deja d'etre ameliore
-  if (etat.amelioration?.auto && etat.amelioration.modele && !etat.source && texte !== etat.texteAmeliore) {
+  if (etat.amelioration?.auto && etat.amelioration.modele && texte !== etat.texteAmeliore) {
     if (await ameliorer()) texte = prompt.value.trim();
     else note('Génération avec ta description telle quelle.');
   }
@@ -786,10 +787,13 @@ async function ameliorer() {
   const bouton = $('#ameliorer');
   etat.ameliorant = true;
   bouton.disabled = true; prompt.disabled = true; $('#generer').disabled = true;
-  bouton.querySelector('span').textContent = 'Amélioration…';
+  bouton.querySelector('span').textContent = etat.source ? 'Analyse de l\'image…' : 'Amélioration…';
   $('#serveur').textContent = 'Amélioration de la description';
   try {
-    const { prompt: nouveau } = await api('/api/ameliorer', { prompt: texte });
+    const corps = { prompt: texte };
+    if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
+    else if (etat.source) corps.source_data = etat.source.data;
+    const { prompt: nouveau } = await api('/api/ameliorer', corps);
     etat.texteOriginal = texte;
     etat.texteAmeliore = nouveau;
     prompt.value = nouveau;

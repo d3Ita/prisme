@@ -22,7 +22,7 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
@@ -42,6 +42,17 @@ CONSIGNE_AMELIORATION = (
     "Garde exactement le sujet et l'intention de l'utilisateur, sans rien ajouter qui change le sens. "
     "Précise le cadrage, la lumière, l'ambiance, les matières, les couleurs et le style photo ou illustration. "
     "Réponds uniquement par la description finale, en anglais, en un seul paragraphe de 60 à 90 mots. "
+    "Écris tout en anglais : aucun mot ni caractère chinois ou d'une autre langue."
+)
+# En modification, il ne faut pas decrire une nouvelle scene : seulement ce qui change dans l'image fournie
+CONSIGNE_MODIFICATION = (
+    "Tu reformules une demande de modification d'image pour un modèle d'édition d'images. "
+    "L'image jointe, si elle est fournie, est l'image à modifier. "
+    "Écris une instruction de modification courte et précise : décris uniquement ce qui doit changer, "
+    "en nommant les éléments concernés tels qu'ils apparaissent dans l'image, avec les détails utiles "
+    "(couleur, matière, position, lumière du changement). Ne décris pas toute la scène et n'invente aucun autre changement. "
+    "Termine par une phrase qui demande de garder tout le reste identique : sujet, composition, cadrage, arrière-plan, éclairage et style. "
+    "Réponds uniquement par l'instruction, en anglais, en deux à quatre phrases. "
     "Écris tout en anglais : aucun mot ni caractère chinois ou d'une autre langue."
 )
 # Certains modeles glissent parfois quelques mots en chinois : on redemande alors une fois
@@ -68,6 +79,7 @@ REGLAGES_DEFAUT = {
     'amelioration_modele': '',
     'amelioration_auto': False,
     'amelioration_consigne': CONSIGNE_AMELIORATION,
+    'amelioration_consigne_modif': CONSIGNE_MODIFICATION,
     'ollama_adresse': 'http://127.0.0.1:11434',
 }
 METHODES = ['euler', 'euler_a', 'heun', 'dpm2', 'dpm++2s_a', 'dpm++2m', 'dpm++2mv2', 'ipndm', 'ipndm_v', 'lcm',
@@ -130,6 +142,8 @@ def valider_reglages(donnees):
         r['amelioration_auto'] = bool(donnees.get('amelioration_auto', r['amelioration_auto']))
         r['amelioration_consigne'] = str(donnees.get('amelioration_consigne', r['amelioration_consigne'])).strip() \
             or CONSIGNE_AMELIORATION
+        r['amelioration_consigne_modif'] = str(donnees.get('amelioration_consigne_modif', r['amelioration_consigne_modif'])).strip() \
+            or CONSIGNE_MODIFICATION
         r['ollama_adresse'] = str(donnees.get('ollama_adresse', r['ollama_adresse'])).strip().rstrip('/')
         [float(x) for x in r['sigmas'].split(',') if r['sigmas']]
     except (TypeError, ValueError):
@@ -202,12 +216,35 @@ def appel_ollama(r, chemin, corps=None, delai=10):
         raise RuntimeError('Ollama ne répond pas : lance Ollama ou vérifie son adresse dans les Réglages.') from None
 
 
-def ameliorer_description(r, texte):
+capacites_ollama = {}
+
+
+def modele_voit_les_images(r):
+    nom = r['amelioration_modele']
+    if nom not in capacites_ollama:
+        try:
+            capacites_ollama[nom] = 'vision' in appel_ollama(r, '/api/show', {'model': nom}).get('capabilities', [])
+        except RuntimeError:
+            return False
+    return capacites_ollama[nom]
+
+
+def ameliorer_description(r, texte, image=None):
+    """Avec une image de depart, produit une consigne de modification au lieu d'une nouvelle description."""
+    message = {'role': 'user', 'content': texte}
+    if image is not None:
+        consigne = r['amelioration_consigne_modif']
+        if modele_voit_les_images(r):
+            message['images'] = [base64.b64encode(image).decode()]
+        else:
+            message['content'] = f"Demande de modification (l'image n'est pas visible) : {texte}"
+    else:
+        consigne = r['amelioration_consigne']
     resultat = ''
     for temperature, dernier in ((0.6, False), (0.3, True)):
         reponse = appel_ollama(r, '/api/chat', {
             'model': r['amelioration_modele'],
-            'messages': [{'role': 'system', 'content': r['amelioration_consigne']}, {'role': 'user', 'content': texte}],
+            'messages': [{'role': 'system', 'content': consigne}, message],
             'stream': False,
             # Libere la carte graphique pour la generation qui suit, sauf avant une seconde tentative
             'keep_alive': 0 if dernier else '30s',
@@ -568,7 +605,16 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
         elif chemin == '/api/ameliorer':
             r = lire_reglages()
-            texte = str(self.lire_json().get('prompt', '')).strip()
+            donnees = self.lire_json()
+            texte = str(donnees.get('prompt', '')).strip()
+            image = None
+            nom = str(donnees.get('source_nom') or '')
+            if nom:
+                if not NOM_IMAGE.match(nom) or not (IMAGES / nom).exists():
+                    return self.envoyer(404, {'erreur': 'Image de départ introuvable.'})
+                image = (IMAGES / nom).read_bytes()
+            elif donnees.get('source_data'):
+                image = base64.b64decode(str(donnees['source_data']).partition(',')[2])
             if not texte:
                 return self.envoyer(400, {'erreur': 'Écris d\'abord une description à améliorer.'})
             if not r['amelioration_modele']:
@@ -577,7 +623,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if etat.get('occupe') or not amelioration_en_cours.acquire(blocking=False):
                 return self.envoyer(409, {'erreur': 'Attends la fin du calcul en cours.'})
             try:
-                self.envoyer(200, {'prompt': ameliorer_description(r, texte)})
+                self.envoyer(200, {'prompt': ameliorer_description(r, texte, image), 'modification': image is not None})
             except RuntimeError as e:
                 self.envoyer(502, {'erreur': str(e)})
             finally:

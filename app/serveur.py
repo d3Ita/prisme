@@ -26,7 +26,7 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.3.1'
+VERSION = '1.4.0'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
@@ -109,6 +109,8 @@ REGLAGES_DEFAUT = {
     # L'acces depuis le reseau local s'active dans les Reglages
     'acces_reseau': False,
     'arret_auto_minutes': 30,
+    # Arrete le serveur quelques secondes apres la fermeture de la fenetre du PC
+    'arret_fermeture': True,
     # [{'nom': 'fichier.safetensors', 'force': 1.0, 'actif': True}], fichiers du dossier models/loras
     'loras': [],
     # Amelioration de la description par un modele de langage servi par Ollama (vide = desactivee)
@@ -135,16 +137,26 @@ NOM_IMAGE = re.compile(r'^[\w.-]+\.png$')
 TAILLE_MAX_REQUETE = 64 * 1024 * 1024
 # Au-dela de ce nombre de codes faux, l'appareil est bloque un moment
 ESSAIS_MAX, FENETRE_ESSAIS = 10, 15 * 60
+# Connexion d'un appareil en tapant seulement l'adresse : il demande l'acces, le PC l'autorise
+DUREE_DEMANDE, DEMANDES_MAX_PAR_APPAREIL = 120, 3
 PAS = re.compile(r'(\d+)/(\d+)\s*-\s*[\d.,]+\s*(?:s/it|it/s)')
 
 verrou = threading.Lock()
 dernier_contact = time.time()
+# Fermeture de la fenetre du PC : le serveur s'arrete si elle n'est pas rouverte juste apres (rechargement)
+dernier_contact_local = time.time()
+fermeture_demandee = None
+DELAI_FERMETURE = 6
+# Moteur de texte en cours d'utilisation, a arreter avec le serveur
+processus_texte = None
 etat = {'occupe': False}
 processus = None
 annule = False
 amelioration_en_cours = threading.Lock()
 cache_infos = {}
 echecs = {}
+demandes = {}
+verrou_demandes = threading.Lock()
 verrou_echecs = threading.Lock()
 # Acces reseau du serveur en cours : un changement de reglage s'applique au prochain lancement
 SERVEUR_RESEAU = True
@@ -174,7 +186,7 @@ def valider_reglages(donnees):
         r['cfg'] = float(donnees.get('cfg', r['cfg']))
         r['methode'] = str(donnees.get('methode', r['methode']))
         r['sigmas'] = ','.join(x.strip() for x in str(donnees.get('sigmas', r['sigmas'])).split(',') if x.strip())
-        for cle in ('dechargement_cpu', 'vae_tuiles', 'flash_attention', 'acces_reseau'):
+        for cle in ('dechargement_cpu', 'vae_tuiles', 'flash_attention', 'acces_reseau', 'arret_fermeture'):
             r[cle] = bool(donnees.get(cle, r[cle]))
         r['arret_auto_minutes'] = int(donnees.get('arret_auto_minutes', r['arret_auto_minutes']))
         loras = []
@@ -300,8 +312,9 @@ class MoteurTexte:
         if self.vision and self.vision.is_file():
             commande += ['--mmproj', str(self.vision)]
         self.journal = tempfile.TemporaryFile()
-        self.processus = subprocess.Popen(commande, stdout=self.journal, stderr=subprocess.STDOUT,
-                                          creationflags=subprocess.CREATE_NO_WINDOW)
+        global processus_texte
+        self.processus = processus_texte = subprocess.Popen(commande, stdout=self.journal, stderr=subprocess.STDOUT,
+                                                            creationflags=subprocess.CREATE_NO_WINDOW)
         limite = time.time() + 300
         while time.time() < limite:
             if self.processus.poll() is not None:
@@ -327,6 +340,8 @@ class MoteurTexte:
             raise RuntimeError(f'Le moteur de texte n\'a pas répondu : {e}') from None
 
     def __exit__(self, *erreur):
+        global processus_texte
+        processus_texte = None
         if self.processus and self.processus.poll() is None:
             self.processus.kill()
             self.processus.wait()
@@ -524,6 +539,15 @@ def code_acces():
 CODE = code_acces()
 
 
+def resumer_appareil(agent):
+    """Nom lisible de l'appareil, d'apres son navigateur, pour reconnaitre la demande sur le PC."""
+    for motif, nom in (('iPhone', 'iPhone'), ('iPad', 'iPad'), ('Android', 'Android'), ('Windows', 'PC Windows'),
+                       ('Macintosh', 'Mac'), ('Linux', 'Linux')):
+        if motif in agent:
+            return nom
+    return 'Appareil inconnu'
+
+
 def adresse_reseau():
     # Aucun paquet n'est envoye : la connexion UDP sert seulement a choisir l'interface reseau
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -701,9 +725,44 @@ MANIFESTE = json.dumps({
     'icons': [{'src': '/logo.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'}],
 }, ensure_ascii=False).encode('utf-8')
 
-PAGE_REFUSEE = '''<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prisme</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0e0e12;color:#ececf1;font:15px system-ui,sans-serif;text-align:center;padding:24px">
-<div><img src="/logo.png" alt="" width="88" height="88" style="border-radius:20px"><h1 style="font-size:20px">Accès protégé</h1><p style="color:#a1a1b0;max-width:340px">Sur le PC, clique sur « Téléphone » dans Prisme, puis scanne le QR code ou ouvre le lien affiché.</p></div>'''
+PAGE_CONNEXION = '''<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prisme</title><link rel="icon" href="/logo.png"><meta name="theme-color" content="#16161c">
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#0e0e12;color:#ececf1;font:15px system-ui,sans-serif;text-align:center;padding:24px">
+<div style="width:100%;max-width:340px;overflow-wrap:anywhere">
+  <img src="/logo.png" alt="" width="96" height="96" style="border-radius:22px">
+  <h1 style="font-size:21px;margin:18px 0 8px">Connexion à Prisme</h1>
+  <p id="etat" style="color:#a1a1b0;margin:0 0 18px">Envoi de la demande…</p>
+  <div id="code" style="font:600 40px ui-monospace,Consolas,monospace;letter-spacing:10px;color:#8b7dff;min-height:48px"></div>
+  <button id="relancer" hidden style="margin-top:18px;height:42px;padding:0 20px;border:0;border-radius:10px;background:#6d5dfc;color:#fff;font:600 15px system-ui">Redemander l'accès</button>
+</div>
+<script>
+const etat = document.getElementById('etat'), code = document.getElementById('code'), relancer = document.getElementById('relancer');
+function echec(texte) { etat.textContent = texte; code.textContent = ''; relancer.hidden = false; }
+async function demander() {
+  relancer.hidden = true; etat.textContent = 'Envoi de la demande…';
+  try {
+    const r = await fetch('/acces/demander', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const d = await r.json();
+    if (!r.ok) return echec(d.erreur || 'Demande impossible.');
+    code.textContent = d.code;
+    etat.textContent = 'Sur le PC, clique sur « Autoriser » dans Prisme, en vérifiant que ce code est le même.';
+    suivre(d.id);
+  } catch { echec('Prisme ne répond pas.'); }
+}
+function suivre(id) {
+  setTimeout(async () => {
+    try {
+      const d = await (await fetch('/acces/etat?id=' + encodeURIComponent(id))).json();
+      if (d.etat === 'acceptee') { etat.textContent = 'Accès autorisé.'; location.replace('/'); return; }
+      if (d.etat === 'refusee') return echec('Accès refusé sur le PC.');
+      if (d.etat === 'expiree') return echec('La demande a expiré : personne ne l\\'a acceptée sur le PC.');
+    } catch {}
+    suivre(id);
+  }, 1500);
+}
+relancer.onclick = demander;
+demander();
+</script>'''
 
 
 class Gestionnaire(BaseHTTPRequestHandler):
@@ -768,9 +827,52 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
     def refuser(self):
         if urlparse(self.path).path.startswith('/api/'):
-            self.envoyer(401, {'erreur': 'Accès refusé : reconnecte-toi avec le lien du PC.'})
+            self.envoyer(401, {'erreur': 'Accès refusé : reconnecte-toi depuis l\'adresse de Prisme.'})
         else:
-            self.envoyer(401, PAGE_REFUSEE.encode('utf-8'), 'text/html; charset=utf-8')
+            self.envoyer(401, PAGE_CONNEXION.encode('utf-8'), 'text/html; charset=utf-8')
+
+    def noter_contact_local(self):
+        global dernier_contact_local, fermeture_demandee
+        if self.est_local():
+            dernier_contact_local = time.time()
+            fermeture_demandee = None
+
+    def deposer_cookie(self):
+        self.send_header('Set-Cookie', f'prisme_acces={CODE}; Max-Age=31536000; Path=/; HttpOnly; SameSite=Lax')
+
+    def demander_acces(self):
+        """Un appareil sans code demande l'acces : le PC devra l'autoriser."""
+        ip = self.client_address[0]
+        maintenant = time.time()
+        with verrou_demandes:
+            for cle in [c for c, d in demandes.items() if maintenant - d['cree'] > DUREE_DEMANDE]:
+                del demandes[cle]
+            if sum(d['ip'] == ip for d in demandes.values()) >= DEMANDES_MAX_PAR_APPAREIL:
+                return self.envoyer(429, {'erreur': 'Trop de demandes en attente : accepte-les ou attends deux minutes.'})
+            ident = secrets.token_urlsafe(16)
+            demandes[ident] = {'ip': ip, 'appareil': resumer_appareil(self.headers.get('User-Agent', '')),
+                               'code': f'{secrets.randbelow(10000):04d}', 'etat': 'attente', 'cree': maintenant}
+            self.envoyer(200, {'id': ident, 'code': demandes[ident]['code']})
+
+    def etat_demande(self, ident):
+        """L'appareil suit sa demande ; une fois acceptee, il recoit le cookie d'acces."""
+        with verrou_demandes:
+            demande = demandes.get(ident)
+            # Une demande ne peut etre suivie que depuis l'appareil qui l'a faite
+            if not demande or demande['ip'] != self.client_address[0] or time.time() - demande['cree'] > DUREE_DEMANDE:
+                return self.envoyer(200, {'etat': 'expiree'})
+            if demande['etat'] == 'attente':
+                return self.envoyer(200, {'etat': 'attente'})
+            del demandes[ident]
+        corps = json.dumps({'etat': demande['etat']}).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(corps)))
+        self.send_header('Cache-Control', 'no-store')
+        if demande['etat'] == 'acceptee':
+            self.deposer_cookie()
+        self.end_headers()
+        self.wfile.write(corps)
 
     def envoyer(self, code, corps, type_contenu='application/json; charset=utf-8', cache=False):
         if not isinstance(corps, bytes):
@@ -802,7 +904,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 self.noter_echec()
                 return self.refuser()
             self.send_response(302)
-            self.send_header('Set-Cookie', f'prisme_acces={CODE}; Max-Age=31536000; Path=/; HttpOnly; SameSite=Lax')
+            self.deposer_cookie()
             self.send_header('Location', '/')
             self.send_header('Content-Length', '0')
             self.end_headers()
@@ -812,9 +914,12 @@ class Gestionnaire(BaseHTTPRequestHandler):
             return self.envoyer(200, (RESSOURCES / 'logo.png').read_bytes(), 'image/png', cache=True)
         if chemin == '/manifest.webmanifest':
             return self.envoyer(200, MANIFESTE, 'application/manifest+json; charset=utf-8')
+        if chemin == '/acces/etat':
+            return self.etat_demande(parse_qs(url.query).get('id', [''])[0])
         if not self.autorise():
             return self.refuser()
         dernier_contact = time.time()
+        self.noter_contact_local()
 
         if chemin in ('/', '/index.html'):
             self.envoyer(200, (RESSOURCES / 'index.html').read_bytes(), 'text/html; charset=utf-8')
@@ -839,6 +944,11 @@ class Gestionnaire(BaseHTTPRequestHandler):
             copie['problemes'] = problemes_configuration(r)
             copie['amelioration'] = {'modele': amelioration_active(r), 'auto': r['amelioration_auto']}
             copie['moteurs'] = etat_moteurs()
+            if self.est_local():
+                with verrou_demandes:
+                    copie['demandes'] = [{'id': i, 'ip': d['ip'], 'appareil': d['appareil'], 'code': d['code']}
+                                         for i, d in demandes.items()
+                                         if d['etat'] == 'attente' and time.time() - d['cree'] <= DUREE_DEMANDE]
             copie['loras_actifs'] = [{'nom': Path(l['nom']).stem, 'force': l['force']} for l in loras_actifs(r)]
             self.envoyer(200, copie)
         elif chemin == '/api/ollama-modeles':
@@ -871,6 +981,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             return self.envoyer(403, {'erreur': 'Requête venant d\'un autre site refusée.'})
         if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
             return self.envoyer(415, {'erreur': 'Les requêtes doivent être en JSON.'})
+        if urlparse(self.path).path == '/acces/demander':
+            return self.demander_acces()
         if not self.autorise():
             return self.refuser()
         try:
@@ -879,8 +991,19 @@ class Gestionnaire(BaseHTTPRequestHandler):
             self.envoyer(400, {'erreur': 'Données invalides.'})
 
     def traiter_post(self, chemin):
-        global dernier_contact, annule
+        global dernier_contact, annule, fermeture_demandee
         dernier_contact = time.time()
+        if chemin in ('/api/quitter', '/api/fermeture'):
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            if chemin == '/api/fermeture':
+                fermeture_demandee = time.time()
+                return self.envoyer(200, {})
+            self.envoyer(200, {})
+            # La reponse part avant l'arret
+            threading.Timer(0.3, arreter).start()
+            return
+        self.noter_contact_local()
 
         if chemin == '/api/generer':
             try:
@@ -938,6 +1061,21 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 self.envoyer(502, {'erreur': str(e)})
             finally:
                 amelioration_en_cours.release()
+
+        elif chemin == '/api/repondre-demande':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            donnees = self.lire_json()
+            with verrou_demandes:
+                demande = demandes.get(str(donnees.get('id') or ''))
+                if not demande or demande['etat'] != 'attente':
+                    return self.envoyer(404, {'erreur': 'Cette demande a expiré.'})
+                demande['etat'] = 'acceptee' if donnees.get('accepter') else 'refusee'
+            if demande['etat'] == 'refusee':
+                # Un refus compte comme un code faux : un appareil insistant finit bloque
+                with verrou_echecs:
+                    echecs.setdefault(demande['ip'], []).append(time.time())
+            self.envoyer(200, {'etat': demande['etat']})
 
         elif chemin == '/api/installer-moteur':
             if not self.est_local():
@@ -1025,12 +1163,33 @@ def ouvrir_fenetre():
         webbrowser.open(adresse)
 
 
+def arreter():
+    """Arrete Prisme et les moteurs qu'il a lances."""
+    for moteur in (processus, processus_texte):
+        if moteur and moteur.poll() is None:
+            try:
+                moteur.kill()
+            except OSError:
+                pass
+    os._exit(0)
+
+
+def doit_s_arreter(maintenant, reglages):
+    """Vrai si le serveur doit s'arreter : inactivite trop longue, ou fenetre du PC fermee et pas rouverte."""
+    if etat.get('occupe') or amelioration_en_cours.locked():
+        return False
+    if maintenant - dernier_contact > reglages['arret_auto_minutes'] * 60:
+        return True
+    return bool(reglages['arret_fermeture'] and fermeture_demandee
+                and dernier_contact_local <= fermeture_demandee
+                and maintenant - fermeture_demandee > DELAI_FERMETURE)
+
+
 def surveiller():
     while True:
-        time.sleep(10)
-        limite = lire_reglages()['arret_auto_minutes'] * 60
-        if not etat.get('occupe') and time.time() - dernier_contact > limite:
-            os._exit(0)
+        time.sleep(2)
+        if doit_s_arreter(time.time(), lire_reglages()):
+            arreter()
 
 
 def fermer_demarrage(delai=0.0):

@@ -96,10 +96,11 @@ Si tu préfères ne pas faire confiance à l'exe, construis-le toi-même à part
 | Modifier une image | **Modifier** sous une image, ou glisser une image dans « Image de départ » |
 | Changer de modèle | **Réglages → Modèles**, puis **Enregistrer** |
 | Ajouter un LoRA | Le placer dans `models/loras`, puis **Réglages → LoRA → Actualiser** |
-| Utiliser le téléphone | **Téléphone** en haut à droite, puis scanner le QR code |
+| Utiliser le téléphone | Taper l'adresse affichée par **Téléphone**, puis **Autoriser** sur le PC (ou scanner le QR code) |
+| Arrêter Prisme | **Quitter** en haut à droite, ou fermer la fenêtre |
 | Parcourir l'historique | Clic sur une vignette, ou flèches ← → |
 
-Les réglages sont enregistrés dans `app/reglages.json`, les images dans `images/`. L'application s'arrête seule après 30 minutes sans fenêtre ouverte (modifiable dans les Réglages).
+Les réglages sont enregistrés dans `app/reglages.json`, les images dans `images/`. Prisme s'arrête quelques secondes après la fermeture de sa fenêtre sur le PC, et après 30 minutes sans aucune activité. Les deux se règlent dans **Réglages → Application** : désactive l'arrêt à la fermeture pour continuer à l'utiliser depuis le téléphone fenêtre fermée. Le bouton **Quitter** l'arrête immédiatement, avec les moteurs en cours.
 
 ### Amélioration de la description
 
@@ -117,14 +118,16 @@ L'option **Améliorer automatiquement** le fait avant chaque génération. Les d
 
 ### Téléphone
 
-L'accès depuis le réseau local est **désactivé par défaut**. Pour l'activer : **Réglages → Application → Accès depuis le téléphone**, puis relance Prisme. Windows demande alors d'autoriser Prisme sur le réseau : accepte. Ensuite, le bouton **Téléphone** affiche un QR code à scanner.
+L'accès depuis le réseau local est **désactivé par défaut**. Pour l'activer : **Réglages → Application → Accès depuis le téléphone**, puis relance Prisme. Windows demande alors d'autoriser Prisme sur le réseau : accepte. Ensuite, le bouton **Téléphone** affiche l'adresse à taper (par exemple `192.168.1.22:7861`) et un QR code.
+
+Sur le téléphone, tape simplement l'adresse : la page affiche un code à 4 chiffres, et Prisme te demande sur le PC d'**Autoriser** cet appareil après avoir vérifié que le code est le même. Le téléphone reste ensuite connecté. Le QR code permet de se connecter directement, sans autorisation.
 
 Le téléphone doit être sur le même réseau que le PC. Le lien du QR code contient un code d'accès enregistré dans `app/code-acces.txt` : supprimer ce fichier puis relancer Prisme en crée un nouveau et déconnecte les appareils déjà reliés. N'active pas cet accès sur un réseau public (gare, café, hôtel) : la connexion n'est pas chiffrée.
 
 ## Sécurité
 
 - Le serveur de Prisme n'écoute que ce PC, sauf si l'accès depuis le téléphone est activé.
-- Les autres appareils du réseau doivent présenter un code d'accès aléatoire de 128 bits. Après 10 codes faux, un appareil est bloqué 15 minutes.
+- Les autres appareils du réseau doivent présenter un code d'accès aléatoire de 128 bits, reçu par le QR code ou après une autorisation donnée sur le PC. Après 10 codes faux ou demandes refusées, un appareil est bloqué 15 minutes.
 - Les sites web ouverts dans ton navigateur ne peuvent ni piloter Prisme ni lire ses données : les requêtes venant d'une autre origine ou d'un autre nom d'hôte sont refusées.
 - Les réglages, les modèles et l'ouverture des dossiers ne sont accessibles que depuis le PC.
 

@@ -252,6 +252,8 @@ kbd {
   transition: opacity .35s ease, visibility .35s ease;
 }
 .chargement.fini { opacity: 0; visibility: hidden; }
+.chargement p { margin: 0; max-width: 320px; text-align: center; color: var(--texte-2); }
+.bouton-entete.confirmer { border-color: var(--danger); color: var(--danger); }
 .chargement img { width: 112px; height: 112px; border-radius: 26px; box-shadow: 0 16px 48px rgba(109, 93, 252, .35); animation: respire 2.2s ease-in-out infinite; }
 .chargement strong { font: 600 26px var(--police-titre); letter-spacing: .3px; }
 .chargement .piste-chargement { width: 140px; height: 3px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
@@ -343,6 +345,14 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
 .outil.danger:hover, .outil.confirmer { background: rgba(242, 85, 90, .14); color: var(--danger); }
 .version { font-size: 12px; color: var(--texte-3); }
 
+/* Connexion d'un appareil */
+.adresse-simple { margin: 0 0 18px; padding: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--bordure-forte); font: 600 20px ui-monospace, Consolas, monospace; text-align: center; color: var(--accent-2); user-select: all; }
+.carte-modale.demande { text-align: center; width: min(380px, 100%); }
+.logo-demande { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 12px; }
+.code-demande { font: 600 40px ui-monospace, Consolas, monospace; letter-spacing: 10px; color: var(--accent-2); margin: 6px 0 4px; }
+.carte-modale.demande .petit { font-size: 12.5px; color: var(--texte-3); margin-bottom: 20px; }
+.boutons-demande { display: flex; gap: 10px; justify-content: center; }
+
 /* LoRA */
 .barre-installation { height: 6px; margin-top: 10px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
 .barre-installation span { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--accent), #c084fc); transition: width .4s ease; }
@@ -396,6 +406,11 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
   <strong>Prisme</strong>
   <span class="piste-chargement"><span></span></span>
 </div>
+<div class="chargement fini" id="arrete" role="status">
+  <img src="/logo.png" alt="" style="animation:none;filter:grayscale(.6);opacity:.8">
+  <strong>Prisme est arrêté</strong>
+  <p>Plus rien ne tourne et le téléphone n'y a plus accès. Tu peux fermer cette fenêtre ; relance Prisme.exe pour l'utiliser de nouveau.</p>
+</div>
 <svg width="0" height="0" style="position:absolute">
   <defs>
     <linearGradient id="degrade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5dfc"/><stop offset="1" stop-color="#c084fc"/></linearGradient>
@@ -414,6 +429,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
     <symbol id="i-alerte" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></symbol>
     <symbol id="i-carre" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
     <symbol id="i-corbeille" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-quitter" viewBox="0 0 24 24"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/></symbol>
     <symbol id="i-reglages" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
     <symbol id="i-telephone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></symbol>
   </defs>
@@ -427,6 +443,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
     <div class="espace"></div>
     <button class="bouton-entete" id="telephone" hidden><svg class="i"><use href="#i-telephone"/></svg>Téléphone</button>
     <button class="bouton-entete" id="ouvrir-reglages" hidden><svg class="i"><use href="#i-reglages"/></svg>Réglages</button>
+    <button class="bouton-entete" id="quitter" hidden title="Arrêter Prisme : le téléphone n'y aura plus accès"><svg class="i"><use href="#i-quitter"/></svg>Quitter</button>
     <div class="serveur" id="serveur">Prêt</div>
   </header>
 
@@ -563,7 +580,9 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
   <div class="carte-modale">
     <button class="bouton-icone fermer" id="fermer-modale" title="Fermer"><svg class="i"><use href="#i-x"/></svg></button>
     <h3>Utiliser sur ton téléphone</h3>
-    <p>Scanne ce code avec l'appareil photo du téléphone.</p>
+    <p>Tape cette adresse dans le navigateur du téléphone, puis autorise-le ici :</p>
+    <div class="adresse-simple" id="adresse-simple">…</div>
+    <p>Ou scanne ce code pour te connecter directement :</p>
     <div class="qr" id="qr">Chargement…</div>
     <div class="lien">
       <input class="champ" id="lien" readonly>
@@ -572,8 +591,21 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
     <ol class="etapes">
       <li>Le téléphone doit être sur le même réseau (Wi-Fi de la maison) que ce PC.</li>
       <li>Le PC doit rester allumé avec Prisme lancé.</li>
-      <li>Ce lien contient ton code d'accès : ne le partage pas.</li>
+      <li>Le lien du QR code contient ton code d'accès : ne le partage pas.</li>
     </ol>
+  </div>
+</div>
+<div class="modale" id="modale-demande">
+  <div class="carte-modale demande">
+    <img src="/logo.png" alt="" class="logo-demande">
+    <h3>Un appareil veut utiliser Prisme</h3>
+    <p id="demande-appareil"></p>
+    <div class="code-demande" id="demande-code"></div>
+    <p class="petit">Autorise seulement si ce code est celui affiché sur ton appareil.</p>
+    <div class="boutons-demande">
+      <button class="bouton-secondaire" id="demande-refuser">Refuser</button>
+      <button class="bouton-primaire" id="demande-autoriser">Autoriser</button>
+    </div>
   </div>
 </div>
 <div class="modale" id="modale-reglages">
@@ -635,6 +667,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
       <section class="bloc">
         <h4>Application</h4>
         <div class="reglage"><label for="r-reseau">Accès depuis le téléphone<small>Pris en compte au prochain lancement</small></label><label class="interrupteur"><input type="checkbox" id="r-reseau" data-cle="acces_reseau"><span></span></label></div>
+        <div class="reglage"><label for="r-arret-fermeture">Arrêter à la fermeture<small>Quand la fenêtre de Prisme se ferme sur le PC</small></label><label class="interrupteur"><input type="checkbox" id="r-arret-fermeture" data-cle="arret_fermeture"><span></span></label></div>
         <div class="reglage"><label for="r-arret">Arrêt automatique<small>Minutes sans fenêtre ouverte</small></label><input class="champ court" id="r-arret" data-cle="arret_auto_minutes" type="number" min="1" max="1440"></div>
       </section>
     </div>
@@ -906,6 +939,7 @@ function suivre() {
   etat.minuteur = setTimeout(async () => {
     let e;
     try { e = await api('/api/etat'); } catch { suivre(); return; }
+    majDemandes(e.demandes);
     if (e.occupe) { majCalcul(e); suivre(); return; }
     etat.occupe = false;
     majInterfaceOccupee(false);
@@ -921,17 +955,45 @@ function suivre() {
   }, 700);
 }
 
-// Garde le serveur en vie tant que la fenetre est ouverte
+// Garde le serveur en vie tant que la fenetre est ouverte, et voit vite les demandes d'acces
 function battement() {
   clearTimeout(etat.minuteur);
   etat.minuteur = setTimeout(async () => {
     try {
       const e = await api('/api/etat');
+      majDemandes(e.demandes);
       if (e.occupe) { etat.occupe = true; majCalcul(e); suivre(); return; }
     } catch {}
     battement();
-  }, 15000);
+  }, 2500);
 }
+
+// ---------- Demandes d'acces d'un appareil ----------
+let demandeAffichee = null;
+function majDemandes(liste) {
+  if (!liste) return;
+  const demande = liste.find(d => d.id === demandeAffichee) || liste[0];
+  if (!demande) {
+    demandeAffichee = null;
+    $('#modale-demande').classList.remove('ouverte');
+    return;
+  }
+  demandeAffichee = demande.id;
+  $('#demande-appareil').textContent = `${demande.appareil} · ${demande.ip}`;
+  $('#demande-code').textContent = demande.code;
+  $('#modale-demande').classList.add('ouverte');
+}
+async function repondreDemande(accepter) {
+  if (!demandeAffichee) return;
+  try {
+    await api('/api/repondre-demande', { id: demandeAffichee, accepter });
+    note(accepter ? 'Appareil autorisé' : 'Demande refusée');
+  } catch (err) { note(err.message, 'erreur'); }
+  demandeAffichee = null;
+  $('#modale-demande').classList.remove('ouverte');
+}
+$('#demande-autoriser').addEventListener('click', () => repondreDemande(true));
+$('#demande-refuser').addEventListener('click', () => repondreDemande(false));
 
 $('#generer').addEventListener('click', () => etat.occupe ? annuler() : lancer());
 document.addEventListener('keydown', e => {
@@ -1182,6 +1244,7 @@ $('#telephone').addEventListener('click', async () => {
   try {
     const acces = await api('/api/acces');
     $('#lien').value = acces.lien;
+    $('#adresse-simple').textContent = acces.adresse.replace('http://', '');
     const qr = $('#qr');
     if (!acces.reseau) {
       qr.textContent = 'L\'accès depuis le téléphone est désactivé. Active-le dans les Réglages, puis relance Prisme.';
@@ -1380,6 +1443,32 @@ document.querySelectorAll('[data-fermer]').forEach(b => b.addEventListener('clic
 $('#modale-reglages').addEventListener('mousedown', e => { if (e.target.id === 'modale-reglages') $('#modale-reglages').classList.remove('ouverte'); });
 
 // ---------- Demarrage ----------
+// ---------- Arret de Prisme ----------
+let confirmationQuitter = null;
+$('#quitter').addEventListener('click', async () => {
+  const bouton = $('#quitter');
+  if (!bouton.classList.contains('confirmer')) {
+    bouton.classList.add('confirmer');
+    note(etat.occupe ? 'Une génération est en cours : clique encore pour tout arrêter' : 'Clique encore sur Quitter pour arrêter Prisme');
+    clearTimeout(confirmationQuitter);
+    confirmationQuitter = setTimeout(() => bouton.classList.remove('confirmer'), 3000);
+    return;
+  }
+  clearTimeout(confirmationQuitter);
+  etat.arrete = true;
+  clearTimeout(etat.minuteur);
+  try { await api('/api/quitter', {}); } catch {}
+  $('#arrete').classList.remove('fini');
+  // Une fenetre ouverte par Prisme peut se fermer seule ; sinon l'ecran ci-dessus reste affiche
+  setTimeout(() => window.close(), 1200);
+});
+
+// Fermer la fenetre du PC previent le serveur, qui s'arrete s'il n'est pas rouvert (rechargement)
+addEventListener('pagehide', () => {
+  if (!etat.local || etat.arrete) return;
+  fetch('/api/fermeture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', keepalive: true }).catch(() => {});
+});
+
 function finChargement() {
   $('#chargement').classList.add('fini');
 }
@@ -1397,6 +1486,7 @@ function finChargement() {
     etat.local = e.local;
     $('#telephone').hidden = !e.local;
     $('#ouvrir-reglages').hidden = !e.local;
+    $('#quitter').hidden = !e.local;
     majBadge(e.modele);
     majLorasActifs(e.loras_actifs);
     majProblemes(e.problemes, e.local);

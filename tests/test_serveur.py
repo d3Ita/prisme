@@ -154,6 +154,50 @@ class InstallationMoteurTest(unittest.TestCase):
                     self.assertRegex(archive['sha256'], r'^[0-9a-f]{64}$')
 
 
+class ArretAutomatiqueTest(unittest.TestCase):
+    def setUp(self):
+        self.reglages = {**serveur.REGLAGES_DEFAUT, 'arret_auto_minutes': 30, 'arret_fermeture': True}
+        self.sauvegarde = (serveur.dernier_contact, serveur.dernier_contact_local, serveur.fermeture_demandee,
+                           dict(serveur.etat))
+
+    def tearDown(self):
+        serveur.dernier_contact, serveur.dernier_contact_local, serveur.fermeture_demandee, etat = self.sauvegarde
+        serveur.etat.clear()
+        serveur.etat.update(etat)
+
+    def situation(self, fermeture_il_y_a=None, contact_local_il_y_a=60, contact_il_y_a=1, occupe=False):
+        maintenant = 10_000.0
+        serveur.dernier_contact = maintenant - contact_il_y_a
+        serveur.dernier_contact_local = maintenant - contact_local_il_y_a
+        serveur.fermeture_demandee = None if fermeture_il_y_a is None else maintenant - fermeture_il_y_a
+        serveur.etat['occupe'] = occupe
+        return serveur.doit_s_arreter(maintenant, self.reglages)
+
+    def test_fenetre_fermee_puis_delai_ecoule(self):
+        self.assertTrue(self.situation(fermeture_il_y_a=serveur.DELAI_FERMETURE + 1))
+
+    def test_attend_le_delai_avant_de_s_arreter(self):
+        self.assertFalse(self.situation(fermeture_il_y_a=1))
+
+    def test_fenetre_rouverte_apres_la_fermeture(self):
+        self.assertFalse(self.situation(fermeture_il_y_a=serveur.DELAI_FERMETURE + 5, contact_local_il_y_a=2))
+
+    def test_reglage_desactive(self):
+        self.reglages['arret_fermeture'] = False
+        self.assertFalse(self.situation(fermeture_il_y_a=60))
+
+    def test_generation_en_cours_jamais_interrompue(self):
+        self.assertFalse(self.situation(fermeture_il_y_a=60, occupe=True))
+        self.assertFalse(self.situation(contact_il_y_a=10_000, occupe=True))
+
+    def test_inactivite_trop_longue(self):
+        self.assertTrue(self.situation(contact_il_y_a=31 * 60))
+        self.assertFalse(self.situation(contact_il_y_a=29 * 60))
+
+    def test_arret_a_la_fermeture_par_defaut(self):
+        self.assertTrue(serveur.REGLAGES_DEFAUT['arret_fermeture'])
+
+
 class CodeAccesTest(unittest.TestCase):
     def test_code_de_128_bits(self):
         self.assertGreaterEqual(len(serveur.CODE), 20)
@@ -215,6 +259,7 @@ class SecuriteHttpTest(unittest.TestCase):
 
     def setUp(self):
         serveur.echecs.clear()
+        serveur.demandes.clear()
 
     def requete(self, methode, chemin, corps=None, entetes=None, hote=None):
         connexion = http.client.HTTPConnection('127.0.0.1', self.port, timeout=10)
@@ -314,6 +359,82 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertEqual(self.distant('/api/installer-moteur', serveur.CODE, 'POST')[0], 403)
         etat = json.loads(self.requete('GET', '/api/etat')[2])
         self.assertEqual(set(etat['moteurs']), {'image', 'texte'})
+
+    # --- connexion en tapant seulement l'adresse : demande acceptee sur le PC
+    def demander(self):
+        statut, _, corps = self.requete('POST', '/acces/demander', '{}',
+                                        {'Content-Type': 'application/json', 'X-Test-Distant': '1', 'User-Agent': 'Mozilla (Linux; Android 15)'})
+        return statut, json.loads(corps)
+
+    def suivre_demande(self, ident):
+        statut, cookie, corps = self.requete('GET', f'/acces/etat?id={ident}', entetes={'X-Test-Distant': '1'})
+        return json.loads(corps)['etat'], cookie
+
+    def repondre(self, ident, accepter, distant=False):
+        entetes = {'Content-Type': 'application/json'}
+        if distant:
+            entetes.update({'X-Test-Distant': '1', 'Cookie': f'prisme_acces={serveur.CODE}'})
+        return self.requete('POST', '/api/repondre-demande', json.dumps({'id': ident, 'accepter': accepter}), entetes)[0]
+
+    def test_page_de_connexion_pour_un_nouvel_appareil(self):
+        statut, _, corps = self.distant('/')
+        self.assertEqual(statut, 401)
+        self.assertIn('Connexion à Prisme', corps.decode('utf-8'))
+
+    def test_demande_acceptee_sur_le_pc(self):
+        statut, demande = self.demander()
+        self.assertEqual(statut, 200)
+        self.assertRegex(demande['code'], r'^\d{4}$')
+        self.assertEqual(self.suivre_demande(demande['id']), ('attente', None))
+        visibles = json.loads(self.requete('GET', '/api/etat')[2])['demandes']
+        self.assertEqual([(d['id'], d['code'], d['appareil']) for d in visibles], [(demande['id'], demande['code'], 'Android')])
+        self.assertEqual(self.repondre(demande['id'], True), 200)
+        etat, cookie = self.suivre_demande(demande['id'])
+        self.assertEqual(etat, 'acceptee')
+        self.assertIn(f'prisme_acces={serveur.CODE}', cookie)
+        # Le cookie n'est remis qu'une seule fois
+        self.assertEqual(self.suivre_demande(demande['id']), ('expiree', None))
+
+    def test_demande_refusee(self):
+        _, demande = self.demander()
+        self.assertEqual(self.repondre(demande['id'], False), 200)
+        self.assertEqual(self.suivre_demande(demande['id']), ('refusee', None))
+        self.assertEqual(len(serveur.echecs.get('127.0.0.1', [])), 1)
+
+    def test_seul_le_pc_peut_autoriser(self):
+        _, demande = self.demander()
+        self.assertEqual(self.repondre(demande['id'], True, distant=True), 403)
+        self.assertEqual(self.suivre_demande(demande['id'])[0], 'attente')
+        self.assertNotIn('demandes', json.loads(self.distant('/api/etat', serveur.CODE)[2]))
+
+    def test_demande_inconnue_ou_trop_nombreuses(self):
+        self.assertEqual(self.suivre_demande('inconnue'), ('expiree', None))
+        statuts = [self.demander()[0] for _ in range(serveur.DEMANDES_MAX_PAR_APPAREIL + 1)]
+        self.assertEqual(statuts[-1], 429)
+        self.assertEqual(set(statuts[:-1]), {200})
+
+    # --- arret du serveur
+    def test_quitter_et_fermeture_reserves_au_pc(self):
+        for chemin in ('/api/quitter', '/api/fermeture'):
+            with self.subTest(chemin=chemin):
+                self.assertEqual(self.distant(chemin, serveur.CODE, 'POST')[0], 403)
+
+    def test_quitter_arrete_le_serveur(self):
+        arrete = threading.Event()
+        original = serveur.arreter
+        serveur.arreter = arrete.set
+        try:
+            self.assertEqual(self.poster('/api/quitter')[0], 200)
+            self.assertTrue(arrete.wait(3))
+        finally:
+            serveur.arreter = original
+
+    def test_fermeture_annulee_si_la_fenetre_revient(self):
+        self.assertEqual(self.poster('/api/fermeture')[0], 200)
+        self.assertIsNotNone(serveur.fermeture_demandee)
+        # Un rechargement de la page relance des requetes : la fermeture est oubliee
+        self.requete('GET', '/api/etat')
+        self.assertIsNone(serveur.fermeture_demandee)
 
     def test_reglages_reserves_au_pc(self):
         self.assertEqual(self.distant('/api/reglages', serveur.CODE)[0], 403)

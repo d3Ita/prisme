@@ -5,7 +5,8 @@
 <h1 align="center">Prisme</h1>
 
 <p align="center">
-  <strong>Local AI image generation and editing for Windows, macOS and Linux. One program, no Python, nothing sent to the cloud.</strong>
+  <strong>A free, open-source local AI image generator for Windows, macOS and Linux.</strong><br>
+  Create and edit images on your own computer: no cloud, no subscription, no complicated setup.
 </p>
 
 <p align="center">
@@ -32,7 +33,9 @@
   <a href="#recommended-models">Models</a> ·
   <a href="#phone-access">Phone access</a> ·
   <a href="#security">Security</a> ·
+  <a href="#faq">FAQ</a> ·
   <a href="#build-from-source">Build</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -40,7 +43,7 @@
 
 ## Why Prisme?
 
-Most local image tools ask you to install Python, manage dependencies, or wire nodes together. Prisme is a single 9 MB program for Windows, macOS and Linux: download it, add your models, click **Install engine**, and start creating. Everything runs on your own GPU through [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). No account, no subscription, and your images never leave your PC.
+Most local image tools ask you to install Python, manage dependencies, or wire nodes together. Prisme is a single 11 MB desktop app for Windows, macOS and Linux: download it, let it fetch the engine and the recommended models in a few clicks, and start creating. Everything runs on your own GPU through [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). No account, no subscription, and your images never leave your PC.
 
 | | Prisme | Node-based tools (ComfyUI…) |
 |---|---|---|
@@ -49,7 +52,14 @@ Most local image tools ask you to install Python, manage dependencies, or wire n
 | Phone access | Built in | Extra setup |
 | Advanced workflows | Settings, LoRA, samplers | Virtually unlimited |
 
-Prisme aims to be the simplest way to run image models locally, not the most powerful one.
+Prisme aims to be the simplest way to run image models locally, not the most powerful one: an easy alternative to ComfyUI and to cloud image generators.
+
+### Who is Prisme for?
+
+- **People discovering local AI image generation**, who want results without learning a node editor
+- **Creators** who want to keep their prompts and images private, on their own machine
+- **Anyone tired of subscriptions and credits** on cloud image generators
+- **Families and small teams** who want to use one PC's graphics card from their phones at home
 
 ## Features
 
@@ -193,6 +203,32 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | `construire.py` | Builds Prisme for the current system |
 | `construire.ps1` | Prepares a Python environment on Windows, then runs `construire.py` |
 | `tests/test_serveur.py` | Server tests |
+
+## FAQ
+
+**Is Prisme free?**
+Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits. The recommended models are free to download too; check each model's license on its page.
+
+**Does it work offline?**
+Yes, once the engine and the models are downloaded. Image creation, editing and prompt enhancement all run on your computer. The only optional connection is a version check on GitHub at launch, which you can turn off.
+
+**What hardware do I need?**
+A graphics card with 8 GB of video memory or more: NVIDIA (CUDA) or AMD and Intel (Vulkan) on Windows, any Vulkan card on Linux, or an Apple Silicon Mac. See [Requirements](#requirements).
+
+**Which models does it support?**
+Models that stable-diffusion.cpp can run with an LLM text encoder, in GGUF or safetensors format, plus LoRA. Prisme downloads a tested set for you: see [Recommended models](#recommended-models).
+
+**Is it an alternative to ComfyUI?**
+For creating and editing images from a description, yes, with a much simpler interface. For complex multi-step workflows, ComfyUI stays more powerful.
+
+**Do my images leave my computer?**
+No. Prompts, models and images stay on your PC. Other devices on your network can connect only if you enable phone access and approve them.
+
+**Can I use it from my phone?**
+Yes, on the same Wi-Fi: see [Phone access](#phone-access).
+
+**Is the interface in English?**
+The interface is in French for now; the buttons are few and the layout is the same as a chat app.
 
 ## Responsible use
 

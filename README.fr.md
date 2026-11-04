@@ -5,7 +5,8 @@
 <h1 align="center">Prisme</h1>
 
 <p align="center">
-  <strong>Crée et modifie des images par IA, en local sur ton ordinateur : Windows, macOS et Linux.</strong>
+  <strong>Un générateur d'images IA local, gratuit et open source, pour Windows, macOS et Linux.</strong><br>
+  Crée et modifie des images sur ton ordinateur : sans cloud, sans abonnement, sans installation compliquée.
 </p>
 
 <p align="center">
@@ -33,12 +34,22 @@
   <a href="#utilisation">Utilisation</a> ·
   <a href="#construire-depuis-les-sources">Construire</a> ·
   <a href="#sécurité">Sécurité</a> ·
+  <a href="#questions-fréquentes">Questions</a> ·
   <a href="#licence">Licence</a>
 </p>
 
 Application locale pour créer et modifier des images par intelligence artificielle sur Windows, macOS et Linux. Tout tourne sur ton ordinateur : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp).
 
 ![Démonstration de Prisme : une idée courte, améliorée, générée, puis modifiée](docs/demo.gif)
+
+### Pour qui ?
+
+- **Ceux qui découvrent la génération d'images en local** et veulent des résultats sans apprendre un éditeur de nœuds
+- **Les créateurs** qui veulent garder leurs descriptions et leurs images privées, sur leur machine
+- **Ceux qui en ont assez des abonnements et des crédits** des générateurs en ligne
+- **Les familles et petites équipes** qui veulent profiter de la carte graphique d'un PC depuis leurs téléphones
+
+C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne : moins de possibilités avancées, beaucoup moins de complexité.
 
 ## Fonctions
 
@@ -221,7 +232,30 @@ python3 app/serveur.py
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
 | `.github/workflows/` | Tests et construction sur GitHub |
 
-Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md).
+Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md). L'historique des versions est dans [CHANGELOG.md](CHANGELOG.md).
+
+## Questions fréquentes
+
+**Prisme est-il gratuit ?**
+Oui. Prisme est open source sous licence MIT, sans compte, sans abonnement et sans crédits. Les modèles conseillés sont gratuits aussi ; vérifie la licence de chacun sur sa page.
+
+**Est-ce que ça marche sans Internet ?**
+Oui, une fois le moteur et les modèles téléchargés. La création, la modification et l'amélioration des descriptions tournent sur ton ordinateur. La seule connexion facultative est la recherche d'une nouvelle version sur GitHub au lancement, qui se désactive.
+
+**Quel matériel faut-il ?**
+Une carte graphique avec 8 Go de mémoire vidéo ou plus : NVIDIA (CUDA), AMD ou Intel (Vulkan) sous Windows, toute carte Vulkan sous Linux, ou un Mac à puce Apple. Voir [Prérequis](#prérequis).
+
+**Quels modèles sont pris en charge ?**
+Les modèles que stable-diffusion.cpp sait faire tourner avec un encodeur de texte de type LLM, au format GGUF ou safetensors, ainsi que les LoRA. Prisme télécharge pour toi un ensemble testé : voir [Modèles conseillés](#modèles-conseillés).
+
+**Est-ce une alternative à ComfyUI ?**
+Pour créer et modifier des images à partir d'une description, oui, avec une interface bien plus simple. Pour des chaînes de traitement complexes, ComfyUI reste plus puissant.
+
+**Mes images quittent-elles mon ordinateur ?**
+Non. Les descriptions, les modèles et les images restent sur ton PC. Les autres appareils du réseau ne peuvent se connecter que si tu actives l'accès depuis le téléphone et que tu les autorises.
+
+**Peut-on l'utiliser depuis un téléphone ?**
+Oui, sur le même Wi-Fi : voir [Téléphone](#téléphone).
 
 ## Usage responsable
 

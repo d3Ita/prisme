@@ -7,12 +7,14 @@ import ctypes
 import ipaddress
 import json
 import os
+import platform
 import random
 import re
 import secrets
 import socket
 import subprocess
 import sys
+import tarfile
 import tempfile
 import zipfile
 import urllib.error
@@ -22,30 +24,53 @@ import time
 from collections import deque
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.4.0'
+VERSION = '1.5.0'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
+WINDOWS = sys.platform == 'win32'
+MAC = sys.platform == 'darwin'
+SYSTEME = 'windows' if WINDOWS else 'mac' if MAC else 'linux'
+# Les moteurs et le navigateur ne doivent pas ouvrir de console sous Windows
+SANS_CONSOLE = subprocess.CREATE_NO_WINDOW if WINDOWS else 0
+SUFFIXE_EXE = '.exe' if WINDOWS else ''
+# L'exe Linux ajoute ses propres bibliotheques a LD_LIBRARY_PATH : on rend l'original
+# aux programmes lances (moteurs, navigateur), qui chargeraient sinon des versions incompatibles
+if EXE and not WINDOWS:
+    for variable in ('LD_LIBRARY_PATH', 'DYLD_LIBRARY_PATH'):
+        if variable + '_ORIG' in os.environ:
+            os.environ[variable] = os.environ[variable + '_ORIG']
+        else:
+            os.environ.pop(variable, None)
+# Bibliotheques du systeme dont les moteurs Linux ont besoin, avec le paquet qui les fournit
+BIBLIOTHEQUES_LINUX = {'libgomp.so.1': 'libgomp1', 'libvulkan.so.1': 'libvulkan1'}
 RESSOURCES = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 # PRISME_RACINE fait travailler le serveur sur un autre dossier, par exemple un dossier temporaire pour les tests
 if os.environ.get('PRISME_RACINE'):
     RACINE = Path(os.environ['PRISME_RACINE']).resolve()
+elif EXE and MAC:
+    # Une application Mac ne doit pas ecrire dans son propre paquet : les donnees vont dans ~/Prisme
+    RACINE = Path.home() / 'Prisme'
 else:
     RACINE = Path(sys.executable).resolve().parent if EXE else Path(__file__).resolve().parent.parent
+RACINE.mkdir(parents=True, exist_ok=True)
 DONNEES = RACINE / 'app'
 MODELES = RACINE / 'models'
 LORAS = MODELES / 'loras'
 IMAGES = RACINE / 'images'
-SD_CLI = RACINE / 'sd' / 'sd-cli.exe'
-LLAMA_SERVEUR = RACINE / 'llama' / 'llama-server.exe'
+SD_CLI = RACINE / 'sd' / f'sd-cli{SUFFIXE_EXE}'
+LLAMA_SERVEUR = RACINE / 'llama' / f'llama-server{SUFFIXE_EXE}'
 TELECHARGEMENTS = RACINE / '.telechargements'
 
 # Moteurs installes par Prisme au premier lancement : versions officielles testees, verifiees par empreinte
-MOTEURS = {
+SD_VERSION = 'https://github.com/leejet/stable-diffusion.cpp/releases/download/master-1039-290148d/'
+LLAMA_VERSION = 'https://github.com/ggml-org/llama.cpp/releases/download/b12100/'
+MOTEURS_PAR_SYSTEME = {
+  'windows': {
     'image': {
         'nom': 'stable-diffusion.cpp', 'version': 'master-1039-290148d', 'dossier': 'sd', 'executable': 'sd-cli.exe',
         'archives': [
@@ -67,8 +92,35 @@ MOTEURS = {
         'requiert': 'image',
         'dll_partagees': ['cublas64_12.dll', 'cublasLt64_12.dll', 'cudart64_12.dll'],
     },
+  },
+  # Linux : versions Vulkan, qui marchent avec les cartes NVIDIA, AMD et Intel
+  'linux': {
+    'image': {
+        'nom': 'stable-diffusion.cpp', 'version': 'master-1039-290148d', 'dossier': 'sd', 'executable': 'sd-cli',
+        'archives': [{'url': SD_VERSION + 'sd-master-290148d-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip', 'taille': 37677240,
+                      'sha256': '95ce28a87d12b09f64aacc8ee2f0728fa40ada4afb9ebd26f544ef1063d86bdb'}],
+    },
+    'texte': {
+        'nom': 'llama.cpp', 'version': 'b12100', 'dossier': 'llama', 'executable': 'llama-server',
+        'archives': [{'url': LLAMA_VERSION + 'llama-b12100-bin-ubuntu-vulkan-x64.tar.gz', 'taille': 35860090,
+                      'sha256': 'dfe0478b552af911cb3b1fc15943106f6adbc949df446903ed0098ba602e079a'}],
+    },
+  },
+  # Mac : versions Metal pour les puces Apple
+  'mac': {
+    'image': {
+        'nom': 'stable-diffusion.cpp', 'version': 'master-1039-290148d', 'dossier': 'sd', 'executable': 'sd-cli',
+        'archives': [{'url': SD_VERSION + 'sd-master-290148d-bin-Darwin-macOS-26.6.2-arm64.zip', 'taille': 37649640,
+                      'sha256': '9e85e31dfa4daae0259c66ac41fab8a5441688b77ee2a761845c3cb88c16f4a4'}],
+    },
+    'texte': {
+        'nom': 'llama.cpp', 'version': 'b12100', 'dossier': 'llama', 'executable': 'llama-server',
+        'archives': [{'url': LLAMA_VERSION + 'llama-b12100-bin-macos-arm64.tar.gz', 'taille': 16651168,
+                      'sha256': '7085982920120f53bd59821dccc84a66faeb4a6c592b4cc3e020911da5818dea'}],
+    },
+  },
 }
-EDGE = Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe')
+MOTEURS = MOTEURS_PAR_SYSTEME[SYSTEME]
 FICHIER_CODE = DONNEES / 'code-acces.txt'
 FICHIER_REGLAGES = DONNEES / 'reglages.json'
 
@@ -162,6 +214,12 @@ verrou_echecs = threading.Lock()
 SERVEUR_RESEAU = True
 
 
+def chemin_relatif_sur(nom):
+    """Vrai si le chemin reste dans son dossier, en appliquant les regles de Windows et des autres systemes."""
+    nom = str(nom).replace('\\', '/')
+    return bool(nom) and not (PureWindowsPath(nom).anchor or PurePosixPath(nom).anchor or '..' in PurePosixPath(nom).parts)
+
+
 def lire_reglages():
     reglages = dict(REGLAGES_DEFAUT)
     try:
@@ -179,7 +237,7 @@ def valider_reglages(donnees):
         for cle in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae', 'amelioration_modele_local',
                     'amelioration_vision_locale'):
             nom = str(donnees.get(cle, r[cle])).strip().replace('\\', '/')
-            if nom and ('..' in Path(nom).parts or Path(nom).anchor):
+            if nom and not chemin_relatif_sur(nom):
                 return None, 'Les modèles doivent être dans le dossier models.'
             r[cle] = nom
         r['etapes'] = int(donnees.get('etapes', r['etapes']))
@@ -192,7 +250,7 @@ def valider_reglages(donnees):
         loras = []
         for l in donnees.get('loras', r['loras']) or []:
             nom = str(l.get('nom', '')).strip().replace('\\', '/')
-            if not nom or '..' in Path(nom).parts or Path(nom).anchor or re.search(r'[:<>]', nom) \
+            if not chemin_relatif_sur(nom) or re.search(r'[:<>]', nom) \
                     or Path(nom).suffix.lower() not in EXTENSIONS_LORA:
                 return None, f'Nom de LoRA invalide : {nom}'
             loras.append({'nom': nom, 'force': round(float(l.get('force', 1.0)), 2), 'actif': bool(l.get('actif', True))})
@@ -238,9 +296,27 @@ def lister_modeles():
                   key=lambda m: m['nom'].lower())
 
 
+def paquets_manquants():
+    """Paquets Linux a installer pour que les moteurs demarrent."""
+    if SYSTEME != 'linux':
+        return []
+    manquants = []
+    for bibliotheque, paquet in BIBLIOTHEQUES_LINUX.items():
+        try:
+            ctypes.CDLL(bibliotheque)
+        except OSError:
+            manquants.append(paquet)
+    return manquants
+
+
 def problemes_configuration(r):
     """Ce qui empeche de generer, pour guider au premier lancement."""
     problemes = []
+    if MAC and platform.machine() != 'arm64':
+        problemes.append('Prisme pour Mac nécessite une puce Apple (M1 ou plus récente)')
+    manquants = paquets_manquants()
+    if manquants:
+        problemes.append('Bibliothèques système manquantes : sudo apt install ' + ' '.join(manquants))
     if not SD_CLI.is_file():
         problemes.append('Moteur d\'images non installé')
     roles = {'modele_diffusion': 'Modèle de dessin', 'modele_texte': 'Encodeur de texte', 'vae': 'VAE'}
@@ -259,10 +335,47 @@ class _OperationFichier(ctypes.Structure):
 
 
 def mettre_a_la_corbeille(chemin):
-    # FO_DELETE avec FOF_ALLOWUNDO : l'image reste recuperable dans la corbeille de Windows
-    operation = _OperationFichier(wFunc=3, pFrom=str(chemin) + '\0', fFlags=0x40 | 0x10 | 0x4 | 0x400)
-    resultat = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(operation))
-    return resultat == 0 and not operation.fAnyOperationsAborted and not Path(chemin).exists()
+    """Met un fichier a la corbeille du systeme, pour qu'il reste recuperable."""
+    chemin = Path(chemin)
+    if WINDOWS:
+        # FO_DELETE avec FOF_ALLOWUNDO
+        operation = _OperationFichier(wFunc=3, pFrom=str(chemin) + '\0', fFlags=0x40 | 0x10 | 0x4 | 0x400)
+        resultat = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(operation))
+        return resultat == 0 and not operation.fAnyOperationsAborted and not chemin.exists()
+    if MAC:
+        cible = str(chemin).replace('\\', '\\\\').replace('"', '\\"')
+        subprocess.run(['osascript', '-e', f'tell application "Finder" to delete POSIX file "{cible}"'], capture_output=True)
+        return not chemin.exists()
+    if shutil.which('gio'):
+        subprocess.run(['gio', 'trash', str(chemin)], capture_output=True)
+        if not chemin.exists():
+            return True
+    # Corbeille freedesktop, utilisee par les bureaux Linux
+    corbeille = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share')) / 'Trash'
+    (corbeille / 'files').mkdir(parents=True, exist_ok=True)
+    (corbeille / 'info').mkdir(parents=True, exist_ok=True)
+    nom, n = chemin.name, 1
+    while (corbeille / 'files' / nom).exists():
+        nom = f'{chemin.stem}.{n}{chemin.suffix}'
+        n += 1
+    (corbeille / 'info' / f'{nom}.trashinfo').write_text(
+        f'[Trash Info]\nPath={urllib.request.pathname2url(str(chemin.resolve()))}\n'
+        f'DeletionDate={datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}\n', encoding='utf-8')
+    shutil.move(str(chemin), corbeille / 'files' / nom)
+    return not chemin.exists()
+
+
+def ouvrir_dossier(dossier, selection=None):
+    """Ouvre un dossier dans l'explorateur du systeme, en montrant un fichier si demande."""
+    if WINDOWS:
+        if selection:
+            subprocess.Popen(['explorer.exe', '/select,', str(selection)])
+        else:
+            os.startfile(dossier)
+    elif MAC:
+        subprocess.Popen(['open', '-R', str(selection)] if selection else ['open', str(dossier)])
+    else:
+        subprocess.Popen(['xdg-open', str(dossier)])
 
 
 def appel_ollama(r, chemin, corps=None, delai=10):
@@ -314,7 +427,7 @@ class MoteurTexte:
         self.journal = tempfile.TemporaryFile()
         global processus_texte
         self.processus = processus_texte = subprocess.Popen(commande, stdout=self.journal, stderr=subprocess.STDOUT,
-                                                            creationflags=subprocess.CREATE_NO_WINDOW)
+                                                            creationflags=SANS_CONSOLE)
         limite = time.time() + 300
         while time.time() < limite:
             if self.processus.poll() is not None:
@@ -422,22 +535,38 @@ def moteur_installe(nom):
     return (RACINE / MOTEURS[nom]['dossier'] / MOTEURS[nom]['executable']).is_file()
 
 
-def extraire_zip(archive, dossier):
-    """Extrait sans laisser un fichier sortir du dossier ; retire un dossier racine commun s'il y en a un."""
-    with zipfile.ZipFile(archive) as z:
-        membres = [m for m in z.infolist() if not m.is_dir()]
-        for m in membres:
-            chemin = Path(m.filename.replace('\\', '/'))
-            if chemin.anchor or '..' in chemin.parts:
-                raise RuntimeError(f'Archive refusée : chemin interdit ({m.filename})')
-        racines = {Path(m.filename.replace('\\', '/')).parts[0] for m in membres}
-        retirer = len(racines) == 1 and all(len(Path(m.filename).parts) > 1 for m in membres)
-        for m in membres:
-            parties = Path(m.filename.replace('\\', '/')).parts[1 if retirer else 0:]
-            cible = dossier.joinpath(*parties)
-            cible.parent.mkdir(parents=True, exist_ok=True)
-            with z.open(m) as source, open(cible, 'wb') as destination:
-                shutil.copyfileobj(source, destination)
+def extraire_archive(archive, dossier):
+    """Extrait un zip ou un tar.gz sans laisser un fichier sortir du dossier ; retire un dossier racine commun."""
+    temporaire = dossier / '.extraction'
+    shutil.rmtree(temporaire, ignore_errors=True)
+    temporaire.mkdir(parents=True)
+    if archive.name.endswith(('.tar.gz', '.tgz')):
+        with tarfile.open(archive) as t:
+            for m in t.getmembers():
+                if not chemin_relatif_sur(m.name):
+                    raise RuntimeError(f'Archive refusée : chemin interdit ({m.name})')
+            # Le filtre 'data' refuse aussi les liens qui pointeraient hors du dossier
+            t.extractall(temporaire, filter='data')
+    else:
+        with zipfile.ZipFile(archive) as z:
+            for m in z.infolist():
+                if not chemin_relatif_sur(m.filename):
+                    raise RuntimeError(f'Archive refusée : chemin interdit ({m.filename})')
+            for m in z.infolist():
+                if m.is_dir():
+                    continue
+                cible = temporaire / PurePosixPath(m.filename.replace('\\', '/'))
+                cible.parent.mkdir(parents=True, exist_ok=True)
+                with z.open(m) as source, open(cible, 'wb') as destination:
+                    shutil.copyfileobj(source, destination)
+                # Les zip de Linux et Mac gardent le droit d'execution, que zipfile n'applique pas
+                if not WINDOWS and (m.external_attr >> 16) & 0o111:
+                    cible.chmod(0o755)
+    contenu = list(temporaire.iterdir())
+    source = contenu[0] if len(contenu) == 1 and contenu[0].is_dir() else temporaire
+    for element in source.iterdir():
+        element.rename(dossier / element.name)
+    shutil.rmtree(temporaire)
 
 
 def telecharger(archive, destination, progression):
@@ -477,7 +606,7 @@ def installer_moteur(nom):
             telecharger(archive, fichier, avancer)
             with verrou_installations:
                 suivi['phase'] = 'extraction'
-            extraire_zip(fichier, provisoire)
+            extraire_archive(fichier, provisoire)
             fichier.unlink()
             with verrou_installations:
                 suivi['phase'] = 'telechargement'
@@ -505,7 +634,7 @@ def installer_moteur(nom):
 
 def etat_moteurs():
     with verrou_installations:
-        return {nom: {'installe': moteur_installe(nom), 'nom': m['nom'], 'version': m['version'],
+        return {nom: {'installe': moteur_installe(nom), 'nom': m['nom'], 'version': m['version'], 'requiert': m.get('requiert'),
                       'taille': sum(a['taille'] for a in m['archives']),
                       'installation': dict(installations[nom]) if nom in installations else None}
                 for nom, m in MOTEURS.items()}
@@ -673,7 +802,7 @@ def generer(params):
             processus = subprocess.Popen(
                 [str(SD_CLI)] + arguments(r, params['prompt'], params['largeur'], params['hauteur'], seed, source, sortie),
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE),
-                creationflags=subprocess.CREATE_NO_WINDOW)
+                creationflags=SANS_CONSOLE)
 
             reste = ''
             while True:
@@ -1128,18 +1257,15 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             dossier = LORAS if chemin.endswith('loras') else MODELES
             dossier.mkdir(parents=True, exist_ok=True)
-            os.startfile(dossier)
+            ouvrir_dossier(dossier)
             self.envoyer(200, {})
 
         elif chemin == '/api/dossier':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             nom = str(self.lire_json().get('nom') or '')
-            if NOM_IMAGE.match(nom) and (IMAGES / nom).exists():
-                subprocess.Popen(['explorer.exe', '/select,', str(IMAGES / nom)])
-            else:
-                IMAGES.mkdir(exist_ok=True)
-                os.startfile(IMAGES)
+            IMAGES.mkdir(exist_ok=True)
+            ouvrir_dossier(IMAGES, IMAGES / nom if NOM_IMAGE.match(nom) and (IMAGES / nom).exists() else None)
             self.envoyer(200, {})
         else:
             self.envoyer(404, {'erreur': 'Introuvable'})
@@ -1150,14 +1276,30 @@ class Serveur(ThreadingHTTPServer):
     allow_reuse_address = False
 
     def server_bind(self):
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         super().server_bind()
+
+
+def navigateur_application():
+    """Navigateur capable d'ouvrir Prisme dans sa propre fenetre (Edge, Chrome, Chromium ou Brave)."""
+    if WINDOWS:
+        candidats = [Path(os.environ.get(v, '')) / s for v in ('ProgramFiles(x86)', 'ProgramFiles', 'LOCALAPPDATA')
+                     for s in (r'Microsoft\Edge\Application\msedge.exe', r'Google\Chrome\Application\chrome.exe')]
+    elif MAC:
+        candidats = [Path('/Applications') / f'{nom}.app' / 'Contents' / 'MacOS' / nom
+                     for nom in ('Google Chrome', 'Microsoft Edge', 'Chromium', 'Brave Browser')]
+    else:
+        candidats = [Path(c) for c in map(shutil.which, ('google-chrome', 'google-chrome-stable', 'chromium',
+                                                         'chromium-browser', 'microsoft-edge', 'brave-browser')) if c]
+    return next((c for c in candidats if c.is_file()), None)
 
 
 def ouvrir_fenetre():
     adresse = f'http://127.0.0.1:{PORT}/'
-    if EDGE.exists():
-        subprocess.Popen([str(EDGE), f'--app={adresse}', '--window-size=1440,920'])
+    navigateur = navigateur_application()
+    if navigateur:
+        subprocess.Popen([str(navigateur), f'--app={adresse}', '--window-size=1440,920'])
     else:
         import webbrowser
         webbrowser.open(adresse)
@@ -1206,7 +1348,7 @@ def main():
     executable = Path(sys.executable)
     if not EXE and executable.name.lower() == 'pythonw.exe' and (executable.parent / 'python.exe').exists():
         subprocess.Popen([str(executable.parent / 'python.exe'), __file__] + sys.argv[1:],
-                         creationflags=subprocess.CREATE_NO_WINDOW, cwd=str(Path(__file__).resolve().parent))
+                         creationflags=SANS_CONSOLE, cwd=str(Path(__file__).resolve().parent))
         return
 
     try:

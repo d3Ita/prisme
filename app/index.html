@@ -299,6 +299,8 @@ kbd {
 .reglage { display: grid; grid-template-columns: 190px 1fr; gap: 14px; align-items: center; padding: 6px 0; }
 .reglage > label { font-size: 13px; color: var(--texte); }
 .reglage > label small { display: block; color: var(--texte-3); font-size: 11.5px; margin-top: 1px; }
+.lien-modele { color: var(--accent-2); text-decoration: none; white-space: nowrap; }
+.lien-modele:hover { text-decoration: underline; }
 .note-champ { font-size: 11.5px; color: var(--texte-3); }
 .reglage .note-champ { grid-column: 2; margin-top: -8px; }
 .reglage .note-champ.alerte { color: var(--danger); }
@@ -621,10 +623,10 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
     <div class="contenu-reglages">
       <section class="bloc">
         <h4>Modèles <span class="liens"><button type="button" class="bouton-lien" id="actualiser-modeles">Actualiser</button><button type="button" class="bouton-lien" id="dossier-modeles">Ouvrir le dossier</button></span></h4>
-        <div class="reglage"><label for="r-diffusion">Modèle de dessin<small>Fait l'image</small></label><select class="champ" id="r-diffusion" data-cle="modele_diffusion"></select></div>
-        <div class="reglage"><label for="r-texte">Encodeur de texte<small>Comprend la description</small></label><select class="champ" id="r-texte" data-cle="modele_texte"></select></div>
-        <div class="reglage"><label for="r-vision">Vision<small>Lit l'image de départ</small></label><select class="champ" id="r-vision" data-cle="modele_vision"></select></div>
-        <div class="reglage"><label for="r-vae">VAE<small>Produit l'image finale</small></label><select class="champ" id="r-vae" data-cle="vae"></select></div>
+        <div class="reglage"><label for="r-diffusion">Modèle de dessin<small>Fait l'image · <a class="lien-modele" href="https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-diffusion" data-cle="modele_diffusion"></select></div>
+        <div class="reglage"><label for="r-texte">Encodeur de texte<small>Comprend la description · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-texte" data-cle="modele_texte"></select></div>
+        <div class="reglage"><label for="r-vision">Vision<small>Lit l'image de départ · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vision" data-cle="modele_vision"></select></div>
+        <div class="reglage"><label for="r-vae">VAE<small>Produit l'image finale · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vae" data-cle="vae"></select></div>
         <p class="note-champ" id="dossier-chemin" style="margin:4px 0 0"></p>
       </section>
       <section class="bloc">
@@ -637,8 +639,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
         <div class="reglage"><label for="r-amelio-moteur">Moteur<small>Intégré : rien d'autre à installer</small></label><select class="champ" id="r-amelio-moteur" data-cle="amelioration_moteur">
           <option value="integre">Intégré (llama.cpp)</option><option value="ollama">Ollama</option></select></div>
         <div data-moteur="integre">
-          <div class="reglage"><label for="r-llm-local">Modèle de langage<small>Fichier GGUF du dossier models</small></label><select class="champ" id="r-llm-local" data-cle="amelioration_modele_local"></select></div>
-          <div class="reglage"><label for="r-llm-vision">Vision<small>Facultatif : lit l'image de départ</small></label><select class="champ" id="r-llm-vision" data-cle="amelioration_vision_locale"></select></div>
+          <div class="reglage"><label for="r-llm-local">Modèle de langage<small>Fichier GGUF du dossier models · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-llm-local" data-cle="amelioration_modele_local"></select></div>
+          <div class="reglage"><label for="r-llm-vision">Vision<small>Facultatif : lit l'image de départ · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-llm-vision" data-cle="amelioration_vision_locale"></select></div>
           <div class="reglage"><label>Moteur de texte<small>Téléchargé une seule fois</small></label><div>
             <button type="button" class="bouton-secondaire" id="installer-texte" hidden>Installer le moteur</button>
             <div class="barre-installation" hidden><span id="barre-texte"></span></div>
@@ -1144,8 +1146,9 @@ function majMoteurs(m) {
     enCours = enCours || actif;
     bouton.hidden = !etat.local || info.installe || actif;
     bouton.textContent = `Installer le moteur (${taille(info.taille)})`;
-    // Le moteur de texte reprend les DLL CUDA du moteur d'images
-    bouton.disabled = nom === 'texte' && !m.image.installe;
+    // Sous Windows, le moteur de texte reprend les DLL CUDA du moteur d'images
+    const prerequis = info.requiert && !m[info.requiert].installe;
+    bouton.disabled = !!prerequis;
     barre.parentElement.hidden = !actif;
     texte.classList.toggle('alerte', inst?.phase === 'erreur' && !info.installe);
     if (actif) {
@@ -1155,7 +1158,7 @@ function majMoteurs(m) {
         : `Téléchargement de ${info.nom} : ${taille(inst.fait)} sur ${taille(inst.total)}`;
     } else if (info.installe) texte.textContent = nom === 'image' ? '' : `${info.nom} ${info.version} installé.`;
     else if (inst?.phase === 'erreur') texte.textContent = inst.erreur;
-    else if (nom === 'texte' && !m.image.installe) texte.textContent = 'Installe d\'abord le moteur d\'images.';
+    else if (prerequis) texte.textContent = 'Installe d\'abord le moteur d\'images.';
     else texte.textContent = nom === 'image' ? `Téléchargé une seule fois depuis la version officielle de ${info.nom}.` : `${info.nom} n'est pas encore installé.`;
   }
   if (enCours) suivreInstallation();

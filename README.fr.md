@@ -5,7 +5,7 @@
 <h1 align="center">Prisme</h1>
 
 <p align="center">
-  <strong>Crée et modifie des images par IA, en local sur ton PC.</strong>
+  <strong>Crée et modifie des images par IA, en local sur ton ordinateur : Windows, macOS et Linux.</strong>
 </p>
 
 <p align="center">
@@ -16,7 +16,9 @@
   <img src="https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white" alt="Python 3.12 et 3.13">
   <img src="https://img.shields.io/badge/JavaScript-sans%20d%C3%A9pendance-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript sans dépendance">
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows 10 et 11">
-  <img src="https://img.shields.io/badge/GPU-NVIDIA%20CUDA-76B900?logo=nvidia&logoColor=white" alt="Carte graphique NVIDIA">
+  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white" alt="macOS sur puce Apple">
+  <img src="https://img.shields.io/badge/Linux-x64-FCC624?logo=linux&logoColor=black" alt="Linux x64">
+  <img src="https://img.shields.io/badge/GPU-CUDA%20%7C%20Metal%20%7C%20Vulkan-76B900" alt="CUDA, Metal et Vulkan">
   <a href="https://github.com/leejet/stable-diffusion.cpp"><img src="https://img.shields.io/badge/moteur-stable--diffusion.cpp-555" alt="Moteur stable-diffusion.cpp"></a>
   <img src="https://img.shields.io/badge/langue-fran%C3%A7ais-0055A4" alt="Interface en français">
 </p>
@@ -27,13 +29,14 @@
 
 <p align="center">
   <a href="#installation">Installation</a> ·
+  <a href="#modèles-conseillés">Modèles</a> ·
   <a href="#utilisation">Utilisation</a> ·
   <a href="#construire-depuis-les-sources">Construire</a> ·
   <a href="#sécurité">Sécurité</a> ·
   <a href="#licence">Licence</a>
 </p>
 
-Application locale pour créer et modifier des images par intelligence artificielle sur Windows. Tout tourne sur ton PC : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp).
+Application locale pour créer et modifier des images par intelligence artificielle sur Windows, macOS et Linux. Tout tourne sur ton ordinateur : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp).
 
 ![Démonstration de Prisme : une idée courte, améliorée, générée, puis modifiée](docs/demo.gif)
 
@@ -41,43 +44,47 @@ Application locale pour créer et modifier des images par intelligence artificie
 
 - **Création** d'images à partir d'une description, de 1 à 4 images par lancement
 - **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
-- **Installation automatique** des moteurs au premier lancement : seuls l'exe et les modèles sont à télécharger
+- **Installation automatique** des moteurs au premier lancement : seuls le programme et les modèles sont à télécharger
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
 - **Historique** avec recherche, visionneuse plein écran, réutilisation de la description et du seed, mise à la corbeille
 - **Réglages** : choix des modèles, LoRA, étapes, CFG, échantillonneur, sigmas, options mémoire
 - **Téléphone** : utilisation depuis un téléphone sur le même Wi-Fi, protégée par un code d'accès (QR code)
-- **Exécutable** Windows unique, sans Python à installer
+- **Un seul programme** pour Windows, macOS ou Linux, sans Python à installer
 
 ## Prérequis
 
-- Windows 10 ou 11 avec une carte graphique NVIDIA (8 Go de mémoire vidéo ou plus conseillés)
-- Des modèles compatibles avec stable-diffusion.cpp, au format GGUF ou safetensors
-- Une connexion Internet au premier lancement, pour l'installation des moteurs
+| Système | Fichier | Carte graphique | État |
+|---|---|---|---|
+| Windows 10 ou 11 | `Prisme.exe` | NVIDIA (CUDA), 8 Go de mémoire vidéo ou plus conseillés | Testé |
+| macOS 13 ou plus récent | `Prisme-macOS-arm64.zip` | Puce Apple (M1 ou plus récente, Metal), 16 Go de mémoire ou plus conseillés | Expérimental |
+| Linux x64 (Ubuntu 24.04 ou équivalent) | `Prisme-Linux-x64.tar.gz` | Toute carte avec un pilote Vulkan | Expérimental |
+
+Il faut aussi des modèles compatibles avec stable-diffusion.cpp (GGUF ou safetensors, voir [Modèles conseillés](#modèles-conseillés)) et une connexion Internet au premier lancement, pour l'installation des moteurs.
 
 Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un encodeur de texte de type LLM (`--llm`), un VAE et, pour la modification d'image, un encodeur d'image (`--llm_vision`).
 
 ## Installation
 
-1. Télécharge `Prisme.exe` depuis la page [Releases](../../releases), ou construis-le (voir plus bas).
-2. Place tes modèles dans un dossier `models` à côté de l'exe (et tes LoRA dans `models/loras`, si tu en as).
-3. Lance `Prisme.exe`, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp (environ 925 Mo, une seule fois).
+1. Télécharge le fichier de ton système depuis la page [Releases](../../releases), ou construis-le (voir plus bas).
+2. Place tes modèles dans un dossier `models` (et tes LoRA dans `models/loras`, si tu en as) : à côté du programme sous Windows et Linux, dans `~/Prisme/models` sous macOS.
+3. Lance Prisme, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp une seule fois (environ 925 Mo sous Windows avec CUDA, moins de 40 Mo sous macOS et Linux).
 4. Clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
 
 Les moteurs sont téléchargés depuis les versions officielles de [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) et de [llama.cpp](https://github.com/ggml-org/llama.cpp) sur GitHub. Prisme vérifie l'empreinte SHA-256 de chaque fichier avant de l'installer, et refuse tout fichier différent de la version testée. Ensuite, le dossier ressemble à ceci :
 
 ```
-Prisme.exe
-models/    tes modèles .gguf / .safetensors
-  loras/   tes LoRA (facultatif)
-sd/        moteur d'images, installé par Prisme
-llama/     moteur de texte, installé par Prisme si tu l'actives
-images/    tes images
+Prisme.exe    (prisme sous Linux, Prisme.app sous macOS)
+models/       tes modèles .gguf / .safetensors
+  loras/      tes LoRA (facultatif)
+sd/           moteur d'images, installé par Prisme
+llama/        moteur de texte, installé par Prisme si tu l'actives
+images/       tes images
 ```
 
-Prisme fonctionne uniquement sur ce PC tant que l'accès depuis le téléphone n'est pas activé (voir plus bas).
+Prisme fonctionne uniquement sur cet ordinateur tant que l'accès depuis le téléphone n'est pas activé (voir plus bas).
 
-### Alertes de Windows ou de l'antivirus
+### Windows : alertes de SmartScreen ou de l'antivirus
 
 `Prisme.exe` n'est pas signé numériquement : signer un programme demande un certificat payant. Il est aussi produit avec PyInstaller, que les antivirus confondent parfois avec des logiciels malveillants. Au premier lancement, tu peux donc voir :
 
@@ -90,7 +97,46 @@ Pour vérifier que ton fichier est bien celui publié, compare son empreinte SHA
 Get-FileHash .\Prisme.exe -Algorithm SHA256
 ```
 
-Si tu préfères ne pas faire confiance à l'exe, construis-le toi-même à partir du code (voir plus bas) ou lance directement `app\serveur.py`.
+### macOS
+
+Décompresse `Prisme-macOS-arm64.zip` et place **Prisme.app** dans Applications. L'application n'est pas notariée par Apple, donc macOS la bloque au premier lancement : ouvre **Réglages Système → Confidentialité et sécurité** et clique sur **Ouvrir quand même**, ou lance une fois :
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Prisme.app
+```
+
+Prisme range ses données dans `~/Prisme` (modèles, moteurs, images et réglages), car une application macOS ne peut pas les contenir.
+
+### Linux
+
+```bash
+tar -xzf Prisme-Linux-x64.tar.gz
+./prisme
+```
+
+Les moteurs ont besoin d'OpenMP et de Vulkan. Si Prisme signale des bibliothèques manquantes, installe-les avec `sudo apt install libgomp1 libvulkan1`, ainsi que le pilote Vulkan de ta carte graphique (par exemple `mesa-vulkan-drivers`). Prisme s'ouvre dans une fenêtre d'application de Chrome, Chromium, Edge ou Brave si l'un d'eux est installé, sinon dans ton navigateur par défaut.
+
+Si tu préfères ne pas faire confiance au programme, construis-le toi-même à partir du code (voir plus bas) ou lance directement `app/serveur.py`, sur n'importe quel système.
+
+## Modèles conseillés
+
+Ces modèles officiels et généralistes fonctionnent avec Prisme. Chaque lien ouvre la page du modèle sur Hugging Face : télécharge les fichiers dans ton dossier `models`. Les mêmes liens se trouvent dans les **Réglages**, à côté de chaque rôle.
+
+| Rôle dans Prisme | Fichier conseillé | Où le trouver | Plus léger |
+|---|---|---|---|
+| Modèle de dessin | GGUF `Q5_K`, `Q6_K` ou `Q8_0` | [Qwen-Image-2.1-Turbo-GGUF](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF) | `Q4_K` |
+| Encodeur de texte | `Qwen3VL-8B-Instruct-Q8_0.gguf` (8,7 Go) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `Q4_K_M` (5 Go) : modifications plus granuleuses |
+| Vision (pour modifier une image) | `mmproj-Qwen3VL-8B-Instruct-F16.gguf` (1,2 Go) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `mmproj` `Q8_0` |
+| VAE | `vae/diffusion_pytorch_model.safetensors` (675 Mo) | [Qwen-Image-2.1-Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae) | |
+| Modèle de langage (amélioration) | Les mêmes fichiers que l'encodeur de texte et la vision | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | [Qwen3-VL-4B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF) |
+
+Ce modèle Turbo demande peu d'étapes. Dans **Réglages → Génération**, mets 8 étapes, CFG 1, la méthode `euler` et ces sigmas :
+
+```
+1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0
+```
+
+Tu peux renommer le fichier du VAE (par exemple `qwen-image-vae.safetensors`) pour le repérer facilement. Vérifie la licence de chaque modèle sur sa page avant de l'utiliser.
 
 ## Utilisation
 
@@ -122,7 +168,7 @@ L'option **Améliorer automatiquement** le fait avant chaque génération. Les d
 
 ### Téléphone
 
-L'accès depuis le réseau local est **désactivé par défaut**. Pour l'activer : **Réglages → Application → Accès depuis le téléphone**, puis relance Prisme. Windows demande alors d'autoriser Prisme sur le réseau : accepte. Ensuite, le bouton **Téléphone** affiche l'adresse à taper (par exemple `192.168.1.22:7861`) et un QR code.
+L'accès depuis le réseau local est **désactivé par défaut**. Pour l'activer : **Réglages → Application → Accès depuis le téléphone**, puis relance Prisme. Si ton système demande d'autoriser Prisme sur le réseau, accepte. Ensuite, le bouton **Téléphone** affiche l'adresse à taper (par exemple `192.168.1.22:7861`) et un QR code.
 
 Sur le téléphone, tape simplement l'adresse : la page affiche un code à 4 chiffres, et Prisme te demande sur le PC d'**Autoriser** cet appareil après avoir vérifié que le code est le même. Le téléphone reste ensuite connecté. Le QR code permet de se connecter directement, sans autorisation.
 
@@ -137,39 +183,40 @@ Le téléphone doit être sur le même réseau que le PC. Le lien du QR code con
 
 ## Construire depuis les sources
 
-Avec Python 3 installé :
+Sur le système visé, avec Python 3.12 ou plus récent, PyInstaller et Pillow installés :
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\construire.ps1
+```bash
+python3 construire.py
 ```
 
-Le script crée un environnement dans `.construction/`, y installe PyInstaller et Pillow, lance les tests, puis produit `Prisme.exe` à la racine. Si un test échoue, l'exe n'est pas construit.
+Sous Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` crée d'abord cet environnement dans `.construction/`. La construction lance les tests, puis produit `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.zip` (macOS) ou `dist/Prisme-Linux-x64.tar.gz` (Linux). Si un test échoue, rien n'est construit.
 
 ### Tests
 
-```powershell
-py -3 -m unittest discover -s tests -v
+```bash
+python3 -m unittest discover -s tests -v
 ```
 
-Les tests vérifient la validation des réglages, la lecture des images et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages ni tes images. Ils sont aussi lancés automatiquement sur GitHub à chaque envoi.
+Les tests vérifient la validation des réglages, la lecture des images, l'installation des moteurs, l'extraction des archives, les liens vers les modèles et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages ni tes images. GitHub les lance à chaque envoi, puis construit les trois versions.
 
 Pour lancer sans construire :
 
-```powershell
-py -3 app\serveur.py
+```bash
+python3 app/serveur.py
 ```
 
 ## Structure du code
 
 | Fichier | Rôle |
 |---|---|
-| `app/serveur.py` | Serveur local (bibliothèque standard Python uniquement) : API, lancement de sd-cli, accès réseau |
+| `app/serveur.py` | Serveur local (bibliothèque standard Python uniquement) : API, moteurs, accès réseau |
 | `app/index.html` | Interface complète : HTML, CSS et JavaScript sans dépendance |
-| `app/icone.py` | Icône de l'exécutable, faite à partir du logo |
+| `app/icone.py` | Icône du programme et écran de démarrage, faits à partir du logo |
 | `app/logo.png`, `docs/logo.png` | Logo de l'application et du README |
-| `construire.ps1` | Construction de `Prisme.exe` |
+| `construire.py` | Construction de Prisme pour le système en cours |
+| `construire.ps1` | Préparation de Python sous Windows, puis `construire.py` |
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
-| `.github/workflows/tests.yml` | Lancement des tests sur GitHub |
+| `.github/workflows/` | Tests et construction des trois versions sur GitHub |
 
 Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -20,6 +20,7 @@ app/reglages.json
 
 # Construction de l'exe
 .construction/
+dist/
 *.exe
 *.spec
 __pycache__/

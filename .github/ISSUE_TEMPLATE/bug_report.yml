@@ -14,7 +14,17 @@ body:
     attributes:
       label: Prisme version
       description: Shown at the bottom of the Réglages window.
-      placeholder: "1.4.0"
+      placeholder: "1.5.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: systeme
+    attributes:
+      label: System
+      options:
+        - Windows
+        - macOS (Apple Silicon)
+        - Linux
     validations:
       required: true
   - type: input

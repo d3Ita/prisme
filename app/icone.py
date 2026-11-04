@@ -1,19 +1,20 @@
-"""Fait l'icone de Prisme.exe et son ecran de demarrage a partir du logo.
+"""Fait l'icone de Prisme et son ecran de demarrage a partir du logo.
 
-Usage : python icone.py logo.png sortie.ico [demarrage.png]
+Usage : python icone.py logo.png sortie.ico|sortie.icns [demarrage.png]
 """
 
 import sys
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
 TAILLES = (16, 20, 24, 32, 40, 48, 64, 128, 256)
-POLICES = r'C:\Windows\Fonts'
 
 
 def police(nom, taille):
+    # Polices Windows si presentes, sinon la police par defaut de Pillow
     try:
-        return ImageFont.truetype(f'{POLICES}\\{nom}', taille)
+        return ImageFont.truetype(str(Path(r'C:\Windows\Fonts') / nom), taille)
     except OSError:
         return ImageFont.load_default(taille)
 
@@ -36,6 +37,10 @@ def ecran_demarrage(logo, chemin):
 
 if __name__ == '__main__':
     logo = Image.open(sys.argv[1]).convert('RGBA')
-    logo.save(sys.argv[2], sizes=[(t, t) for t in TAILLES])
+    sortie = Path(sys.argv[2])
+    if sortie.suffix == '.icns':
+        logo.resize((512, 512), Image.LANCZOS).save(sortie)
+    else:
+        logo.save(sortie, sizes=[(t, t) for t in TAILLES])
     if len(sys.argv) > 3:
         ecran_demarrage(logo, sys.argv[3])

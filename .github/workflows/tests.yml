@@ -10,10 +10,11 @@ permissions:
 
 jobs:
   tests:
-    # Le serveur utilise des fonctions propres a Windows (corbeille, sockets exclusives)
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [windows-latest, ubuntu-24.04, macos-latest]
         python: ['3.12', '3.13']
     steps:
       - uses: actions/checkout@v4

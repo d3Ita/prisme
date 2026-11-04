@@ -1,4 +1,5 @@
 # Construit "Prisme.exe" a la racine du projet (Python 3 doit etre installe)
+# Prepare un environnement Python dedie, puis laisse construire.py faire le reste
 # PyInstaller ecrit son journal sur la sortie d'erreur : on juge sur les codes de retour
 $ErrorActionPreference = 'Continue'
 $racine = $PSScriptRoot
@@ -14,21 +15,5 @@ if (-not (Test-Path $python)) {
     if ($LASTEXITCODE -ne 0) { throw 'Installation de PyInstaller impossible' }
 }
 
-# Pas d'exe si un test echoue
-& $python -m unittest discover -s (Join-Path $racine 'tests')
-if ($LASTEXITCODE -ne 0) { throw "Les tests ont echoue : l'exe n'a pas ete construit" }
-
-$icone = Join-Path $travail 'icone.ico'
-$demarrage = Join-Path $travail 'demarrage.png'
-& $python (Join-Path $racine 'app\icone.py') (Join-Path $racine 'docs\logo.png') $icone $demarrage
-if ($LASTEXITCODE -ne 0) { throw "Creation de l'icone impossible" }
-
-& $python -m PyInstaller --noconfirm --clean --onefile --windowed `
-    --name 'Prisme' --icon $icone --splash $demarrage `
-    --add-data "$(Join-Path $racine 'app\index.html');." `
-    --add-data "$(Join-Path $racine 'app\logo.png');." `
-    --distpath $racine --workpath (Join-Path $travail 'build') --specpath $travail `
-    (Join-Path $racine 'app\serveur.py')
+& $python (Join-Path $racine 'construire.py')
 if ($LASTEXITCODE -ne 0) { throw 'La construction a echoue' }
-
-"Exe cree : $(Join-Path $racine 'Prisme.exe')"

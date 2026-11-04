@@ -111,12 +111,12 @@ class InstallationMoteurTest(unittest.TestCase):
                 archive = self.dossier / 'piege.zip'
                 creer_zip(archive, {'outil.exe': b'ok', nom: b'piege'})
                 with self.assertRaises(RuntimeError):
-                    serveur.extraire_zip(archive, self.dossier / 'sortie')
+                    serveur.extraire_archive(archive, self.dossier / 'sortie')
 
     def test_extraction_retire_le_dossier_racine_commun(self):
         archive = self.dossier / 'paquet.zip'
         creer_zip(archive, {'paquet/outil.exe': b'ok', 'paquet/lib/a.dll': b'a'})
-        serveur.extraire_zip(archive, self.dossier / 'sortie')
+        serveur.extraire_archive(archive, self.dossier / 'sortie')
         self.assertTrue((self.dossier / 'sortie' / 'outil.exe').is_file())
         self.assertTrue((self.dossier / 'sortie' / 'lib' / 'a.dll').is_file())
 
@@ -147,11 +147,59 @@ class InstallationMoteurTest(unittest.TestCase):
         self.assertFalse(dossier.exists())
 
     def test_versions_officielles_epinglees(self):
-        for nom, moteur in self.moteurs.items():
-            for archive in moteur['archives']:
-                with self.subTest(moteur=nom, url=archive['url']):
-                    self.assertTrue(archive['url'].startswith('https://github.com/'))
-                    self.assertRegex(archive['sha256'], r'^[0-9a-f]{64}$')
+        for systeme, moteurs in serveur.MOTEURS_PAR_SYSTEME.items():
+            self.assertEqual(set(moteurs), {'image', 'texte'})
+            for nom, moteur in moteurs.items():
+                for archive in moteur['archives']:
+                    with self.subTest(systeme=systeme, moteur=nom, url=archive['url']):
+                        self.assertTrue(archive['url'].startswith(('https://github.com/leejet/', 'https://github.com/ggml-org/')))
+                        self.assertRegex(archive['sha256'], r'^[0-9a-f]{64}$')
+
+    def test_extraction_tar_avec_liens(self):
+        import io
+        import tarfile
+        archive = self.dossier / 'paquet.tar.gz'
+        with tarfile.open(archive, 'w:gz') as t:
+            for nom, contenu in (('paquet/outil', b'ok'), ('paquet/libx.so.1', b'lib')):
+                info = tarfile.TarInfo(nom)
+                info.size, info.mode = len(contenu), 0o755
+                t.addfile(info, io.BytesIO(contenu))
+            lien = tarfile.TarInfo('paquet/libx.so')
+            lien.type, lien.linkname = tarfile.SYMTYPE, 'libx.so.1'
+            t.addfile(lien)
+        sortie = self.dossier / 'sortie-tar'
+        sortie.mkdir()
+        serveur.extraire_archive(archive, sortie)
+        self.assertTrue((sortie / 'outil').is_file())
+        self.assertTrue((sortie / 'libx.so.1').is_file())
+
+    def test_extraction_tar_refuse_un_lien_qui_sort(self):
+        import tarfile
+        archive = self.dossier / 'piege.tar.gz'
+        with tarfile.open(archive, 'w:gz') as t:
+            lien = tarfile.TarInfo('paquet/evasion')
+            lien.type, lien.linkname = tarfile.SYMTYPE, '../../../ailleurs'
+            t.addfile(lien)
+        sortie = self.dossier / 'sortie-piege'
+        sortie.mkdir()
+        with self.assertRaises(Exception):
+            serveur.extraire_archive(archive, sortie)
+
+
+class LiensModelesTest(unittest.TestCase):
+    """Les liens vers les modeles restent sur Hugging Face, vers des modeles officiels et tout public."""
+    PROJET = Path(__file__).resolve().parent.parent
+    INTERDITS = ('uncensored', 'abliterat', 'nsfw', 'heretic', 'unfiltered', 'lewd')
+
+    def test_liens_officiels_et_tout_public(self):
+        import re
+        for fichier in ('app/index.html', 'README.md', 'README.fr.md'):
+            texte = (self.PROJET / fichier).read_text(encoding='utf-8')
+            liens = re.findall(r'https://huggingface\.co/[^\s"\')<>]+', texte)
+            self.assertTrue(liens, fichier)
+            for lien in liens:
+                self.assertFalse(any(mot in lien.lower() for mot in self.INTERDITS), lien)
+            self.assertFalse(any(mot in texte.lower() for mot in self.INTERDITS), fichier)
 
 
 class ArretAutomatiqueTest(unittest.TestCase):

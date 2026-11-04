@@ -8,7 +8,7 @@ Open an [issue](../../issues/new/choose) with the **Bug report** template. Pleas
 
 ## Suggesting a feature
 
-Open an issue with the **Feature request** template and describe the problem it solves before the solution. Prisme aims to stay simple: one exe, a clear interface, no required dependency.
+Open an issue with the **Feature request** template and describe the problem it solves before the solution. Prisme aims to stay simple: one program, a clear interface, no required dependency.
 
 ## Working on the code
 

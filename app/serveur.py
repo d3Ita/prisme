@@ -23,7 +23,7 @@ from pathlib import Path
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.2.2'
+VERSION = '1.2.3'
 PORT = 7861
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
@@ -584,6 +584,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
         if chemin in ('/', '/index.html'):
             self.envoyer(200, (RESSOURCES / 'index.html').read_bytes(), 'text/html; charset=utf-8')
+        elif chemin == '/logo.png':
+            self.envoyer(200, (RESSOURCES / 'logo.png').read_bytes(), 'image/png', cache=True)
         elif chemin == '/api/reglages':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})

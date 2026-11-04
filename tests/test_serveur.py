@@ -172,6 +172,11 @@ class SecuriteHttpTest(unittest.TestCase):
     def test_mauvais_port_refuse(self):
         self.assertEqual(self.requete('GET', '/api/etat', hote='127.0.0.1:1')[0], 403)
 
+    def test_logo_servi(self):
+        statut, _, corps = self.requete('GET', '/logo.png')
+        self.assertEqual(statut, 200)
+        self.assertTrue(corps.startswith(b'\x89PNG'))
+
     def test_localhost_et_ip_acceptes(self):
         self.assertEqual(self.requete('GET', '/api/etat', hote=f'localhost:{self.port}')[0], 200)
         self.assertEqual(self.requete('GET', '/api/etat')[0], 200)

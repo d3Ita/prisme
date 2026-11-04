@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Prisme</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d5dfc'/%3E%3Cpath d='M16 7l2.2 6 6 2.2-6 2.2L16 24l-2.2-6.6-6-2.2 6-2.2z' fill='white'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
 :root {
   --fond: #0e0e12;
@@ -48,11 +48,7 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
   display: flex; align-items: center; gap: 12px; padding: 0 20px;
   border-bottom: 1px solid var(--bordure); background: var(--surface);
 }
-.logo {
-  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-  background: linear-gradient(135deg, var(--accent), #a855f7); box-shadow: 0 4px 14px rgba(109, 93, 252, .4);
-}
-.logo svg { width: 17px; height: 17px; fill: #fff; stroke: none; }
+.logo { width: 32px; height: 32px; border-radius: 9px; display: block; box-shadow: 0 4px 14px rgba(109, 93, 252, .35); }
 .entete h1 { font: 600 15px var(--police-titre); margin: 0; letter-spacing: .2px; }
 .badge {
   font-size: 12px; color: var(--texte-2); padding: 3px 9px; border-radius: 999px;
@@ -398,7 +394,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 12.5px; resize
 
 <div class="app">
   <header class="entete">
-    <div class="logo"><svg viewBox="0 0 24 24"><use href="#i-etincelle"/></svg></div>
+    <img class="logo" src="/logo.png" alt="">
     <h1>Prisme</h1>
     <span class="badge" id="badge-modele" title="Modèle de dessin utilisé">local</span>
     <div class="espace"></div>

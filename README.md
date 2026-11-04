@@ -153,7 +153,8 @@ py -3 app\serveur.py
 |---|---|
 | `app/serveur.py` | Serveur local (bibliothèque standard Python uniquement) : API, lancement de sd-cli, accès réseau |
 | `app/index.html` | Interface complète : HTML, CSS et JavaScript sans dépendance |
-| `app/icone.py` | Dessin de l'icône de l'exécutable |
+| `app/icone.py` | Icône de l'exécutable, faite à partir du logo |
+| `app/logo.png`, `docs/logo.png` | Logo de l'application et du README |
 | `construire.ps1` | Construction de `Prisme.exe` |
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
 | `.github/workflows/tests.yml` | Lancement des tests sur GitHub |

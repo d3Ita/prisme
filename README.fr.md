@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/Linux-x64-FCC624?logo=linux&logoColor=black" alt="Linux x64">
   <img src="https://img.shields.io/badge/GPU-CUDA%20%7C%20Metal%20%7C%20Vulkan-76B900" alt="CUDA, Metal et Vulkan">
   <a href="https://github.com/leejet/stable-diffusion.cpp"><img src="https://img.shields.io/badge/moteur-stable--diffusion.cpp-555" alt="Moteur stable-diffusion.cpp"></a>
-  <img src="https://img.shields.io/badge/langue-fran%C3%A7ais-0055A4" alt="Interface en français">
+  <img src="https://img.shields.io/badge/langue-fran%C3%A7ais%20%7C%20anglais-0055A4" alt="Interface en français et en anglais">
 </p>
 
 <p align="center">
@@ -61,6 +61,7 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
 - **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description et mise à la corbeille
 - **Thème clair ou sombre**, ou celui du système
+- **Interface en français ou en anglais**, selon la langue de l'appareil ou au choix dans **Réglages → Application → Langue**
 - **Réglages** : choix des modèles, LoRA, étapes, CFG, échantillonneur, sigmas, options mémoire
 - **Téléphone** : utilisation depuis un téléphone sur le même Wi-Fi, protégée par un code d'accès (QR code)
 - **Un seul programme** pour Windows, macOS ou Linux, sans Python à installer

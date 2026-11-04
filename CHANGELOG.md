@@ -2,6 +2,11 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
+## Not released yet
+
+- **English interface**: Prisme follows the device's language (English, or French on French devices) and the language can be chosen in **Settings → Application → Language**. The phone connection page follows the phone's language.
+- Sizes, dates and times are shown in the chosen language.
+
 ## 1.7.0 · 2026-11-05
 
 - **AMD and Intel graphics cards on Windows**: without the NVIDIA driver, Prisme installs the Vulkan engines (about 70 MB). `PRISME_ACCELERATION=cuda` or `vulkan` forces a choice.

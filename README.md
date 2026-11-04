@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/GPU-CUDA%20%7C%20Metal%20%7C%20Vulkan-76B900" alt="CUDA, Metal and Vulkan">
   <a href="https://github.com/leejet/stable-diffusion.cpp"><img src="https://img.shields.io/badge/engine-stable--diffusion.cpp-555" alt="stable-diffusion.cpp engine"></a>
   <img src="https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white" alt="Python 3.12 and 3.13">
-  <img src="https://img.shields.io/badge/UI-French-0055A4" alt="French interface">
+  <img src="https://img.shields.io/badge/UI-English%20%7C%20French-0055A4" alt="English and French interface">
 </p>
 
 <p align="center">
@@ -69,6 +69,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Formats**: square, landscape, portrait, or the starting image's proportions
 - **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
+- **English and French interface**, following the device's language or chosen in the settings
 - **Settings**: models, LoRA, steps, CFG, sampler, sigmas, memory options
 - **Phone access** on the same Wi-Fi: type the address, approve the device on the PC
 - **Automatic engine install** on first launch, from pinned official releases verified by SHA-256: CUDA for NVIDIA cards, Vulkan for AMD and Intel
@@ -107,7 +108,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 
 You also need models compatible with stable-diffusion.cpp (GGUF or safetensors, see [Recommended models](#recommended-models)) and an internet connection on first launch, to install the engines.
 
-Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), a VAE and, for editing, an image encoder (`--llm_vision`). The interface is in French.
+Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), a VAE and, for editing, an image encoder (`--llm_vision`). The interface is in English and French.
 
 ### Tested configuration
 
@@ -262,7 +263,7 @@ No. Prompts, models and images stay on your PC. Other devices on your network ca
 Yes, on the same Wi-Fi: see [Phone access](#phone-access).
 
 **Is the interface in English?**
-The interface is in French for now; the buttons are few and the layout is the same as a chat app.
+Yes. Prisme follows your browser's language (English, or French for French browsers), and you can choose it in **Settings → Application → Language**. On a phone, it follows the phone's language.
 
 ## Responsible use
 

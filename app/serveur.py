@@ -1124,6 +1124,18 @@ relancer.onclick = demander;
 demander();
 </script>'''
 
+# La meme page en anglais, pour les telephones dans une autre langue
+PAGE_CONNEXION_EN = PAGE_CONNEXION
+for _fr, _en in (('lang="fr"', 'lang="en"'), ('Connexion à Prisme', 'Connect to Prisme'), ('Envoi de la demande…', 'Sending the request…'),
+                 ("Redemander l'accès", 'Ask again'), ('Demande impossible.', 'Request failed.'),
+                 ('Sur le PC, clique sur « Autoriser » dans Prisme, en vérifiant que ce code est le même.',
+                  'On the PC, click “Approve” in Prisme after checking that this code matches.'),
+                 ('Prisme ne répond pas.', 'Prisme is not responding.'), ('Accès autorisé.', 'Access approved.'),
+                 ('Accès refusé sur le PC.', 'Access refused on the PC.'),
+                 ("La demande a expiré : personne ne l\\'a acceptée sur le PC.", 'The request expired: nobody approved it on the PC.')):
+    assert _fr in PAGE_CONNEXION_EN, _fr
+    PAGE_CONNEXION_EN = PAGE_CONNEXION_EN.replace(_fr, _en)
+
 
 class Gestionnaire(BaseHTTPRequestHandler):
     def log_message(self, *args):
@@ -1189,7 +1201,13 @@ class Gestionnaire(BaseHTTPRequestHandler):
         if urlparse(self.path).path.startswith('/api/'):
             self.envoyer(401, {'erreur': 'Accès refusé : reconnecte-toi depuis l\'adresse de Prisme.'})
         else:
-            self.envoyer(401, PAGE_CONNEXION.encode('utf-8'), 'text/html; charset=utf-8')
+            page = PAGE_CONNEXION if self.langue_francaise() else PAGE_CONNEXION_EN
+            self.envoyer(401, page.encode('utf-8'), 'text/html; charset=utf-8')
+
+    def langue_francaise(self):
+        """Langue preferee du navigateur : la page de connexion est en anglais sauf pour les navigateurs en francais."""
+        preferee = self.headers.get('Accept-Language', 'fr').split(',')[0].strip().lower()
+        return not preferee or preferee.startswith('fr')
 
     def noter_contact_local(self):
         global dernier_contact_local, fermeture_demandee

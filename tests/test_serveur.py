@@ -498,6 +498,12 @@ class SecuriteHttpTest(unittest.TestCase):
     def test_appareil_sans_code_refuse(self):
         self.assertEqual(self.distant('/api/etat')[0], 401)
         self.assertEqual(self.distant('/')[0], 401)
+        # La page de connexion suit la langue du telephone
+        francaise = self.requete('GET', '/', entetes={'X-Test-Distant': '1', 'Accept-Language': 'fr-FR,fr;q=0.9'})[2]
+        anglaise = self.requete('GET', '/', entetes={'X-Test-Distant': '1', 'Accept-Language': 'en-US,en;q=0.9'})[2]
+        self.assertIn('Connexion à Prisme', francaise.decode('utf-8'))
+        self.assertIn('Connect to Prisme', anglaise.decode('utf-8'))
+        self.assertNotIn('Connexion à Prisme', anglaise.decode('utf-8'))
 
     def test_appareil_avec_bon_code_accepte(self):
         self.assertEqual(self.distant('/api/etat', serveur.CODE)[0], 200)

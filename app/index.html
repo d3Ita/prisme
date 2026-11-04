@@ -9,6 +9,257 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#f6f4ef">
 <script>try { document.documentElement.dataset.theme = localStorage.getItem('prisme-theme') || 'auto'; } catch { document.documentElement.dataset.theme = 'auto'; }</script>
+<script>
+// ---------- Langue de l'interface ----------
+// Le francais est la langue d'origine. En anglais, chaque texte affiche (page, messages du serveur, notifications)
+// est traduit au moment ou il apparait ; les zones marquees translate="no" (descriptions ecrites par l'utilisateur) ne le sont jamais.
+const LANGUE = (() => {
+  let choix = null;
+  try { choix = localStorage.getItem('prisme-langue'); } catch {}
+  if (choix === 'fr' || choix === 'en') return choix;
+  return (navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+})();
+const LOCALE = LANGUE === 'en' ? ((navigator.language || '').toLowerCase().startsWith('en') ? navigator.language : 'en-GB') : 'fr-FR';
+document.documentElement.lang = LANGUE;
+
+const EN = {
+  // En-tete, etat, chargement
+  'Chargement de Prisme': 'Loading Prisme', 'Prêt': 'Ready', 'Création en cours': 'Creating', 'Serveur arrêté': 'Server stopped',
+  'Amélioration de la description': 'Enhancing the description', 'Téléphone': 'Phone', 'Réglages': 'Settings', 'Quitter': 'Quit',
+  'Utiliser Prisme sur ton téléphone': 'Use Prisme on your phone', 'Modèles et réglages': 'Models and settings',
+  'Arrêter Prisme : le téléphone n\'y aura plus accès': 'Stop Prisme: the phone will lose access',
+  'Rechercher dans mes images': 'Search my images', 'Prisme est arrêté': 'Prisme is stopped',
+  'Plus rien ne tourne et le téléphone n\'y a plus accès. Tu peux fermer cette fenêtre ; relance Prisme pour l\'utiliser de nouveau.':
+    'Nothing is running and the phone has no access anymore. You can close this window; start Prisme again to use it.',
+  // Accueil
+  'Que veux-tu créer ?': 'What do you want to create?', 'Décris une image': 'Describe an image', 'dans la zone en bas': 'in the box below',
+  'ci-dessous': 'below', ': Prisme la dessine sur ton ordinateur, en 30 secondes environ. Tu peux aussi ajouter une image pour la modifier.':
+    ': Prisme draws it on your computer in about 30 seconds. You can also add an image to edit it.',
+  'Pas d\'idée ? Essaie l\'une de celles-ci :': 'No idea? Try one of these:',
+  'Un renard roux dans une forêt enneigée au lever du soleil': 'A red fox in a snowy forest at sunrise',
+  'Un petit café parisien sous la pluie, lumière chaude du soir': 'A small Parisian café in the rain, warm evening light',
+  'Un phare sur une falaise pendant une tempête': 'A lighthouse on a cliff during a storm',
+  'Une cabane en bois au bord d\'un lac de montagne, à l\'aquarelle': 'A wooden cabin by a mountain lake, in watercolor',
+  // Premier lancement
+  'Encore une étape avant de créer': 'One more step before creating',
+  'Il reste à installer le moteur d\'images et à choisir tes modèles :': 'Install the image engine and choose your models:',
+  'Installer le moteur': 'Install the engine', 'Télécharger les modèles': 'Download the models', 'Choisir les modèles': 'Choose models',
+  'Ouvrir le dossier models': 'Open the models folder', 'Moteur d\'images non installé': 'Image engine not installed',
+  'Modèle de dessin': 'Drawing model', 'Encodeur de texte': 'Text encoder', 'Vision': 'Vision', 'VAE': 'VAE',
+  'Prisme pour Mac nécessite une puce Apple (M1 ou plus récente)': 'Prisme for Mac needs an Apple chip (M1 or later)',
+  // Fil
+  'Aujourd\'hui': 'Today', 'Hier': 'Yesterday', 'Sans description': 'No description',
+  'Aucune image ne correspond à ta recherche.': 'No image matches your search.',
+  'Modifier': 'Edit', 'Réutiliser': 'Reuse', 'Copier': 'Copy', 'Enregistrer': 'Save',
+  'Partir de cette image pour la modifier': 'Start from this image to edit it',
+  'Reprendre la description et la variante': 'Reuse the description and the variant', 'Copier l\'image': 'Copy the image',
+  'Enregistrer sous…': 'Save as…', 'Afficher dans le dossier': 'Show in folder', 'Mettre à la corbeille': 'Move to trash',
+  'Cliquer encore pour confirmer': 'Click again to confirm', 'Modification d\'une image': 'Editing an image',
+  'Préparation…': 'Preparing…', 'Démarrage': 'Starting', 'Création de l\'image': 'Creating the image', 'Finalisation…': 'Finishing…',
+  'Chargement des modèles': 'Loading the models',
+  // Zone d'ecriture
+  'Description de l\'image': 'Image description', 'Image de départ': 'Starting image', 'Retirer l\'image': 'Remove the image',
+  'Décris l\'image à créer, ou le changement à faire sur ton image…': 'Describe the image to create, or the change to make to your image…',
+  'Décris le changement à faire sur cette image…': 'Describe the change to make to this image…',
+  'Décris ton image…': 'Describe your image…', 'Décris le changement…': 'Describe the change…',
+  'Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)': 'Add an image to edit (you can also drag or paste it here)',
+  'Image': 'Image', 'Carré': 'Square', 'Paysage': 'Landscape', 'Portrait': 'Portrait', 'Original': 'Original',
+  'Carré · 1024 × 1024': 'Square · 1024 × 1024', 'Paysage · 16:9': 'Landscape · 16:9', 'Portrait · 9:16': 'Portrait · 9:16',
+  'Garder les proportions de l\'image de départ': 'Keep the starting image\'s proportions',
+  'Ajoute d\'abord une image de départ': 'Add a starting image first',
+  'Nombre d\'images à créer': 'Number of images to create', 'Nombre d\'images': 'Number of images', 'Format': 'Format',
+  'Plus d\'options': 'More options', 'Options': 'Options', 'Variante': 'Variant', '· vide = au hasard': '· empty = random',
+  'Au hasard': 'Random', 'Revenir au hasard': 'Back to random',
+  'Même description et même numéro donnent la même image : pratique pour refaire une image en changeant un détail.':
+    'The same description and number give the same image: handy to redo an image while changing a detail.',
+  'Rétablir': 'Undo', 'Revenir au texte que tu avais écrit': 'Go back to the text you wrote', 'Améliorer': 'Enhance',
+  'Réécrire la description en plus détaillé': 'Rewrite the description in more detail', 'Amélioration…': 'Enhancing…',
+  'Analyse de l\'image…': 'Looking at the image…', 'Créer': 'Create', 'Arrêter': 'Stop', 'Créer (Entrée)': 'Create (Enter)',
+  'Arrêter la création en cours': 'Stop the current creation', 'Entrée': 'Enter', 'pour créer ·': 'to create ·', 'Maj': 'Shift',
+  'pour aller à la ligne': 'for a new line', 'LoRA actifs :': 'Active LoRA:',
+  // Visionneuse
+  'Fermer (Échap)': 'Close (Esc)', 'Image précédente (←)': 'Previous image (←)', 'Image suivante (→)': 'Next image (→)',
+  // Notifications
+  'Le serveur ne répond plus. Relance Prisme.': 'The server is not responding. Start Prisme again.',
+  'Ce fichier n\'est pas une image.': 'This file is not an image.', 'Impossible de lire cette image.': 'Cannot read this image.',
+  'Image collée': 'Pasted image', 'Image collée comme image de départ': 'Image pasted as the starting image',
+  'Termine d\'abord la configuration : moteur et modèles.': 'Finish the setup first: engine and models.',
+  'Écris d\'abord ce que tu veux obtenir.': 'Write what you want first.',
+  'Génération avec ta description telle quelle.': 'Creating with your description as it is.',
+  'Écris d\'abord une description à améliorer.': 'Write a description to enhance first.',
+  'La création a échoué.': 'The creation failed.', 'Création arrêtée': 'Creation stopped', 'Appareil autorisé': 'Device approved',
+  'Demande refusée': 'Request refused', 'Image ajoutée : décris le changement voulu': 'Image added: describe the change you want',
+  'Description et variante reprises': 'Description and variant reused', 'Description reprise': 'Description reused',
+  'Image copiée dans le presse-papiers': 'Image copied to the clipboard', 'La copie a échoué.': 'Copy failed.',
+  'Clique encore sur la corbeille pour confirmer': 'Click the trash again to confirm', 'Image mise à la corbeille': 'Image moved to trash',
+  'Lien copié': 'Link copied', 'Réglages enregistrés': 'Settings saved', 'Liste des modèles actualisée': 'Model list refreshed',
+  'Valeurs par défaut chargées : clique sur Enregistrer pour les garder': 'Default values loaded: click Save to keep them',
+  'Une génération est en cours : clique encore pour tout arrêter': 'A creation is running: click again to stop everything',
+  'Clique encore sur Quitter pour arrêter Prisme': 'Click Quit again to stop Prisme', 'Masquer': 'Hide',
+  'Modèles installés et choisis dans les réglages': 'Models installed and selected in the settings',
+  // Telephone
+  'Utiliser sur ton téléphone': 'Use on your phone', 'Tape cette adresse dans le navigateur du téléphone, puis autorise-le ici :':
+    'Type this address in the phone\'s browser, then approve it here:', 'Ou scanne ce code pour te connecter directement :':
+    'Or scan this code to connect directly:', 'Chargement…': 'Loading…', 'Copier le lien': 'Copy the link',
+  'Le téléphone doit être sur le même réseau (Wi-Fi de la maison) que ce PC.': 'The phone must be on the same network (home Wi-Fi) as this PC.',
+  'Le PC doit rester allumé avec Prisme lancé.': 'The PC must stay on with Prisme running.',
+  'Le lien du QR code contient ton code d\'accès : ne le partage pas.': 'The QR code link contains your access code: don\'t share it.',
+  'L\'accès depuis le téléphone est désactivé. Active-le dans les Réglages, puis relance Prisme.':
+    'Phone access is off. Turn it on in Settings, then restart Prisme.',
+  'QR code indisponible sans Internet : ouvre le lien ci-dessous sur le téléphone.': 'QR code unavailable offline: open the link below on the phone.',
+  'Un appareil veut utiliser Prisme': 'A device wants to use Prisme',
+  'Autorise seulement si ce code est celui affiché sur ton appareil.': 'Approve only if this code is the one shown on your device.',
+  'Refuser': 'Refuse', 'Autoriser': 'Approve', 'PC Windows': 'Windows PC', 'Appareil inconnu': 'Unknown device',
+  // Reglages
+  'Modèles et paramètres utilisés pour les prochaines générations.': 'Models and parameters used for the next creations.',
+  'Modèles': 'Models', 'Télécharger': 'Download', 'Actualiser': 'Refresh', 'Ouvrir le dossier': 'Open the folder',
+  'Fait l\'image ·': 'Makes the image ·', 'Comprend la description ·': 'Understands the description ·',
+  'Lit l\'image de départ ·': 'Reads the starting image ·', 'Produit l\'image finale ·': 'Produces the final image ·', 'Où le trouver': 'Where to get it',
+  'Aucun (modification d\'image désactivée)': 'None (image editing disabled)', 'introuvable': 'not found', 'Désactivée': 'Off',
+  'LoRA': 'LoRA', 'Fichier introuvable dans models\\loras': 'File not found in models\\loras',
+  'Active un LoRA et règle sa force (1 = normal, 0,5 = moitié).': 'Turn a LoRA on and set its strength (1 = normal, 0.5 = half).',
+  'Moteur': 'Engine', 'Intégré : rien d\'autre à installer': 'Built in: nothing else to install', 'Intégré (llama.cpp)': 'Built in (llama.cpp)',
+  'Ollama': 'Ollama', 'Modèle de langage': 'Language model', 'Fichier GGUF du dossier models ·': 'GGUF file from the models folder ·',
+  'Facultatif : lit l\'image de départ ·': 'Optional: reads the starting image ·', 'Moteur de texte': 'Text engine',
+  'Téléchargé une seule fois': 'Downloaded once', 'Servi par Ollama': 'Served by Ollama', 'Adresse d\'Ollama': 'Ollama address',
+  'Recherche des modèles d\'Ollama…': 'Looking for Ollama models…', 'Aucun modèle dans Ollama.': 'No model in Ollama.',
+  'Améliorer automatiquement': 'Enhance automatically', 'Avant chaque génération': 'Before each creation',
+  'Consigne de création': 'Creation instruction', 'Sans image de départ': 'Without a starting image', 'Consigne de modification': 'Edit instruction',
+  'Avec une image de départ, envoyée au modèle s\'il voit les images': 'With a starting image, sent to the model if it can see images',
+  'Génération': 'Generation', 'Profil rapide': 'Fast profile', 'Pour les modèles distillés en 8 étapes': 'For models distilled to 8 steps',
+  'Étapes': 'Steps', 'Selon le modèle, souvent 20 à 30': 'Depends on the model, often 20 to 30', 'CFG': 'CFG',
+  'Selon le modèle, souvent 1 à 5': 'Depends on the model, often 1 to 5', 'Méthode': 'Method', 'Échantillonneur': 'Sampler',
+  'Sigmas': 'Sigmas', 'Vide = automatique': 'Empty = automatic', 'Le programme choisira les sigmas lui-même.': 'The engine will choose the sigmas itself.',
+  'Performances': 'Performance', 'Décharger sur le processeur': 'Offload to the CPU', 'Économise la mémoire de la carte graphique': 'Saves graphics card memory',
+  'VAE par tuiles': 'Tiled VAE', 'Évite les manques de mémoire': 'Avoids running out of memory', 'Flash attention': 'Flash attention',
+  'Plus rapide sur carte NVIDIA': 'Faster on NVIDIA cards', 'Application': 'Application', 'Apparence': 'Appearance',
+  'Pour cet appareil, appliquée tout de suite': 'For this device, applied right away', 'Clair': 'Light', 'Sombre': 'Dark', 'Automatique': 'Automatic',
+  'Langue': 'Language', 'Pour cet appareil · Language': 'For this device',
+  'Accès depuis le téléphone': 'Phone access', 'Pris en compte au prochain lancement': 'Applied at next launch',
+  'Chercher les nouvelles versions': 'Check for new versions', 'Une fois au lancement, sur GitHub': 'Once at launch, on GitHub',
+  'Arrêter à la fermeture': 'Stop when closed', 'Quand la fenêtre de Prisme se ferme sur le PC': 'When the Prisme window closes on the PC',
+  'Arrêt automatique': 'Automatic stop', 'Minutes sans fenêtre ouverte': 'Minutes without an open window',
+  'Valeurs par défaut': 'Default values', 'Annuler': 'Cancel', 'Fermer': 'Close',
+  // Modeles conseilles
+  'Modèles conseillés': 'Recommended models',
+  'Des modèles officiels et tout public, téléchargés depuis Hugging Face et vérifiés. Prisme les choisit tout seul dans les réglages.':
+    'Official, general-purpose models, downloaded from Hugging Face and verified. Prisme selects them in the settings for you.',
+  'Tout télécharger': 'Download all', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
+  'En attente…': 'Waiting…', 'Vérification du fichier…': 'Checking the file…',
+  'Arrêté : tu peux reprendre où le téléchargement s\'était arrêté.': 'Stopped: you can resume where the download left off.',
+  'Léger : cartes graphiques de 8 Go': 'Light: 8 GB graphics cards', 'Meilleure qualité : cartes de 12 Go ou plus': 'Best quality: 12 GB cards or more',
+  'Conseillé, sert aussi à améliorer les descriptions': 'Recommended, also used to enhance descriptions',
+  'Plus léger, modifications un peu plus granuleuses': 'Lighter, edits a bit grainier', 'Pour modifier une image de départ': 'To edit a starting image',
+  'Produit l\'image finale': 'Produces the final image', 'Installe d\'abord le moteur d\'images.': 'Install the image engine first.',
+  // Messages du serveur
+  'Accès refusé : reconnecte-toi depuis l\'adresse de Prisme.': 'Access refused: reconnect from Prisme\'s address.',
+  'Adresse non autorisée.': 'Address not allowed.', 'Attends la fin de l\'amélioration de la description.': 'Wait for the description enhancement to finish.',
+  'Attends la fin du calcul en cours.': 'Wait for the current task to finish.', 'Cette demande a expiré.': 'This request has expired.',
+  'Choisis au moins le modèle de dessin, l\'encodeur de texte et le VAE.': 'Choose at least the drawing model, the text encoder and the VAE.',
+  'Choisis un modèle d\'amélioration dans les Réglages.': 'Choose an enhancement model in Settings.',
+  'Disponible seulement sur le PC.': 'Only available on the PC.', 'Données invalides.': 'Invalid data.',
+  'Image de départ introuvable.': 'Starting image not found.', 'Image introuvable': 'Image not found', 'Image introuvable.': 'Image not found.',
+  'Impossible de mettre l\'image à la corbeille.': 'Cannot move the image to the trash.', 'Installation déjà en cours.': 'Installation already running.',
+  'Introuvable': 'Not found', 'Les requêtes doivent être en JSON.': 'Requests must be JSON.', 'Modèle inconnu.': 'Unknown model.',
+  'Moteur inconnu.': 'Unknown engine.', 'Paramètres invalides.': 'Invalid parameters.', 'Requête venant d\'un autre site refusée.': 'Request from another site refused.',
+  'Taille invalide : multiples de 16, entre 256 et 2048.': 'Invalid size: multiples of 16, between 256 and 2048.',
+  'Trop de codes faux : réessaie dans quelques minutes.': 'Too many wrong codes: try again in a few minutes.',
+  'Trop de demandes en attente : accepte-les ou attends deux minutes.': 'Too many pending requests: approve them or wait two minutes.',
+  'Une génération est déjà en cours.': 'A creation is already running.', 'Une valeur est invalide.': 'A value is invalid.',
+  'Adresse d\'Ollama invalide (exemple : http://127.0.0.1:11434).': 'Invalid Ollama address (example: http://127.0.0.1:11434).',
+  'L\'arrêt automatique doit être entre 1 et 1440 minutes.': 'The automatic stop must be between 1 and 1440 minutes.',
+  'La force d\'un LoRA doit être entre -2 et 2.': 'A LoRA strength must be between -2 and 2.', 'Le CFG doit être entre 0 et 30.': 'CFG must be between 0 and 30.',
+  'Le nombre d\'étapes doit être entre 1 et 150.': 'The number of steps must be between 1 and 150.',
+  'Les modèles doivent être dans le dossier models.': 'Models must be in the models folder.', 'Méthode d\'échantillonnage inconnue.': 'Unknown sampling method.',
+  'Moteur d\'amélioration inconnu.': 'Unknown enhancement engine.', 'Le modèle n\'a rien renvoyé.': 'The model returned nothing.',
+  'Le moteur de texte a mis trop longtemps à démarrer.': 'The text engine took too long to start.',
+  'Le moteur de texte n\'est pas installé : installe-le dans les Réglages.': 'The text engine is not installed: install it in Settings.',
+  'Ollama ne répond pas : lance Ollama ou vérifie son adresse dans les Réglages.': 'Ollama is not responding: start Ollama or check its address in Settings.',
+  'Le fichier reçu ne correspond pas au modèle attendu (empreinte différente). Réessaie.': 'The file received does not match the expected model (different checksum). Try again.',
+  'Le fichier téléchargé ne correspond pas à la version attendue (empreinte différente).': 'The downloaded file does not match the expected version (different checksum).',
+};
+// Textes qui contiennent des valeurs : le premier motif qui correspond donne la traduction
+const MOTIFS_EN = [
+  [/^Étape (\d+) sur (\d+)$/, 'Step $1 of $2'], [/^image (\d+) sur (\d+)$/, 'image $1 of $2'],
+  [/^Créer (\d+) images$/, 'Create $1 images'], [/^(\d+) images créées en (\d+) s$/, '$1 images created in $2 s'],
+  [/^Image créée en (\d+) s$/, 'Image created in $1 s'], [/^Prisme (.+) est disponible\.$/, 'Prisme $1 is available.'],
+  [/^(.+) libres sur le disque$/, '$1 free on disk'],
+  [/^Installer le moteur \((.+)\)$/, 'Install the engine ($1)'], [/^Installation de (.+)…$/, 'Installing $1…'],
+  [/^Téléchargement de (.+) : (.+) sur (.+)$/, 'Downloading $1: $2 of $3'],
+  [/^Téléchargé une seule fois depuis la version officielle de (.+) \((.+)\)\.$/, 'Downloaded once from the official release of $1 ($2).'],
+  [/^(.+) (\S+) installé\.$/, '$1 $2 installed.'], [/^(.+) n'est pas encore installé\.$/, '$1 is not installed yet.'],
+  [/^(.+) est installé$/, '$1 is installed'], [/^(\d+) fichiers trouvés dans (.+)$/, '$1 files found in $2'],
+  [/^Aucun modèle trouvé dans (.+)$/, 'No model found in $1'], [/^(\d+) modèles disponibles dans Ollama\.$/, '$1 models available in Ollama.'],
+  [/^Aucun LoRA : place des fichiers \.safetensors dans (.+), puis clique sur Actualiser\.$/, 'No LoRA: put .safetensors files in $1, then click Refresh.'],
+  [/^Réécrire la description en plus détaillé avec (.+)$/, 'Rewrite the description in more detail with $1'],
+  [/^(\d+) valeurs : il en faut (\d+) pour (\d+) étapes\.$/, '$1 values: $2 are needed for $3 steps.'],
+  [/^(\d+) valeurs, correct\.$/, '$1 values, correct.'],
+  [/^Il faut (\d+) sigmas pour (\d+) étapes, ou laisser le champ vide\.$/, '$1 sigmas are needed for $2 steps, or leave the field empty.'],
+  [/^(.+) : aucun fichier choisi dans les Réglages$/, (m, nom) => `${traduire(nom)}: no file chosen in Settings`],
+  [/^(.+) : fichier introuvable \((.+)\)$/, (m, nom, f) => `${traduire(nom)}: file not found (${f})`],
+  [/^Bibliothèques système manquantes : (.+)$/, 'Missing system libraries: $1'],
+  [/^Pas assez de place sur le disque : il faut ([\d.]+) Go libres\.$/, 'Not enough disk space: $1 GB free needed.'],
+  [/^Modèle introuvable dans le dossier models : (.+)\. Vérifie les réglages\.$/, 'Model not found in the models folder: $1. Check the settings.'],
+  [/^Modèle de langage introuvable : (.+)$/, 'Language model not found: $1'], [/^Nom de LoRA invalide : (.+)$/, 'Invalid LoRA name: $1'],
+  [/^Ollama a refusé la demande : (.+)$/, 'Ollama refused the request: $1'], [/^Le moteur de texte n'a pas répondu : (.+)$/, 'The text engine did not respond: $1'],
+  [/^Le moteur de texte s'est arrêté : (.*)$/, 'The text engine stopped: $1'], [/^Téléchargement impossible : (.+)$/, 'Download failed: $1'],
+  [/^Installation impossible : (.+)$/, 'Installation failed: $1'], [/^Archive refusée : chemin interdit \((.+)\)$/, 'Archive refused: forbidden path ($1)'],
+  [/^(.+) est absent de l'archive\.$/, '$1 is missing from the archive.'], [/^sd-cli s'est arrete \(code (.+)\)\.$/, 'sd-cli stopped (code $1).'],
+  [/^Erreur (\d+)$/, 'Error $1'], [/^(.+) sur (.+ [GM]B)$/, '$1 of $2'],
+];
+
+function traduire(texte) {
+  if (LANGUE !== 'en' || !texte) return texte;
+  // Message sur plusieurs lignes (erreur detaillee) : chaque ligne se traduit a part
+  if (texte.includes('\n')) return texte.split('\n').map(traduire).join('\n');
+  const propre = texte.replace(/\s+/g, ' ').trim();
+  if (!propre) return texte;
+  let r = EN[propre];
+  if (r === undefined) for (const [motif, rem] of MOTIFS_EN) if (motif.test(propre)) { r = propre.replace(motif, rem); break; }
+  if (r === undefined && /\s·\s/.test(propre)) {
+    const morceaux = propre.split(/(\s+·\s+)/), traduits = morceaux.map((m, i) => i % 2 ? m : traduire(m));
+    if (traduits.some((t, i) => t !== morceaux[i])) r = traduits.join('');
+  }
+  if (r === undefined) return texte;
+  // Garde les espaces autour du texte, qui separent les mots des elements voisins
+  return texte.match(/^\s*/)[0] + r + texte.match(/\s*$/)[0];
+}
+
+const ATTRIBUTS_TRADUITS = ['placeholder', 'title', 'aria-label', 'alt'];
+function protege(noeud) { return !!noeud.closest?.('[translate="no"], script, style'); }
+function traduireTexte(n) {
+  const parent = n.parentElement;
+  if (!parent || protege(parent) || parent.tagName === 'TEXTAREA') return;
+  const t = traduire(n.nodeValue);
+  if (t !== n.nodeValue) n.nodeValue = t;
+}
+function traduireAttribut(el, nom) {
+  const v = el.getAttribute(nom);
+  if (!v || protege(el)) return;
+  const t = traduire(v);
+  if (t !== v) el.setAttribute(nom, t);
+}
+function traduireArbre(racine) {
+  if (racine.nodeType === 3) return traduireTexte(racine);
+  if (racine.nodeType !== 1 || protege(racine)) return;
+  ATTRIBUTS_TRADUITS.forEach(a => traduireAttribut(racine, a));
+  const parcours = document.createTreeWalker(racine, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+  for (let n = parcours.nextNode(); n; n = parcours.nextNode()) {
+    if (n.nodeType === 3) traduireTexte(n);
+    else ATTRIBUTS_TRADUITS.forEach(a => traduireAttribut(n, a));
+  }
+}
+if (LANGUE === 'en') {
+  new MutationObserver(changements => {
+    for (const c of changements) {
+      if (c.type === 'characterData') traduireTexte(c.target);
+      else if (c.type === 'attributes') traduireAttribut(c.target, c.attributeName);
+      else c.addedNodes.forEach(traduireArbre);
+    }
+  }).observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRIBUTS_TRADUITS });
+  addEventListener('DOMContentLoaded', () => traduireArbre(document.body));
+}
+</script>
 <style>
 /* Couleurs : theme clair par defaut, theme sombre doux au choix ou selon le systeme */
 :root {
@@ -568,7 +819,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       </div>
 
       <article class="echange" id="en-cours" hidden>
-        <div class="demande"><p id="en-cours-texte">Création en cours</p><div class="meta" id="en-cours-meta"></div></div>
+        <div class="demande"><p id="en-cours-texte" translate="no">Création en cours</p><div class="meta" id="en-cours-meta"></div></div>
         <div class="reponse">
           <img class="avatar" src="/logo.png" alt="">
           <div class="carte-attente" id="attente">
@@ -588,7 +839,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
     <div class="compositeur" id="compositeur">
       <div class="piece-jointe" id="source" hidden>
         <img id="source-img" alt="Image de départ">
-        <div class="texte"><strong id="source-nom"></strong><span id="source-taille"></span></div>
+        <div class="texte"><strong id="source-nom" translate="no"></strong><span id="source-taille"></span></div>
         <button type="button" class="bouton-icone" id="retirer" title="Retirer l'image"><svg class="i"><use href="#i-x"/></svg></button>
       </div>
       <textarea id="prompt" rows="1" placeholder="Décris l'image à créer, ou le changement à faire sur ton image…" spellcheck="false" aria-label="Description de l'image"></textarea>
@@ -643,7 +894,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
     <button class="bouton-icone fermer" id="fermer-modale" title="Fermer"><svg class="i"><use href="#i-x"/></svg></button>
     <h3>Utiliser sur ton téléphone</h3>
     <p>Tape cette adresse dans le navigateur du téléphone, puis autorise-le ici :</p>
-    <div class="adresse-simple" id="adresse-simple">…</div>
+    <div class="adresse-simple" id="adresse-simple" translate="no">…</div>
     <p>Ou scanne ce code pour te connecter directement :</p>
     <div class="qr" id="qr">Chargement…</div>
     <div class="lien">
@@ -728,6 +979,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       </section>
       <section class="bloc">
         <h4>Application</h4>
+        <div class="reglage"><label>Langue<small>Pour cet appareil · Language</small></label><div><div class="groupe" id="langue">
+          <button type="button" data-langue="fr" translate="no">Français</button><button type="button" data-langue="en" translate="no">English</button><button type="button" data-langue="auto">Automatique</button></div></div></div>
         <div class="reglage"><label>Apparence<small>Pour cet appareil, appliquée tout de suite</small></label><div><div class="groupe" id="apparence">
           <button type="button" data-theme="clair">Clair</button><button type="button" data-theme="sombre">Sombre</button><button type="button" data-theme="auto">Automatique</button></div></div></div>
         <div class="reglage"><label for="r-reseau">Accès depuis le téléphone<small>Pris en compte au prochain lancement</small></label><label class="interrupteur"><input type="checkbox" id="r-reseau" data-cle="acces_reseau"><span></span></label></div>
@@ -819,9 +1072,9 @@ function urlImage(img) { return `/images/${encodeURIComponent(img.nom)}?v=${img.
 
 function dateLisible(iso) {
   const d = new Date(iso), maintenant = new Date();
-  const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const heure = d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
   if (d.toDateString() === maintenant.toDateString()) return `Aujourd'hui ${heure}`;
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + heure;
+  return d.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) + ' ' + heure;
 }
 
 // ---------- Description ----------
@@ -1022,7 +1275,7 @@ function majBoutonCreer(occupe = etat.occupe) {
 
 // Bulle de la demande en cours, en bas du fil
 function montrerDemande({ prompt: texte, largeur, hauteur, modification }) {
-  $('#en-cours-texte').textContent = texte || 'Création en cours';
+  $('#en-cours-texte').textContent = texte || traduire('Création en cours');
   $('#en-cours-meta').textContent = [modification ? 'Modification d\'une image' : '', largeur ? `${largeur} × ${hauteur}` : ''].filter(Boolean).join(' · ');
   $('#attente').style.aspectRatio = largeur ? `${largeur} / ${hauteur}` : '1';
 }
@@ -1129,9 +1382,9 @@ function jourLisible(iso) {
   const d = new Date(iso), hier = new Date(Date.now() - 864e5);
   if (d.toDateString() === new Date().toDateString()) return 'Aujourd\'hui';
   if (d.toDateString() === hier.toDateString()) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
 }
-function heure(iso) { return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+function heure(iso) { return new Date(iso).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }); }
 
 // Les images d'un meme lancement (meme description et meme taille, a quelques minutes d'ecart) forment un seul echange
 function grouper(liste) {
@@ -1159,7 +1412,7 @@ function carteImage(img) {
   carte.className = 'carte-image';
   carte.dataset.nom = img.nom;
   const image = document.createElement('img');
-  image.loading = 'lazy'; image.decoding = 'async'; image.alt = img.prompt || '';
+  image.loading = 'lazy'; image.decoding = 'async'; image.translate = false; image.alt = img.prompt || '';
   if (img.largeur) image.style.aspectRatio = `${img.largeur} / ${img.hauteur}`;
   image.src = urlImage(img);
   const barre = document.createElement('div');
@@ -1205,7 +1458,8 @@ function rendreFil() {
     const demande = document.createElement('div');
     demande.className = 'demande';
     const texte = document.createElement('p');
-    texte.textContent = g.prompt || 'Sans description';
+    texte.translate = false;
+    texte.textContent = g.prompt || traduire('Sans description');
     const meta = document.createElement('div');
     meta.className = 'meta';
     meta.textContent = [heure(premiere.date), g.largeur ? `${g.largeur} × ${g.hauteur}` : '', ...(premiere.loras || []).map(l => 'LoRA ' + l)]
@@ -1564,6 +1818,20 @@ $('#visionneuse').addEventListener('touchend', e => {
   if (Math.abs(ecart) > 50) { voisine(ecart < 0 ? 1 : -1); e.preventDefault(); }
 });
 
+// ---------- Langue ----------
+(() => {
+  let choix = 'auto';
+  try { choix = localStorage.getItem('prisme-langue') || 'auto'; } catch {}
+  document.querySelectorAll('#langue button').forEach(b => b.classList.toggle('actif', b.dataset.langue === choix));
+})();
+$('#langue').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  try { localStorage.setItem('prisme-langue', b.dataset.langue); } catch {}
+  // La page se recharge pour s'afficher dans la nouvelle langue
+  location.reload();
+});
+
 // ---------- Apparence ----------
 function appliquerTheme(theme) {
   document.documentElement.dataset.theme = theme;
@@ -1619,7 +1887,8 @@ const SIGMAS_RAPIDE = '1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0
 let infosReglages = null;
 
 function taille(octets) {
-  return octets >= 1e9 ? (octets / 1e9).toFixed(1).replace('.', ',') + ' Go' : Math.round(octets / 1e6) + ' Mo';
+  const go = octets >= 1e9, valeur = go ? (octets / 1e9).toFixed(1) : String(Math.round(octets / 1e6));
+  return LANGUE === 'en' ? `${valeur} ${go ? 'GB' : 'MB'}` : `${valeur.replace('.', ',')} ${go ? 'Go' : 'Mo'}`;
 }
 
 function nomCourt(nom) {

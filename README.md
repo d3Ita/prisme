@@ -43,7 +43,7 @@
 
 ## Why Prisme?
 
-Most local image tools ask you to install Python, manage dependencies, or wire nodes together. Prisme is a single 11 MB desktop app for Windows, macOS and Linux: download it, let it fetch the engine and the recommended models in a few clicks, and start creating. Everything runs on your own GPU through [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). No account, no subscription, and your images never leave your PC.
+Most local image tools ask you to install Python, manage dependencies, or wire nodes together. Prisme is a single 11 MB desktop app for Windows, macOS and Linux: download it, let it fetch the engine and the recommended models in a few clicks, and start creating. An internet connection is needed only once, for those downloads: after that, Prisme works offline. Everything runs on your own GPU through [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). No account, no subscription, and your images never leave your PC.
 
 | | Prisme | Node-based tools (ComfyUI…) |
 |---|---|---|
@@ -74,6 +74,29 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Automatic engine install** on first launch, from pinned official releases verified by SHA-256: CUDA for NVIDIA cards, Vulkan for AMD and Intel
 - **Model downloads in the app**: one click fetches the recommended official models, resumes if interrupted and checks each file
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/captures/ordinateur-sombre.png" alt="Prisme in dark mode: a request and its image, like a chat"></td>
+    <td><img src="docs/captures/modeles.png" alt="Recommended models window, with one-click downloads"></td>
+  </tr>
+  <tr>
+    <td align="center">Dark theme on a computer</td>
+    <td align="center">Recommended models, downloaded in one click</td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td><img src="docs/captures/telephone.png" alt="Prisme on a phone" width="260"></td>
+    <td><img src="docs/captures/telephone-options.png" alt="Phone options panel: format, number of images, variant" width="260"></td>
+  </tr>
+  <tr>
+    <td align="center">On a phone, over the home Wi-Fi</td>
+    <td align="center">Format and number of images in the options panel</td>
+  </tr>
+</table>
+
 ## Requirements
 
 | System | Download | GPU | Status |
@@ -85,6 +108,15 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 You also need models compatible with stable-diffusion.cpp (GGUF or safetensors, see [Recommended models](#recommended-models)) and an internet connection on first launch, to install the engines.
 
 Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), a VAE and, for editing, an image encoder (`--llm_vision`). The interface is in French.
+
+### Tested configuration
+
+| Graphics card | System memory | Models | Time per 1024 × 1024 image |
+|---|---|---|---|
+| NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | Recommended set: drawing model Q4_K, text encoder Q8_0, vision F16 | Creation 25 to 50 s, edit 45 to 90 s, model loading included |
+| Same card with the Vulkan engine | 32 GB | Same models | About 50 s for a creation, model loading included |
+
+Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text encoder and keep **Décharger sur le processeur** (CPU offload) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in an [issue](../../issues).
 
 ## Quick start
 
@@ -168,6 +200,8 @@ With a starting image, the model looks at the picture and writes an edit instruc
 Network access is **off by default**. Turn it on in **Réglages → Application → Accès depuis le téléphone**, restart Prisme and allow it through your firewall if your system asks. The **Téléphone** button then shows the address to type, for example `192.168.1.22:7861`.
 
 On the phone, open that address: it shows a 4-digit code, and Prisme asks you on the PC to **Autoriser** (approve) the device after checking the code matches. The phone then stays connected. A QR code is also available for a direct connection. Don't enable network access on public Wi-Fi: the connection is not encrypted.
+
+The QR code link contains an access code stored in `app/code-acces.txt`: delete that file and restart Prisme to create a new code and disconnect the devices already linked.
 
 To stop Prisme, click **Quitter** or close its window: the server shuts down a few seconds later.
 

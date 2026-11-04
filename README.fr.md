@@ -38,7 +38,7 @@
   <a href="#licence">Licence</a>
 </p>
 
-Application locale pour créer et modifier des images par intelligence artificielle sur Windows, macOS et Linux. Tout tourne sur ton ordinateur : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp).
+Application locale pour créer et modifier des images par intelligence artificielle sur Windows, macOS et Linux. Tout tourne sur ton ordinateur : pas de compte, pas d'abonnement, pas d'envoi de tes images sur Internet. Le calcul est fait par la carte graphique grâce à [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). Il faut Internet une seule fois, pour télécharger le moteur et les modèles : ensuite, Prisme marche hors ligne.
 
 ![Démonstration de Prisme : une idée courte, améliorée, générée, puis modifiée](docs/demo.gif)
 
@@ -65,6 +65,29 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 - **Téléphone** : utilisation depuis un téléphone sur le même Wi-Fi, protégée par un code d'accès (QR code)
 - **Un seul programme** pour Windows, macOS ou Linux, sans Python à installer
 
+## Captures
+
+<table>
+  <tr>
+    <td><img src="docs/captures/ordinateur-sombre.png" alt="Prisme en thème sombre : une demande et son image, comme une conversation"></td>
+    <td><img src="docs/captures/modeles.png" alt="Fenêtre des modèles conseillés, téléchargés en un clic"></td>
+  </tr>
+  <tr>
+    <td align="center">Thème sombre sur ordinateur</td>
+    <td align="center">Les modèles conseillés, téléchargés en un clic</td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td><img src="docs/captures/telephone.png" alt="Prisme sur un téléphone" width="260"></td>
+    <td><img src="docs/captures/telephone-options.png" alt="Panneau d'options du téléphone : format, nombre d'images, variante" width="260"></td>
+  </tr>
+  <tr>
+    <td align="center">Sur un téléphone, avec le Wi-Fi de la maison</td>
+    <td align="center">Format et nombre d'images dans le panneau d'options</td>
+  </tr>
+</table>
+
 ## Prérequis
 
 | Système | Fichier | Carte graphique | État |
@@ -76,6 +99,15 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 Il faut aussi des modèles compatibles avec stable-diffusion.cpp (GGUF ou safetensors, voir [Modèles conseillés](#modèles-conseillés)) et une connexion Internet au premier lancement, pour l'installation des moteurs.
 
 Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un encodeur de texte de type LLM (`--llm`), un VAE et, pour la modification d'image, un encodeur d'image (`--llm_vision`).
+
+### Configuration testée
+
+| Carte graphique | Mémoire vive | Modèles | Temps pour une image de 1024 × 1024 |
+|---|---|---|---|
+| NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | Ensemble conseillé : modèle de dessin Q4_K, encodeur de texte Q8_0, vision F16 | Création 25 à 50 s, modification 45 à 90 s, chargement des modèles compris |
+| La même carte avec le moteur Vulkan | 32 Go | Mêmes modèles | Environ 50 s pour une création, chargement compris |
+
+Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et l'encodeur Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans une [issue](../../issues).
 
 ## Installation
 

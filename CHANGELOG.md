@@ -2,7 +2,7 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
-## Not released yet
+## 1.8.2 · 2026-11-05
 
 - **Recommended models adapted to the machine**: Prisme reads the memory (graphics card, RAM, or a Mac's shared memory) and recommends light versions when it's tight (about 10.7 GB instead of 14.7 GB). This avoids freezes and slowdowns, for example on an 18 GB Mac. A light vision file (Q8_0) joins the catalog.
 - A downloaded model is now selected right away in the settings.

@@ -2,7 +2,7 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
-## Not released yet
+## 1.8.3 · 2026-11-05
 
 - **One-click updates**: the new-version notice has an **Update** button. Prisme downloads the new version from its GitHub releases only, checks the SHA-256 published by GitHub, replaces the program and restarts by itself; the open window reloads on the new version. Available from this version on, in the built programs (not when running the Python script).
 - Linux and macOS: Prisme can restart right away on the port it just used.

@@ -4,6 +4,8 @@ All notable changes to Prisme. Downloads are on the [Releases](https://github.co
 
 ## Not released yet
 
+- **Recommended models adapted to the machine**: Prisme reads the memory (graphics card, RAM, or a Mac's shared memory) and recommends light versions when it's tight (about 10.7 GB instead of 14.7 GB). This avoids freezes and slowdowns, for example on an 18 GB Mac. A light vision file (Q8_0) joins the catalog.
+- A downloaded model is now selected right away in the settings.
 - **The computer stays usable during a creation**: the engines run at a lower priority and leave one processor core free. Creation speed is unchanged when nothing else is running.
 
 ## 1.8.1 · 2026-11-05

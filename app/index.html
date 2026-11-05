@@ -150,6 +150,9 @@ const EN = {
   'Léger : cartes graphiques de 8 Go': 'Light: 8 GB graphics cards', 'Meilleure qualité : cartes de 12 Go ou plus': 'Best quality: 12 GB cards or more',
   'Conseillé, sert aussi à améliorer les descriptions': 'Recommended, also used to enhance descriptions',
   'Plus léger, modifications un peu plus granuleuses': 'Lighter, edits a bit grainier', 'Pour modifier une image de départ': 'To edit a starting image',
+  'Meilleure qualité, sert aussi à améliorer les descriptions': 'Best quality, also used to enhance descriptions',
+  'Plus léger, sert aussi à améliorer les descriptions': 'Lighter, also used to enhance descriptions',
+  'Plus légère, pour modifier une image de départ': 'Lighter, to edit a starting image',
   'Produit l\'image finale': 'Produces the final image', 'Installe d\'abord le moteur d\'images.': 'Install the image engine first.',
   // Messages du serveur
   'Accès refusé : reconnecte-toi depuis l\'adresse de Prisme.': 'Access refused: reconnect from Prisme\'s address.',
@@ -205,7 +208,12 @@ const MOTIFS_EN = [
   [/^Le moteur de texte s'est arrêté : (.*)$/, 'The text engine stopped: $1'], [/^Téléchargement impossible : (.+)$/, 'Download failed: $1'],
   [/^Installation impossible : (.+)$/, 'Installation failed: $1'], [/^Archive refusée : chemin interdit \((.+)\)$/, 'Archive refused: forbidden path ($1)'],
   [/^(.+) est absent de l'archive\.$/, '$1 is missing from the archive.'], [/^sd-cli s'est arrete \(code (.+)\)\.$/, 'sd-cli stopped (code $1).'],
-  [/^Erreur (\d+)$/, 'Error $1'], [/^(.+) sur (.+ [GM]B)$/, '$1 of $2'],
+  [/^Erreur (\d+)$/, 'Error $1'],
+  [/^(.+) : Prisme conseille les versions légères, plus rapides et plus stables sur ta machine\.$/, (m, d) => `${traduire(d)}: Prisme recommends the light versions, faster and more stable on your machine.`],
+  [/^(.+) : Prisme conseille les versions complètes, de meilleure qualité\.$/, (m, d) => `${traduire(d)}: Prisme recommends the full versions, for the best quality.`],
+  [/^Mac avec (\d+) Go de mémoire partagée$/, 'Mac with $1 GB of shared memory'],
+  [/^Carte graphique de (\d+) Go, (\d+) Go de mémoire$/, '$1 GB graphics card, $2 GB of memory'],
+  [/^(\d+) Go de mémoire$/, '$1 GB of memory'], [/^(.+) sur (.+ [GM]B)$/, '$1 of $2'],
 ];
 
 function traduire(texte) {
@@ -606,6 +614,7 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 .liste-modeles h4 { margin: 0 0 8px; font: 650 14px var(--police-titre); color: var(--texte-2); }
 .modele { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--bordure); }
 .modele + .modele { margin-top: 6px; }
+.carte-modeles > header p.machine-modeles { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: var(--accent-doux); color: var(--texte); }
 .modele strong { font-weight: 600; font-size: 14.5px; }
 .modele .conseil { margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--accent-doux); color: var(--accent-2); font-size: 11.5px; font-weight: 600; }
 .modele small { display: block; color: var(--texte-3); font-size: 12.5px; }
@@ -1006,6 +1015,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       <button type="button" class="bouton-icone fermer" data-fermer title="Fermer"><svg class="i"><use href="#i-x"/></svg></button>
       <h3>Modèles conseillés</h3>
       <p>Des modèles officiels et tout public, téléchargés depuis Hugging Face et vérifiés. Prisme les choisit tout seul dans les réglages.</p>
+      <p class="machine-modeles" id="machine-modeles" hidden></p>
     </header>
     <div class="liste-modeles" id="liste-modeles"></div>
     <footer>
@@ -1631,6 +1641,17 @@ function rendreModeles(infos) {
       bloc.append(ligne);
     }
     liste.append(bloc);
+  }
+  // Ce que Prisme a vu de la machine, et pourquoi il conseille ces versions
+  const machine = infos.machine, go = o => Math.round(o / 2 ** 30);
+  const ligneMachine = $('#machine-modeles');
+  ligneMachine.hidden = !machine?.memoire;
+  if (machine?.memoire) {
+    const description = machine.mac ? `Mac avec ${go(machine.memoire)} Go de mémoire partagée`
+      : machine.video ? `Carte graphique de ${go(machine.video)} Go, ${go(machine.memoire)} Go de mémoire` : `${go(machine.memoire)} Go de mémoire`;
+    ligneMachine.textContent = machine.profil === 'leger'
+      ? `${description} : Prisme conseille les versions légères, plus rapides et plus stables sur ta machine.`
+      : `${description} : Prisme conseille les versions complètes, de meilleure qualité.`;
   }
   const manquants = infos.modeles.filter(m => m.conseille && !m.present);
   const restant = manquants.reduce((t, m) => t + m.taille, 0);

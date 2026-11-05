@@ -108,7 +108,7 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 |---|---|---|---|
 | NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | Ensemble conseillé : modèle de dessin Q4_K, encodeur de texte Q8_0, vision F16 | Création 25 à 50 s, modification 45 à 90 s, chargement des modèles compris |
 | La même carte avec le moteur Vulkan | 32 Go | Mêmes modèles | Environ 50 s pour une création, chargement compris |
-| Apple M3, 18 Go de mémoire unifiée (Metal, macOS) | 18 Go (partagés) | Ensemble conseillé | Environ 5 minutes pour une création, chargement compris |
+| Apple M3, 18 Go de mémoire unifiée (Metal, macOS) | 18 Go (partagés) | Ensemble complet (avant les versions légères conseillées sur Mac) | Environ 5 minutes pour une création, chargement compris |
 
 Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et l'encodeur Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
@@ -168,7 +168,7 @@ Si tu préfères ne pas faire confiance au programme, construis-le toi-même à 
 
 ## Modèles conseillés
 
-Ces modèles officiels et généralistes fonctionnent avec Prisme. Le plus simple : **Réglages → Modèles → Télécharger** (ou **Télécharger les modèles** au premier lancement). Prisme les télécharge, vérifie leur empreinte SHA-256, les choisit dans les réglages et applique les bons réglages de génération. Chaque lien ci-dessous ouvre la page du modèle sur Hugging Face, si tu préfères les télécharger toi-même.
+Ces modèles officiels et généralistes fonctionnent avec Prisme. Le plus simple : **Réglages → Modèles → Télécharger** (ou **Télécharger les modèles** au premier lancement). Prisme les télécharge, vérifie leur empreinte SHA-256, les choisit dans les réglages et applique les bons réglages de génération. Il s'adapte aussi à ta machine : avec moins de 12 Go de mémoire vidéo, moins de 24 Go de mémoire vive, ou un Mac de moins de 24 Go, il conseille les versions légères (environ 10,7 Go au lieu de 14,7 Go), plus rapides et qui laissent l'ordinateur réactif. Chaque lien ci-dessous ouvre la page du modèle sur Hugging Face, si tu préfères les télécharger toi-même.
 
 | Rôle dans Prisme | Fichier conseillé | Où le trouver | Plus léger |
 |---|---|---|---|

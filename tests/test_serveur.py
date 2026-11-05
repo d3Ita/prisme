@@ -221,9 +221,14 @@ class ModelesConseillesTest(unittest.TestCase):
             self.assertGreater(m['taille'], 100_000_000)
             self.assertTrue(serveur.chemin_relatif_sur(m['fichier']) and '/' not in m['fichier'])
             self.assertTrue(set(m['remplit']) <= set(serveur.REGLAGES_DEFAUT), m['id'])
-        # Un modele conseille par role indispensable
-        for role in ('modele_diffusion', 'modele_texte', 'vae'):
-            self.assertTrue(any(role in m['remplit'] and m['conseille'] for m in serveur.MODELES_CONSEILLES), role)
+        # Pour chaque ensemble (complet, leger), un seul modele conseille par role
+        for profil in ('complet', 'leger'):
+            for role in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae'):
+                conseilles = [m['id'] for m in serveur.MODELES_CONSEILLES if role in m['remplit'] and profil in m['pour']]
+                self.assertEqual(len(conseilles), 1, (profil, role, conseilles))
+        # L'ensemble leger tient dans environ 11 Go
+        leger = sum(m['taille'] for m in serveur.MODELES_CONSEILLES if 'leger' in m['pour'])
+        self.assertLess(leger, 11 * 1024 ** 3)
 
     def servir(self, contenu):
         """Petit serveur HTTP local qui sait reprendre un telechargement (en-tete Range)."""
@@ -280,14 +285,24 @@ class ModelesConseillesTest(unittest.TestCase):
         self.assertFalse((serveur.MODELES / 'essai-dessin.gguf.partiel').exists())
         self.assertEqual(serveur.lire_reglages()['modele_diffusion'], '')
 
-    def test_modele_deja_choisi_garde(self):
+    def test_modele_telecharge_remplace_mais_garde_les_etapes_reglees(self):
         serveur.MODELES.mkdir(parents=True, exist_ok=True)
         (serveur.MODELES / 'essai-mien.gguf').write_bytes(b'x')
         serveur.FICHIER_REGLAGES.parent.mkdir(exist_ok=True)
-        serveur.FICHIER_REGLAGES.write_text(json.dumps({'modele_diffusion': 'essai-mien.gguf', 'etapes': 20}), encoding='utf-8')
+        serveur.FICHIER_REGLAGES.write_text(json.dumps({'modele_diffusion': 'essai-mien.gguf', 'etapes': 12}), encoding='utf-8')
         serveur.telecharger_modele(self.modele(os.urandom(20_000)))
         r = serveur.lire_reglages()
-        self.assertEqual((r['modele_diffusion'], r['etapes']), ('essai-mien.gguf', 20))
+        self.assertEqual((r['modele_diffusion'], r['etapes']), ('essai-dessin.gguf', 12))
+
+    def test_profil_selon_la_memoire(self):
+        from unittest import mock
+        cas = [(False, 32, 12, 'complet'), (False, 32, 8, 'leger'), (False, 16, 0, 'leger'), (False, 32, 0, 'complet'),
+               (True, 18, 18, 'leger'), (True, 36, 36, 'complet')]
+        for mac, vive, video, attendu in cas:
+            serveur._machine = None
+            with mock.patch.object(serveur, 'MAC', mac),                     mock.patch.object(serveur, 'memoire_systeme', return_value=vive * serveur.GO),                     mock.patch.object(serveur, 'memoire_video', return_value=video * serveur.GO):
+                self.assertEqual(serveur.profil_machine()['profil'], attendu, (mac, vive, video))
+        serveur._machine = None
 
 
 class ChoixMoteursTest(unittest.TestCase):

@@ -738,37 +738,90 @@ DESSIN = HF + 'AtomicChat/Qwen-Image-2.1-Turbo-GGUF/resolve/main/'
 VL8B = HF + 'Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/'
 MODELES_CONSEILLES = [
     {'id': 'dessin-q4', 'role': 'Modèle de dessin', 'titre': 'Qwen-Image 2.1 Turbo · Q4_K',
-     'detail': 'Léger : cartes graphiques de 8 Go', 'conseille': True, 'profil_rapide': True,
+     'detail': 'Léger : cartes graphiques de 8 Go', 'pour': ('complet', 'leger'), 'profil_rapide': True,
      'fichier': 'Qwen-Image-2.1-Turbo-AD-Q4_K.gguf', 'url': DESSIN + 'Qwen-Image-2.1-Turbo-AD-Q4_K.gguf',
      'taille': 4201694944, 'sha256': '4bb73c53cbe284bbd6d69b9fdc59539c531f0389dd2aa567663d777f8130bc59',
      'remplit': ['modele_diffusion']},
     {'id': 'dessin-q8', 'role': 'Modèle de dessin', 'titre': 'Qwen-Image 2.1 Turbo · Q8_0',
-     'detail': 'Meilleure qualité : cartes de 12 Go ou plus', 'conseille': False, 'profil_rapide': True,
+     'detail': 'Meilleure qualité : cartes de 12 Go ou plus', 'pour': (), 'profil_rapide': True,
      'fichier': 'Qwen-Image-2.1-Turbo-Q8_0.gguf', 'url': DESSIN + 'Qwen-Image-2.1-Turbo-Q8_0.gguf',
      'taille': 7591577312, 'sha256': '8d74ae0be534df394ea2d29f04b77f879318c9e0df20a3e208e6bedbf89b4159',
      'remplit': ['modele_diffusion']},
     {'id': 'texte-q8', 'role': 'Encodeur de texte', 'titre': 'Qwen3-VL 8B · Q8_0',
-     'detail': 'Conseillé, sert aussi à améliorer les descriptions', 'conseille': True,
+     'detail': 'Meilleure qualité, sert aussi à améliorer les descriptions', 'pour': ('complet',),
      'fichier': 'Qwen3VL-8B-Instruct-Q8_0.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q8_0.gguf',
      'taille': 8709519456, 'sha256': '0d264b3941185d00a74f75c4245521dae088ff1efc90ab8d1754e83f5844adb0',
      'remplit': ['modele_texte', 'amelioration_modele_local']},
     {'id': 'texte-q4', 'role': 'Encodeur de texte', 'titre': 'Qwen3-VL 8B · Q4_K_M',
-     'detail': 'Plus léger, modifications un peu plus granuleuses', 'conseille': False,
+     'detail': 'Plus léger, sert aussi à améliorer les descriptions', 'pour': ('leger',),
      'fichier': 'Qwen3VL-8B-Instruct-Q4_K_M.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q4_K_M.gguf',
      'taille': 5027784800, 'sha256': '67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2',
      'remplit': ['modele_texte', 'amelioration_modele_local']},
     {'id': 'vision-f16', 'role': 'Vision', 'titre': 'Vision Qwen3-VL 8B · F16',
-     'detail': 'Pour modifier une image de départ', 'conseille': True,
+     'detail': 'Pour modifier une image de départ', 'pour': ('complet',),
      'fichier': 'mmproj-Qwen3VL-8B-Instruct-F16.gguf', 'url': VL8B + 'mmproj-Qwen3VL-8B-Instruct-F16.gguf',
      'taille': 1159029824, 'sha256': 'ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38',
      'remplit': ['modele_vision', 'amelioration_vision_locale']},
+    {'id': 'vision-q8', 'role': 'Vision', 'titre': 'Vision Qwen3-VL 8B · Q8_0',
+     'detail': 'Plus légère, pour modifier une image de départ', 'pour': ('leger',),
+     'fichier': 'mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf', 'url': VL8B + 'mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf',
+     'taille': 752289728, 'sha256': 'c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd',
+     'remplit': ['modele_vision', 'amelioration_vision_locale']},
     {'id': 'vae', 'role': 'VAE', 'titre': 'VAE Qwen-Image 2.1 Turbo',
-     'detail': 'Produit l\'image finale', 'conseille': True,
+     'detail': 'Produit l\'image finale', 'pour': ('complet', 'leger'),
      'fichier': 'qwen-image-vae.safetensors', 'url': HF + 'Qwen/Qwen-Image-2.1-Turbo/resolve/main/vae/diffusion_pytorch_model.safetensors',
      'taille': 675508656, 'sha256': '71879ffd5321e6d10c3c87513e2b474b1252efa7f3dec2969214a9bf06a6dd5c',
      'remplit': ['vae']},
 ]
 MODELES_PAR_ID = {m['id']: m for m in MODELES_CONSEILLES}
+GO = 1024 ** 3
+
+
+def memoire_systeme():
+    """Memoire vive totale, en octets (0 si elle n'a pas pu etre lue)."""
+    try:
+        if WINDOWS:
+            class Etat(ctypes.Structure):
+                _fields_ = [('dwLength', ctypes.c_ulong), ('dwMemoryLoad', ctypes.c_ulong)] + \
+                           [(n, ctypes.c_ulonglong) for n in ('total', 'libre', 'fichier', 'fichier_libre', 'virtuelle',
+                                                             'virtuelle_libre', 'etendue')]
+            e = Etat()
+            e.dwLength = ctypes.sizeof(Etat)
+            return e.total if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(e)) else 0
+        if MAC:
+            return int(subprocess.run(['sysctl', '-n', 'hw.memsize'], capture_output=True, text=True, timeout=5).stdout)
+        return os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+    except (OSError, ValueError, AttributeError, subprocess.SubprocessError):
+        return 0
+
+
+def memoire_video():
+    """Memoire de la carte graphique, lue pour les cartes NVIDIA ; sur Mac, la memoire est partagee."""
+    if MAC:
+        return memoire_systeme()
+    try:
+        sortie = subprocess.run(['nvidia-smi', '--query-gpu=memory.total', '--format=csv,noheader,nounits'],
+                                capture_output=True, text=True, timeout=10, creationflags=SANS_CONSOLE).stdout
+        return int(sortie.split()[0]) * 1024 * 1024
+    except (OSError, ValueError, IndexError, subprocess.SubprocessError):
+        return 0
+
+
+_machine = None
+
+
+def profil_machine():
+    """Ensemble de modeles adapte : leger si la memoire est juste (Mac de moins de 24 Go, carte de moins de 12 Go,
+    ou moins de 24 Go de memoire vive), complet sinon."""
+    global _machine
+    if _machine is None:
+        vive, video = memoire_systeme(), memoire_video()
+        if MAC:
+            leger = not vive or vive < 24 * GO
+        else:
+            leger = bool(video and video < 11.5 * GO) or bool(vive and vive < 24 * GO)
+        _machine = {'profil': 'leger' if leger else 'complet', 'memoire': vive, 'video': video, 'mac': MAC}
+    return _machine
 SIGMAS_RAPIDE = '1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0'
 # Etat de chaque telechargement : attente, telechargement, verification, termine, annule, erreur
 telechargements_modeles = {}
@@ -786,11 +839,11 @@ def empreinte_fichier(chemin):
 
 
 def utiliser_modele(modele):
-    """Choisit le modele telecharge dans les reglages, pour chaque role encore vide ou introuvable."""
+    """Choisit le modele telecharge dans les reglages : on le telecharge pour s'en servir."""
     r = lire_reglages()
     change = False
     for cle in modele['remplit']:
-        if not r[cle] or not (MODELES / r[cle]).is_file():
+        if r[cle] != modele['fichier']:
             r[cle] = modele['fichier']
             change = True
             # Ce modele Turbo demande peu d'etapes : profil rapide, sauf si l'utilisateur a deja regle les etapes
@@ -883,13 +936,14 @@ def demander_modele(ident):
 
 def etat_modeles_conseilles():
     with verrou_modeles:
-        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'conseille', 'fichier', 'taille')}
-                   | {'present': (MODELES / m['fichier']).is_file(),
+        machine = profil_machine()
+        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'fichier', 'taille')}
+                   | {'conseille': machine['profil'] in m['pour'], 'present': (MODELES / m['fichier']).is_file(),
                       'reprise': (MODELES / (m['fichier'] + '.partiel')).is_file(),
                       'telechargement': dict(telechargements_modeles[m['id']]) if m['id'] in telechargements_modeles else None}
                    for m in MODELES_CONSEILLES]
     MODELES.mkdir(parents=True, exist_ok=True)
-    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free}
+    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine}
 
 
 # Avis de nouvelle version : le numero de la derniere version publiee sur GitHub, lu une fois au lancement

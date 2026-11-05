@@ -153,6 +153,12 @@ const EN = {
   'Meilleure qualité, sert aussi à améliorer les descriptions': 'Best quality, also used to enhance descriptions',
   'Plus léger, sert aussi à améliorer les descriptions': 'Lighter, also used to enhance descriptions',
   'Plus légère, pour modifier une image de départ': 'Lighter, to edit a starting image',
+  'Mettre à jour': 'Update', 'Installation de la mise à jour…': 'Installing the update…',
+  'Prisme ne redémarre pas : relance-le à la main.': 'Prisme is not restarting: start it again by hand.',
+  'Attends la fin de la création en cours.': 'Wait for the current creation to finish.',
+  'Aucune mise à jour automatique disponible.': 'No automatic update available.', 'Mise à jour déjà en cours.': 'Update already running.',
+  'Prisme ne peut pas se remplacer à cet endroit : télécharge la nouvelle version à la main.': 'Prisme cannot replace itself in this location: download the new version by hand.',
+  'La nouvelle version est incomplète.': 'The new version is incomplete.',
   'Produit l\'image finale': 'Produces the final image', 'Installe d\'abord le moteur d\'images.': 'Install the image engine first.',
   // Messages du serveur
   'Accès refusé : reconnecte-toi depuis l\'adresse de Prisme.': 'Access refused: reconnect from Prisme\'s address.',
@@ -209,6 +215,9 @@ const MOTIFS_EN = [
   [/^Installation impossible : (.+)$/, 'Installation failed: $1'], [/^Archive refusée : chemin interdit \((.+)\)$/, 'Archive refused: forbidden path ($1)'],
   [/^(.+) est absent de l'archive\.$/, '$1 is missing from the archive.'], [/^sd-cli s'est arrete \(code (.+)\)\.$/, 'sd-cli stopped (code $1).'],
   [/^Erreur (\d+)$/, 'Error $1'],
+  [/^Téléchargement de Prisme (.+) : (\d+) %$/, 'Downloading Prisme $1: $2 %'],
+  [/^Mise à jour vers Prisme (.+)… Prisme redémarre\.$/, 'Updating to Prisme $1… Prisme is restarting.'],
+  [/^Mise à jour impossible : (.+)$/, 'Update failed: $1'],
   [/^(.+) : Prisme conseille les versions légères, plus rapides et plus stables sur ta machine\.$/, (m, d) => `${traduire(d)}: Prisme recommends the light versions, faster and more stable on your machine.`],
   [/^(.+) : Prisme conseille les versions complètes, de meilleure qualité\.$/, (m, d) => `${traduire(d)}: Prisme recommends the full versions, for the best quality.`],
   [/^Mac avec (\d+) Go de mémoire partagée$/, 'Mac with $1 GB of shared memory'],
@@ -631,6 +640,8 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 }
 .bandeau-maj a { color: var(--accent-2); font-weight: 600; text-decoration: none; }
 .bandeau-maj a:hover { text-decoration: underline; }
+.petit-bouton { height: 30px; padding: 0 14px; font-size: 13.5px; border-radius: 999px; }
+.chargement .texte-redemarrage { color: var(--texte-2); }
 @media (max-width: 720px) { .bandeau-maj { top: 60px; max-width: calc(100% - 24px); white-space: normal; } .modele { grid-template-columns: 1fr; } }
 
 /* Reglages */
@@ -747,6 +758,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
 <div class="chargement" id="chargement" role="status" aria-label="Chargement de Prisme">
   <img src="/logo.png" alt="">
   <strong>Prisme</strong>
+  <p class="texte-redemarrage" id="texte-redemarrage" hidden></p>
   <span class="piste-chargement"><span></span></span>
 </div>
 <div class="chargement fini" id="arrete" role="status">
@@ -1028,6 +1040,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
 </div>
 <div class="bandeau-maj" id="bandeau-maj" hidden>
   <span id="texte-maj"></span><a id="lien-maj" href="https://github.com/d3Ita/prisme/releases/latest" target="_blank" rel="noopener">Télécharger</a>
+  <button type="button" class="bouton-primaire petit-bouton" id="bouton-maj" hidden>Mettre à jour</button>
   <button type="button" class="bouton-icone" id="fermer-maj" title="Masquer"><svg class="i"><use href="#i-x"/></svg></button>
 </div>
 <div class="notes" id="notes"></div>
@@ -1700,11 +1713,63 @@ $('#tout-telecharger').addEventListener('click', async () => {
 function majVersion(maj) {
   let masquee = null;
   try { masquee = localStorage.getItem('prisme-maj-masquee'); } catch {}
-  const visible = !!maj && maj.version !== masquee;
+  const inst = maj?.installation, enCours = inst && ['telechargement', 'installation', 'redemarrage'].includes(inst.phase);
+  const visible = !!maj && (maj.version !== masquee || enCours);
   $('#bandeau-maj').hidden = !visible;
-  if (visible) $('#texte-maj').textContent = `Prisme ${maj.version} est disponible.`;
   etat.miseAJour = maj;
+  if (!visible) return;
+  // En un clic pour le programme construit ; sinon, lien vers la page des versions
+  $('#lien-maj').hidden = !!maj.auto;
+  $('#bouton-maj').hidden = !maj.auto || enCours;
+  $('#fermer-maj').hidden = !!enCours;
+  if (inst?.phase === 'telechargement') $('#texte-maj').textContent = `Téléchargement de Prisme ${maj.version} : ${Math.floor(inst.fait / inst.total * 100)} %`;
+  else if (inst?.phase === 'installation') $('#texte-maj').textContent = 'Installation de la mise à jour…';
+  else $('#texte-maj').textContent = `Prisme ${maj.version} est disponible.`;
+  if (inst?.phase === 'redemarrage') attendreRedemarrage(maj.version);
+  if (inst?.phase === 'erreur' && etat.erreurMaj !== inst.erreur) { etat.erreurMaj = inst.erreur; note(inst.erreur, 'erreur'); }
 }
+
+// Mise a jour en un clic : Prisme telecharge la nouvelle version, la verifie, se remplace et redemarre
+let minuteurMaj = null;
+async function mettreAJour() {
+  try {
+    await api('/api/mettre-a-jour', {});
+    $('#bouton-maj').hidden = true;
+    suivreMaj();
+  } catch (err) { note(err.message, 'erreur'); }
+}
+function suivreMaj() {
+  clearTimeout(minuteurMaj);
+  minuteurMaj = setTimeout(async () => {
+    try {
+      const e = await api('/api/etat');
+      majVersion(e.mise_a_jour);
+      const phase = e.mise_a_jour?.installation?.phase;
+      if (phase === 'telechargement' || phase === 'installation') suivreMaj();
+    } catch { suivreMaj(); }
+  }, 700);
+}
+let redemarrageAttendu = false;
+function attendreRedemarrage(version) {
+  if (redemarrageAttendu) return;
+  redemarrageAttendu = true;
+  etat.arrete = true;
+  clearTimeout(etat.minuteur);
+  $('#texte-redemarrage').hidden = false;
+  $('#texte-redemarrage').textContent = `Mise à jour vers Prisme ${version}… Prisme redémarre.`;
+  $('#chargement').classList.remove('fini');
+  const limite = Date.now() + 120000;
+  const essayer = async () => {
+    try {
+      const r = await fetch('/api/etat', { cache: 'no-store' });
+      if (r.ok && (await r.json()).version === version) { location.reload(); return; }
+    } catch {}
+    if (Date.now() < limite) setTimeout(essayer, 1000);
+    else $('#texte-redemarrage').textContent = 'Prisme ne redémarre pas : relance-le à la main.';
+  };
+  setTimeout(essayer, 2500);
+}
+$('#bouton-maj').addEventListener('click', mettreAJour);
 $('#fermer-maj').addEventListener('click', () => {
   try { localStorage.setItem('prisme-maj-masquee', etat.miseAJour?.version || ''); } catch {}
   $('#bandeau-maj').hidden = true;

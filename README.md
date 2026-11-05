@@ -215,6 +215,7 @@ To stop Prisme, click **Quitter** or close its window: the server shuts down a f
 - Websites open in your browser can neither control Prisme nor read its data: requests from another origin or host name are rejected.
 - Settings, models and folders are only reachable from the PC.
 - Once per launch, Prisme asks GitHub for the latest version number to tell you about updates. Nothing else is sent; turn it off in **Réglages → Application**.
+- **Update** in that notice downloads the new version only from Prisme's GitHub releases, checks its SHA-256 published by GitHub, then replaces the program and restarts it. Settings, images, engines and models are kept.
 
 ## Build from source
 

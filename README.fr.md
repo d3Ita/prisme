@@ -229,6 +229,7 @@ Le téléphone doit être sur le même réseau que le PC. Le lien du QR code con
 - Les sites web ouverts dans ton navigateur ne peuvent ni piloter Prisme ni lire ses données : les requêtes venant d'une autre origine ou d'un autre nom d'hôte sont refusées.
 - Les réglages, les modèles et l'ouverture des dossiers ne sont accessibles que depuis le PC.
 - Une fois par lancement, Prisme demande à GitHub le numéro de la dernière version, pour te prévenir d'une mise à jour. Rien d'autre n'est envoyé ; tu peux le désactiver dans **Réglages → Application**.
+- **Mettre à jour**, dans cet avis, télécharge la nouvelle version uniquement depuis les releases GitHub de Prisme, vérifie son empreinte SHA-256 publiée par GitHub, puis remplace le programme et le relance. Les réglages, les images, les moteurs et les modèles sont conservés.
 
 ## Construire depuis les sources
 

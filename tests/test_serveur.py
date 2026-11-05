@@ -346,6 +346,44 @@ class VersionTest(unittest.TestCase):
         self.assertEqual(serveur.numero_version('v1.7.0'), serveur.numero_version('1.7.0'))
         self.assertGreater(serveur.numero_version('2.0'), serveur.numero_version(serveur.VERSION))
 
+    def release(self, **fichier):
+        a = {'name': serveur.FICHIER_MAJ, 'size': 123, 'digest': 'sha256:' + 'a' * 64,
+             'browser_download_url': f'https://github.com/d3Ita/prisme/releases/download/v9.9.9/{serveur.FICHIER_MAJ}'}
+        a.update(fichier)
+        return {'tag_name': 'v9.9.9', 'assets': [a, {'name': 'autre.zip', 'size': 1, 'digest': 'sha256:' + 'b' * 64,
+                                                       'browser_download_url': 'https://github.com/d3Ita/prisme/releases/download/v9.9.9/autre.zip'}]}
+
+    def test_fichier_de_mise_a_jour(self):
+        version, fichier = serveur.lire_release(self.release())
+        self.assertEqual(version, '9.9.9')
+        self.assertEqual(fichier, {'url': f'https://github.com/d3Ita/prisme/releases/download/v9.9.9/{serveur.FICHIER_MAJ}',
+                                   'taille': 123, 'sha256': 'a' * 64})
+        # Refuse un fichier venu d'ailleurs ou sans empreinte
+        self.assertIsNone(serveur.lire_release(self.release(browser_download_url='https://exemple.org/Prisme.exe'))[1])
+        self.assertIsNone(serveur.lire_release(self.release(browser_download_url='https://github.com/autre/prisme/releases/download/v9/x'))[1])
+        self.assertIsNone(serveur.lire_release(self.release(digest=None))[1])
+        self.assertIsNone(serveur.lire_release(self.release(digest='md5:1234'))[1])
+
+    def test_script_de_remplacement(self):
+        nouveau, cible = Path(DOSSIER_TEST.name) / 'nouveau', Path(DOSSIER_TEST.name) / 'Prisme'
+        script = serveur.script_remplacement(nouveau, cible, [4242, 4343])
+        for pid in ('4242', '4343'):
+            self.assertIn(pid, script)
+        self.assertIn('--sans-fenetre', script)
+        self.assertIn(str(cible), script)
+        if serveur.WINDOWS:
+            self.assertIn(f'move /y "{nouveau}" "{cible}"', script)
+        else:
+            self.assertIn('kill -0 4242', script)
+
+    def test_etat_sans_details_internes(self):
+        serveur.mise_a_jour.clear()
+        self.addCleanup(serveur.mise_a_jour.clear)
+        self.assertIsNone(serveur.etat_mise_a_jour())
+        version, fichier = serveur.lire_release(self.release())
+        serveur.mise_a_jour.update(version=version, url=serveur.PAGE_VERSIONS, fichier=fichier, auto=True)
+        self.assertEqual(serveur.etat_mise_a_jour(), {'version': '9.9.9', 'url': serveur.PAGE_VERSIONS, 'auto': True, 'installation': None})
+
 class ArretAutomatiqueTest(unittest.TestCase):
     def setUp(self):
         self.reglages = {**serveur.REGLAGES_DEFAUT, 'arret_auto_minutes': 30, 'arret_fermeture': True}
@@ -555,6 +593,10 @@ class SecuriteHttpTest(unittest.TestCase):
     def test_installation_de_moteur(self):
         self.assertEqual(self.poster('/api/installer-moteur', json.dumps({'moteur': 'inconnu'}))[0], 400)
         self.assertEqual(self.distant('/api/installer-moteur', serveur.CODE, 'POST')[0], 403)
+        # La mise a jour ne se lance que depuis le PC, et seulement quand une version automatique existe
+        self.assertEqual(self.distant('/api/mettre-a-jour', serveur.CODE, 'POST')[0], 403)
+        serveur.mise_a_jour.clear()
+        self.assertEqual(self.poster('/api/mettre-a-jour')[0], 400)
         etat = json.loads(self.requete('GET', '/api/etat')[2])
         self.assertEqual(set(etat['moteurs']), {'image', 'texte'})
 

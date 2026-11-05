@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import shlex
 import shutil
 import ctypes
 import ipaddress
@@ -955,16 +956,133 @@ def numero_version(texte):
     return tuple(int(x) for x in re.findall(r'\d+', texte)[:3])
 
 
+# Fichier de la release a telecharger pour ce systeme, et seule origine acceptee pour la mise a jour
+FICHIER_MAJ = {'windows': 'Prisme.exe', 'mac': 'Prisme-macOS-arm64.zip', 'linux': 'Prisme-Linux-x64.tar.gz'}[SYSTEME]
+ORIGINE_MAJ = 'https://github.com/d3Ita/prisme/releases/download/'
+verrou_maj = threading.Lock()
+
+
+def lire_release(donnees):
+    """Version et fichier a telecharger d'apres la reponse de GitHub ; le fichier n'est retenu que s'il vient
+    des releases de Prisme et qu'il a une empreinte SHA-256."""
+    version = str(donnees.get('tag_name', '')).lstrip('v')
+    fichier = None
+    for a in donnees.get('assets') or []:
+        url, empreinte = str(a.get('browser_download_url', '')), str(a.get('digest') or '')
+        if a.get('name') == FICHIER_MAJ and url.startswith(ORIGINE_MAJ) and re.fullmatch(r'sha256:[0-9a-f]{64}', empreinte):
+            fichier = {'url': url, 'taille': int(a['size']), 'sha256': empreinte[7:]}
+    return version, fichier
+
+
 def verifier_mise_a_jour():
     try:
         requete = urllib.request.Request('https://api.github.com/repos/d3Ita/prisme/releases/latest',
                                          headers={'User-Agent': f'Prisme/{VERSION}', 'Accept': 'application/vnd.github+json'})
         with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=8) as reponse:
-            derniere = str(json.load(reponse).get('tag_name', ''))
-        if numero_version(derniere) > numero_version(VERSION):
-            mise_a_jour.update(version=derniere.lstrip('v'), url=PAGE_VERSIONS)
+            version, fichier = lire_release(json.load(reponse))
+        if numero_version(version) > numero_version(VERSION):
+            # La mise a jour en un clic ne vaut que pour le programme construit, pas pour le script Python
+            mise_a_jour.update(version=version, url=PAGE_VERSIONS, fichier=fichier, auto=bool(EXE and fichier))
     except Exception:
         pass
+
+
+def etat_mise_a_jour():
+    with verrou_maj:
+        if not mise_a_jour:
+            return None
+        return {k: mise_a_jour.get(k) for k in ('version', 'url', 'auto')} | \
+            {'installation': dict(mise_a_jour['installation']) if mise_a_jour.get('installation') else None}
+
+
+def programme_actuel():
+    """Ce qu'il faut remplacer : l'exe (Windows, Linux) ou le paquet Prisme.app (Mac)."""
+    exe = Path(sys.executable).resolve()
+    return exe.parents[2] if MAC else exe
+
+
+def script_remplacement(nouveau, cible, pids):
+    """Script qui attend la fin de Prisme, met le nouveau programme a sa place et le relance sans ouvrir de fenetre
+    (la fenetre deja ouverte se recharge toute seule)."""
+    if WINDOWS:
+        lignes = ['@echo off']
+        for i, pid in enumerate(pids):
+            lignes += [f':attente{i}', f'tasklist /FI "PID eq {pid}" /NH | find " {pid} " >nul && (ping -n 2 127.0.0.1 >nul & goto attente{i})']
+        lignes += ['set n=0', ':deplacer', f'move /y "{nouveau}" "{cible}" >nul 2>&1', 'if not errorlevel 1 goto lancer',
+                   'set /a n+=1', 'if %n% geq 30 goto lancer', 'ping -n 2 127.0.0.1 >nul', 'goto deplacer',
+                   ':lancer', f'start "" "{cible}" --sans-fenetre', '(goto) 2>nul & del "%~f0"']
+        return '\r\n'.join(lignes) + '\r\n'
+    n, c = shlex.quote(str(nouveau)), shlex.quote(str(cible))
+    attente = ' || '.join(f'kill -0 {pid} 2>/dev/null' for pid in pids)
+    lignes = ['#!/bin/sh', f'while {attente}; do sleep 1; done']
+    if MAC:
+        ancien = shlex.quote(str(cible) + '.ancien')
+        lignes += [f'rm -rf {ancien}', f'if mv {c} {ancien} && mv {n} {c}; then rm -rf {ancien}; else mv {ancien} {c} 2>/dev/null; fi',
+                   f'rm -rf {shlex.quote(str(Path(nouveau).parent))}', f'open {c} --args --sans-fenetre']
+    else:
+        lignes += [f'mv -f {n} {c}', f'chmod 755 {c}', f'nohup {c} --sans-fenetre >/dev/null 2>&1 &']
+    lignes.append('rm -f "$0"')
+    return '\n'.join(lignes) + '\n'
+
+
+def installer_mise_a_jour():
+    suivi = mise_a_jour['installation']
+
+    def avancer(octets):
+        with verrou_maj:
+            suivi['fait'] += octets
+
+    try:
+        fichier, cible = mise_a_jour['fichier'], programme_actuel()
+        dossier = cible.parent
+        if not os.access(dossier, os.W_OK):
+            raise RuntimeError('Prisme ne peut pas se remplacer à cet endroit : télécharge la nouvelle version à la main.')
+        telechargement = dossier / f'.prisme-maj-{FICHIER_MAJ}'
+        telecharger(fichier, telechargement, avancer)
+        with verrou_maj:
+            suivi['phase'] = 'installation'
+        if WINDOWS:
+            nouveau = telechargement
+        elif MAC:
+            extrait = dossier / '.prisme-maj-app'
+            shutil.rmtree(extrait, ignore_errors=True)
+            # ditto garde les liens et les droits du paquet .app
+            subprocess.run(['ditto', '-x', '-k', str(telechargement), str(extrait)], check=True, capture_output=True)
+            telechargement.unlink()
+            nouveau = extrait / 'Prisme.app'
+            if not (nouveau / 'Contents' / 'MacOS' / 'Prisme').is_file():
+                raise RuntimeError('La nouvelle version est incomplète.')
+        else:
+            nouveau = dossier / '.prisme-maj-programme'
+            with tarfile.open(telechargement) as archive:
+                nouveau.write_bytes(archive.extractfile(archive.getmember('prisme')).read())
+            nouveau.chmod(0o755)
+            telechargement.unlink()
+        # Sous Windows et Linux, l'exe tourne dans deux processus (lanceur et Python) : on attend les deux
+        pids = [os.getpid()] + ([] if MAC else [os.getppid()])
+        script = Path(tempfile.gettempdir()) / f'prisme-maj-{os.getpid()}.{"cmd" if WINDOWS else "sh"}'
+        script.write_text(script_remplacement(nouveau, cible, pids), encoding='utf-8', newline='')
+        # Sans cela, le nouveau Prisme heriterait des variables internes de l'exe actuel et se croirait son sous-processus
+        environnement = {k: v for k, v in os.environ.items() if not k.startswith(('_PYI_', '_MEIPASS'))}
+        environnement['PYINSTALLER_RESET_ENVIRONMENT'] = '1'
+        if WINDOWS:
+            options = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+            try:
+                # Hors du groupe de processus de Prisme, pour que le script survive a sa fermeture
+                subprocess.Popen(['cmd', '/c', str(script)], env=environnement,
+                                 creationflags=options | subprocess.CREATE_BREAKAWAY_FROM_JOB)
+            except OSError:
+                subprocess.Popen(['cmd', '/c', str(script)], env=environnement, creationflags=options)
+        else:
+            subprocess.Popen(['/bin/sh', str(script)], start_new_session=True, env=environnement,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with verrou_maj:
+            suivi['phase'] = 'redemarrage'
+        # Laisse a la fenetre le temps de voir la phase, puis s'arrete : le script prend le relais
+        threading.Timer(1.5, arreter).start()
+    except Exception as e:
+        with verrou_maj:
+            suivi.update(phase='erreur', erreur=str(e) if isinstance(e, RuntimeError) else f'Mise à jour impossible : {e}')
 
 
 def lister_loras():
@@ -1438,7 +1556,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                     copie['demandes'] = [{'id': i, 'ip': d['ip'], 'appareil': d['appareil'], 'code': d['code']}
                                          for i, d in demandes.items()
                                          if d['etat'] == 'attente' and time.time() - d['cree'] <= DUREE_DEMANDE]
-                copie['mise_a_jour'] = dict(mise_a_jour) or None
+                copie['mise_a_jour'] = etat_mise_a_jour()
             copie['loras_actifs'] = [{'nom': Path(l['nom']).stem, 'force': l['force']} for l in loras_actifs(r)]
             self.envoyer(200, copie)
         elif chemin == '/api/ollama-modeles':
@@ -1567,6 +1685,23 @@ class Gestionnaire(BaseHTTPRequestHandler):
                     echecs.setdefault(demande['ip'], []).append(time.time())
             self.envoyer(200, {'etat': demande['etat']})
 
+        elif chemin == '/api/mettre-a-jour':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            with verrou:
+                occupe = etat.get('occupe') or amelioration_en_cours.locked()
+            if occupe:
+                return self.envoyer(409, {'erreur': 'Attends la fin de la création en cours.'})
+            with verrou_maj:
+                if not mise_a_jour.get('auto'):
+                    return self.envoyer(400, {'erreur': 'Aucune mise à jour automatique disponible.'})
+                if (mise_a_jour.get('installation') or {}).get('phase') in ('telechargement', 'installation', 'redemarrage'):
+                    return self.envoyer(409, {'erreur': 'Mise à jour déjà en cours.'})
+                mise_a_jour['installation'] = {'phase': 'telechargement', 'fait': 0, 'total': mise_a_jour['fichier']['taille'],
+                                               'erreur': None}
+            threading.Thread(target=installer_mise_a_jour, daemon=True).start()
+            self.envoyer(200, {})
+
         elif chemin in ('/api/telecharger-modele', '/api/annuler-modele'):
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -1647,8 +1782,9 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
 
 class Serveur(ThreadingHTTPServer):
-    # Sous Windows, la reutilisation d'adresse laisserait deux serveurs ecouter le meme port
-    allow_reuse_address = False
+    # Sous Windows, la reutilisation d'adresse laisserait deux serveurs ecouter le meme port. Ailleurs, elle
+    # empeche seulement un port tout juste libere (TIME_WAIT, par exemple apres une mise a jour) de paraitre occupe
+    allow_reuse_address = not WINDOWS
 
     def server_bind(self):
         if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):

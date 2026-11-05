@@ -12,6 +12,7 @@ import random
 import re
 import secrets
 import socket
+import ssl
 import subprocess
 import sys
 import tarfile
@@ -419,7 +420,7 @@ def appel_ollama(r, chemin, corps=None, delai=10):
     requete = urllib.request.Request(r['ollama_adresse'] + chemin, json.dumps(corps).encode() if corps else None,
                                      {'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(requete, timeout=delai) as reponse:
+        with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=delai) as reponse:
             return json.load(reponse)
     except urllib.error.HTTPError as e:
         detail = e.read().decode('utf-8', 'replace')[:200]
@@ -606,11 +607,44 @@ def extraire_archive(archive, dossier):
     shutil.rmtree(temporaire)
 
 
+# Certificats racines pour les telechargements en https. Le Python embarque dans l'exe Mac (et parfois Linux)
+# cherche ses certificats dans le dossier de la machine qui l'a construit : s'il n'en trouve aucun,
+# on charge ceux du systeme. SSL_CERT_FILE, s'il est defini, reste prioritaire.
+FICHIERS_CERTIFICATS = ['/etc/ssl/cert.pem', '/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt',
+                        '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem', '/etc/ssl/ca-bundle.pem']
+_contexte_ssl = None
+
+
+def contexte_ssl():
+    global _contexte_ssl
+    if _contexte_ssl is None:
+        contexte = ssl.create_default_context()
+        if not contexte.cert_store_stats()['x509_ca']:
+            charge = False
+            for fichier in FICHIERS_CERTIFICATS:
+                if os.path.isfile(fichier):
+                    try:
+                        contexte.load_verify_locations(cafile=fichier)
+                        charge = True
+                        break
+                    except (OSError, ssl.SSLError):
+                        pass
+            if not charge and MAC:
+                # Dernier recours sur Mac : les certificats racines du trousseau systeme
+                pem = subprocess.run(['security', 'find-certificate', '-a', '-p',
+                                      '/System/Library/Keychains/SystemRootCertificates.keychain'],
+                                     capture_output=True, text=True).stdout
+                if pem.strip():
+                    contexte.load_verify_locations(cadata=pem)
+        _contexte_ssl = contexte
+    return _contexte_ssl
+
+
 def telecharger(archive, destination, progression):
     """Telecharge une archive en verifiant sa taille et son empreinte SHA-256."""
     empreinte = hashlib.sha256()
     requete = urllib.request.Request(archive['url'], headers={'User-Agent': f'Prisme/{VERSION}'})
-    with urllib.request.urlopen(requete, timeout=60) as reponse, open(destination, 'wb') as fichier:
+    with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=60) as reponse, open(destination, 'wb') as fichier:
         while True:
             bloc = reponse.read(1024 * 1024)
             if not bloc:
@@ -766,7 +800,7 @@ def telecharger_modele(modele):
         en_tetes = {'User-Agent': f'Prisme/{VERSION}'}
         if deja:
             en_tetes['Range'] = f'bytes={deja}-'
-        with urllib.request.urlopen(urllib.request.Request(modele['url'], headers=en_tetes), timeout=60) as reponse:
+        with urllib.request.urlopen(urllib.request.Request(modele['url'], headers=en_tetes), context=contexte_ssl(), timeout=60) as reponse:
             # Un serveur qui ne reprend pas renvoie tout le fichier : on recommence du debut
             if deja and reponse.status != 206:
                 deja = 0
@@ -851,7 +885,7 @@ def verifier_mise_a_jour():
     try:
         requete = urllib.request.Request('https://api.github.com/repos/d3Ita/prisme/releases/latest',
                                          headers={'User-Agent': f'Prisme/{VERSION}', 'Accept': 'application/vnd.github+json'})
-        with urllib.request.urlopen(requete, timeout=8) as reponse:
+        with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=8) as reponse:
             derniere = str(json.load(reponse).get('tag_name', ''))
         if numero_version(derniere) > numero_version(VERSION):
             mise_a_jour.update(version=derniere.lstrip('v'), url=PAGE_VERSIONS)

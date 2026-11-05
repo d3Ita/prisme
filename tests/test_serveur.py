@@ -304,6 +304,27 @@ class ChoixMoteursTest(unittest.TestCase):
         self.assertNotIn('requiert', serveur.MOTEURS_PAR_SYSTEME['windows-vulkan']['texte'])
 
 
+class CertificatsTest(unittest.TestCase):
+    """Telechargements en https : si le Python embarque ne trouve aucun certificat (exe Mac), ceux du systeme sont charges."""
+
+    def setUp(self):
+        serveur._contexte_ssl = None
+        self.addCleanup(setattr, serveur, '_contexte_ssl', None)
+
+    def test_certificats_trouves(self):
+        self.assertGreater(serveur.contexte_ssl().cert_store_stats()['x509_ca'], 0)
+
+    def test_certificats_du_systeme_si_aucun(self):
+        import ssl
+        from unittest import mock
+        # Fichier de certificats « du systeme », fait a partir de ceux de cette machine
+        pem = ''.join(ssl.DER_cert_to_PEM_cert(c) for c in ssl.create_default_context().get_ca_certs(binary_form=True))
+        fichier = Path(DOSSIER_TEST.name) / 'cert.pem'
+        fichier.write_text(pem, encoding='ascii')
+        vide = lambda: ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        with mock.patch.object(serveur.ssl, 'create_default_context', vide),                 mock.patch.object(serveur, 'FICHIERS_CERTIFICATS', ['/nexiste/pas.pem', str(fichier)]):
+            self.assertGreater(serveur.contexte_ssl().cert_store_stats()['x509_ca'], 0)
+
 class VersionTest(unittest.TestCase):
     def test_comparaison(self):
         self.assertGreater(serveur.numero_version('v1.10.0'), serveur.numero_version('1.9.2'))

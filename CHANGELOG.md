@@ -2,6 +2,12 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
+## Not released yet
+
+- **macOS (and some Linux systems)**: downloads of the engine, the models and the version check failed with `CERTIFICATE_VERIFY_FAILED`. Prisme now loads the system's certificates when its bundled Python finds none.
+- English interface: no space before punctuation anymore.
+- GitHub builds now install the image engine over https on each system, to catch this kind of problem before a release.
+
 ## 1.8.0 · 2026-11-05
 
 - **English interface**: Prisme follows the device's language (English, or French on French devices) and the language can be chosen in **Settings → Application → Language**. The phone connection page follows the phone's language.

@@ -95,7 +95,7 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 | Système | Fichier | Carte graphique | État |
 |---|---|---|---|
 | Windows 10 ou 11 | `Prisme.exe` | NVIDIA (CUDA), ou AMD et Intel (Vulkan) ; 8 Go de mémoire vidéo ou plus conseillés | Testé |
-| macOS 13 ou plus récent | `Prisme-macOS-arm64.zip` | Puce Apple (M1 ou plus récente, Metal), 16 Go de mémoire ou plus conseillés | Expérimental |
+| macOS 13 ou plus récent | `Prisme-macOS-arm64.zip` | Puce Apple (M1 ou plus récente, Metal), 16 Go de mémoire ou plus conseillés | Testé sur M3 |
 | Linux x64 (Ubuntu 24.04 ou équivalent) | `Prisme-Linux-x64.tar.gz` | Toute carte avec un pilote Vulkan | Expérimental |
 
 Il faut aussi des modèles compatibles avec stable-diffusion.cpp (GGUF ou safetensors, voir [Modèles conseillés](#modèles-conseillés)) et une connexion Internet au premier lancement, pour l'installation des moteurs.
@@ -108,6 +108,7 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 |---|---|---|---|
 | NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | Ensemble conseillé : modèle de dessin Q4_K, encodeur de texte Q8_0, vision F16 | Création 25 à 50 s, modification 45 à 90 s, chargement des modèles compris |
 | La même carte avec le moteur Vulkan | 32 Go | Mêmes modèles | Environ 50 s pour une création, chargement compris |
+| Apple M3, 18 Go de mémoire unifiée (Metal, macOS) | 18 Go (partagés) | Ensemble conseillé | Environ 5 minutes pour une création, chargement compris |
 
 Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et l'encodeur Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 

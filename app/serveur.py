@@ -39,6 +39,26 @@ MAC = sys.platform == 'darwin'
 SYSTEME = 'windows' if WINDOWS else 'mac' if MAC else 'linux'
 # Les moteurs et le navigateur ne doivent pas ouvrir de console sous Windows
 SANS_CONSOLE = subprocess.CREATE_NO_WINDOW if WINDOWS else 0
+# Les moteurs tournent en priorite basse, et laissent un coeur du processeur libre : l'ordinateur reste
+# utilisable pendant une generation, sans ralentir le calcul quand rien d'autre ne tourne
+OPTIONS_MOTEUR = SANS_CONSOLE | (subprocess.BELOW_NORMAL_PRIORITY_CLASS if WINDOWS else 0)
+
+
+def fils_calcul():
+    logiques = os.cpu_count() or 2
+    # Les puces Apple n'ont pas d'hyperthreading ; ailleurs, un coeur physique compte en general deux fils
+    physiques = logiques if MAC else max(1, logiques // 2)
+    return max(1, physiques - 1)
+
+
+def lancer_moteur(commande, **options):
+    processus = subprocess.Popen(commande, creationflags=OPTIONS_MOTEUR, **options)
+    if not WINDOWS:
+        try:
+            os.setpriority(os.PRIO_PROCESS, processus.pid, 10)
+        except (OSError, AttributeError):
+            pass
+    return processus
 SUFFIXE_EXE = '.exe' if WINDOWS else ''
 # L'exe Linux ajoute ses propres bibliotheques a LD_LIBRARY_PATH : on rend l'original
 # aux programmes lances (moteurs, navigateur), qui chargeraient sinon des versions incompatibles
@@ -464,8 +484,8 @@ class MoteurTexte:
             commande += ['--mmproj', str(self.vision)]
         self.journal = tempfile.TemporaryFile()
         global processus_texte
-        self.processus = processus_texte = subprocess.Popen(commande, stdout=self.journal, stderr=subprocess.STDOUT,
-                                                            creationflags=SANS_CONSOLE)
+        commande += ['--threads', str(fils_calcul())]
+        self.processus = processus_texte = lancer_moteur(commande, stdout=self.journal, stderr=subprocess.STDOUT)
         limite = time.time() + 300
         while time.time() < limite:
             if self.processus.poll() is not None:
@@ -954,7 +974,7 @@ def arguments(r, prompt, largeur, hauteur, seed, source, sortie):
         '--vae', str(MODELES / r['vae']),
         '-p', prompt + ''.join(f'<lora:{Path(l["nom"]).with_suffix("").as_posix()}:{l["force"]}>' for l in loras_actifs(r)),
         '--steps', str(r['etapes']), '--cfg-scale', str(r['cfg']), '--sampling-method', r['methode'],
-        '-W', str(largeur), '-H', str(hauteur), '--seed', str(seed),
+        '-W', str(largeur), '-H', str(hauteur), '--seed', str(seed), '--threads', str(fils_calcul()),
     ] + options + (['--lora-model-dir', str(LORAS)] if loras_actifs(r) else []) + ['-o', str(sortie)]
 
 
@@ -1052,10 +1072,9 @@ def generer(params):
             with verrou:
                 etat.update(phase='chargement', etape=0, index=i + 1, seed=seed, debut_image=time.time())
             journal = deque(maxlen=80)
-            processus = subprocess.Popen(
+            processus = lancer_moteur(
                 [str(SD_CLI)] + arguments(r, params['prompt'], params['largeur'], params['hauteur'], seed, source, sortie),
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE),
-                creationflags=SANS_CONSOLE)
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
 
             reste = ''
             while True:

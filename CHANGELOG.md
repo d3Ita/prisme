@@ -2,6 +2,10 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
+## Not released yet
+
+- **The computer stays usable during a creation**: the engines run at a lower priority and leave one processor core free. Creation speed is unchanged when nothing else is running.
+
 ## 1.8.1 · 2026-11-05
 
 - **macOS (and some Linux systems)**: downloads of the engine, the models and the version check failed with `CERTIFICATE_VERIFY_FAILED`. Prisme now loads the system's certificates when its bundled Python finds none.

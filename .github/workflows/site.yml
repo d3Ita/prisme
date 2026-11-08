@@ -1,0 +1,47 @@
+name: Site
+
+# Publie le site (dossier docs) sur GitHub Pages, avec un miroir des fichiers de la derniere release dans
+# telechargements/ : il reste disponible quand les liens de telechargement de github.com ne repondent pas.
+# Les fichiers sont recuperes par l'API GitHub ; aucun binaire n'est ajoute au depot.
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', '.github/workflows/site.yml']
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Site et miroir de la derniere release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _site/telechargements
+          cp -r docs/. _site/
+          gh release download --repo "$GITHUB_REPOSITORY" --dir _site/telechargements \
+            --pattern 'Prisme.exe' --pattern 'Prisme-macOS-arm64.zip' --pattern 'Prisme-Linux-x64.tar.gz'
+          version=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          echo "$version" > _site/telechargements/version.txt
+          ( cd _site/telechargements && sha256sum Prisme.exe Prisme-macOS-arm64.zip Prisme-Linux-x64.tar.gz > SHA256SUMS.txt )
+          cat _site/telechargements/version.txt _site/telechargements/SHA256SUMS.txt
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploiement
+        uses: actions/deploy-pages@v4

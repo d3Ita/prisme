@@ -114,7 +114,7 @@ Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go
 
 ## Installation
 
-1. Télécharge le fichier de ton système depuis la page [Releases](../../releases), ou construis-le (voir plus bas).
+1. Télécharge le fichier de ton système depuis le [site](https://d3ita.github.io/prisme/#download) ou la page [Releases](../../releases), ou construis-le (voir plus bas). Le site garde une copie de la dernière version, qui marche même quand les liens de téléchargement de GitHub sont en panne (empreintes dans [SHA256SUMS.txt](https://d3ita.github.io/prisme/telechargements/SHA256SUMS.txt)).
 2. Clique sur **Télécharger les modèles**, puis **Tout télécharger** pour récupérer les [modèles conseillés](#modèles-conseillés) (environ 15 Go). Tu peux aussi placer tes propres modèles dans un dossier `models` (et tes LoRA dans `models/loras`) : à côté du programme sous Windows et Linux, dans `~/Prisme/models` sous macOS.
 3. Lance Prisme, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp une seule fois (environ 925 Mo sous Windows avec une carte NVIDIA, moins de 40 Mo sinon). Sans pilote NVIDIA, Prisme choisit la version Vulkan ; la variable `PRISME_ACCELERATION=cuda` ou `vulkan` force le choix.
 4. Clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.

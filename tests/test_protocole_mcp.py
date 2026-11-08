@@ -26,6 +26,15 @@ from test_mcp import FauxPrisme, png  # noqa: E402
 SERVEUR = Path(__file__).resolve().parent.parent / 'app' / 'serveur.py'
 
 
+def champ(objet, *noms):
+    """Le SDK MCP 2 nomme ses champs en snake_case (server_info, is_error), le SDK 1 en camelCase."""
+    return next(getattr(objet, nom) for nom in noms if hasattr(objet, nom))
+
+
+def en_erreur(resultat):
+    return champ(resultat, 'is_error', 'isError')
+
+
 @unittest.skipIf(ClientSession is None, 'SDK MCP officiel absent (pip install mcp)')
 class ProtocoleOfficielTest(unittest.TestCase):
     def setUp(self):
@@ -57,20 +66,20 @@ class ProtocoleOfficielTest(unittest.TestCase):
             ('edit_image', {'image_path': 'image_20261108_120000.png', 'instruction': 'ajoute de la neige'}),
             ('generate_image', {'prompt': 'un renard', 'width': 1000}),
         ])
-        self.assertEqual(init.serverInfo.name, 'prisme')
+        self.assertEqual(champ(init, 'server_info', 'serverInfo').name, 'prisme')
         self.assertIn('Prisme', init.instructions)
         self.assertEqual({o.name for o in outils.tools}, {'generate_image', 'edit_image', 'list_models', 'list_profiles',
                                                          'get_status', 'install_engine', 'download_profile', 'download_model'})
-        self.assertFalse(statut.isError)
+        self.assertFalse(en_erreur(statut))
         self.assertEqual(json.loads(statut.content[0].text)['version'], '1.8.5')
-        self.assertFalse(creation.isError)
+        self.assertFalse(en_erreur(creation))
         infos = json.loads(creation.content[0].text)
         self.assertEqual((infos['status'], infos['seed'], infos['width']), ('done', 3, 512))
         self.assertEqual(creation.content[1].type, 'image')
         self.assertEqual(base64.b64decode(creation.content[1].data), self.faux.image)
-        self.assertFalse(modification.isError)
+        self.assertFalse(en_erreur(modification))
         self.assertTrue(self.faux.recu[1]['source_data'].startswith('data:image/png;base64,'))
-        self.assertTrue(erreur.isError)
+        self.assertTrue(en_erreur(erreur))
         self.assertIn('multiple of 16', erreur.content[0].text)
         self.assertNotIn('Traceback', erreur.content[0].text)
 

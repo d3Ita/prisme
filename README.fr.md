@@ -34,6 +34,7 @@
   <a href="#modèles-conseillés">Modèles</a> ·
   <a href="#utilisation">Utilisation</a> ·
   <a href="#construire-depuis-les-sources">Construire</a> ·
+  <a href="#roadmap">Roadmap</a> ·
   <a href="#sécurité">Sécurité</a> ·
   <a href="#questions-fréquentes">Questions</a> ·
   <a href="#licence">Licence</a>
@@ -106,18 +107,18 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 
 | Carte graphique | Mémoire vive | Modèles | Temps pour une image de 1024 × 1024 |
 |---|---|---|---|
-| NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | Ensemble conseillé : modèle de dessin Q4_K, encodeur de texte Q8_0, vision F16 | Création 25 à 50 s, modification 45 à 90 s, chargement des modèles compris |
+| NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | Ensemble conseillé : modèle de dessin Q4_K, modèle de texte Q8_0, vision F16 | Création 25 à 50 s, modification 45 à 90 s, chargement des modèles compris |
 | La même carte avec le moteur Vulkan | 32 Go | Mêmes modèles | Environ 50 s pour une création, chargement compris |
 | Apple M3, 18 Go de mémoire unifiée (Metal, macOS) | 18 Go (partagés) | Ensemble complet (avant les versions légères conseillées sur Mac) | Environ 5 minutes pour une création, chargement compris |
 
-Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et l'encodeur Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
+Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et le modèle de texte Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
 ## Installation
 
-1. Télécharge le fichier de ton système depuis le [site](https://d3ita.github.io/prisme/#download) ou la page [Releases](../../releases), ou construis-le (voir plus bas). Le site garde une copie de la dernière version, qui marche même quand les liens de téléchargement de GitHub sont en panne (empreintes dans [SHA256SUMS.txt](https://d3ita.github.io/prisme/telechargements/SHA256SUMS.txt)).
-2. Clique sur **Télécharger les modèles**, puis **Tout télécharger** pour récupérer les [modèles conseillés](#modèles-conseillés) (environ 15 Go). Tu peux aussi placer tes propres modèles dans un dossier `models` (et tes LoRA dans `models/loras`) : à côté du programme sous Windows et Linux, dans `~/Prisme/models` sous macOS.
-3. Lance Prisme, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp une seule fois (environ 925 Mo sous Windows avec une carte NVIDIA, moins de 40 Mo sinon). Sans pilote NVIDIA, Prisme choisit la version Vulkan ; la variable `PRISME_ACCELERATION=cuda` ou `vulkan` force le choix.
-4. Clique sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
+1. Télécharge le fichier de ton système depuis le [site](https://d3ita.github.io/prisme/#download) ou la page des versions ([Releases](../../releases)), ou construis-le (voir plus bas). Le site garde une copie de la dernière version, qui marche même quand les liens de téléchargement de GitHub sont en panne (empreintes dans [SHA256SUMS.txt](https://d3ita.github.io/prisme/telechargements/SHA256SUMS.txt)).
+2. Lance Prisme, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp une seule fois (environ 925 Mo sous Windows avec une carte NVIDIA, moins de 40 Mo sinon). Sans pilote NVIDIA, Prisme choisit la version Vulkan ; la variable `PRISME_ACCELERATION=cuda` ou `vulkan` force le choix.
+3. Clique sur **Télécharger les modèles**, puis **Tout télécharger** pour récupérer les [modèles conseillés](#modèles-conseillés) et le moteur de texte utilisé par **Améliorer** (environ 15 Go en tout). Prisme les choisit tout seul dans les réglages.
+4. Pour utiliser tes propres modèles, place-les dans un dossier `models` (et tes LoRA dans `models/loras`) : à côté du programme sous Windows et Linux, dans `~/Prisme/models` sous macOS. Clique ensuite sur **Choisir les modèles** et sélectionne un fichier pour chaque rôle.
 
 Les moteurs sont téléchargés depuis les versions officielles de [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) et de [llama.cpp](https://github.com/ggml-org/llama.cpp) sur GitHub. Prisme vérifie l'empreinte SHA-256 de chaque fichier avant de l'installer, et refuse tout fichier différent de la version testée. Ensuite, le dossier ressemble à ceci :
 
@@ -176,7 +177,7 @@ Ces modèles officiels et généralistes fonctionnent avec Prisme. Le plus simpl
 | Modèle de texte | `Qwen3VL-8B-Instruct-Q8_0.gguf` (8,7 Go) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `Q4_K_M` (5 Go) : modifications plus granuleuses |
 | Vision (pour modifier une image) | `mmproj-Qwen3VL-8B-Instruct-F16.gguf` (1,2 Go) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `mmproj` `Q8_0` |
 | VAE | `vae/diffusion_pytorch_model.safetensors` (675 Mo) | [Qwen-Image-2.1-Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae) | |
-| Modèle de langage (amélioration) | Les mêmes fichiers que l'encodeur de texte et la vision | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | [Qwen3-VL-4B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF) |
+| Modèle de langage (pour **Améliorer**) | Les mêmes fichiers que le modèle de texte et la vision | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | [Qwen3-VL-4B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF) |
 
 Ce modèle Turbo demande peu d'étapes. Dans **Réglages → Génération**, mets 8 étapes, CFG 1, la méthode `euler` et ces sigmas :
 
@@ -205,7 +206,7 @@ Les réglages sont enregistrés dans `app/reglages.json`, les images dans `image
 Une description courte (« un chat sur un toit la nuit ») donne souvent une image moins réussie qu'une description détaillée. Prisme peut la faire réécrire par un modèle de langage, directement sur ton PC :
 
 1. Place un modèle de langage au format GGUF dans `models` (et, pour qu'il voie les images, son fichier de vision `mmproj`).
-2. Dans **Réglages → Amélioration de la description**, garde le moteur **Intégré**, clique sur **Installer le moteur** (llama.cpp, environ 290 Mo, une seule fois), puis choisis le modèle et la vision.
+2. Installe le moteur de texte (llama.cpp, environ 290 Mo, une seule fois) : **Tout télécharger** dans la fenêtre des modèles s'en charge, ou bien **Réglages → Amélioration de la description**, avec le moteur **Intégré**, puis **Installer le moteur**. Les modèles téléchargés sont choisis pour toi ; sinon, choisis le modèle et la vision à cet endroit.
 3. Clique sur **Améliorer** dans la zone d'écriture : le texte détaillé remplace le tien, tu peux le modifier, et **Rétablir** revient à ton texte.
 
 Si tu utilises déjà [Ollama](https://ollama.com), choisis le moteur **Ollama** et l'un de ses modèles à la place.
@@ -247,7 +248,13 @@ Sous Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` crée 
 python3 -m unittest discover -s tests -v
 ```
 
-Les tests vérifient la validation des réglages, la lecture des images, l'installation des moteurs, l'extraction des archives, les liens vers les modèles et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages ni tes images. GitHub les lance sous Windows et Linux à chaque envoi, puis construit ces deux versions. La version macOS est construite à la demande.
+Les tests utilisent `unittest`, inclus dans Python : rien à installer. Lance-les depuis le dossier du dépôt (sous Windows, tape `py -3` au lieu de `python3`). Pour lancer une seule classe de tests, par exemple celle du catalogue des modèles :
+
+```bash
+python3 -m unittest tests.test_serveur.ModelesConseillesTest -v
+```
+
+Les tests vérifient la validation des réglages, la lecture des images, l'installation des moteurs, l'extraction des archives, les téléchargements (nouveaux essais, reprise, empreintes), les liens vers les modèles, les mises à jour et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages, ni tes modèles, ni tes images. GitHub les lance sous Windows et Linux, avec Python 3.12 et 3.13, à chaque envoi, puis construit ces deux versions. La version macOS est construite à la demande.
 
 Pour lancer sans construire :
 
@@ -266,9 +273,22 @@ python3 app/serveur.py
 | `construire.py` | Construction de Prisme pour le système en cours |
 | `construire.ps1` | Préparation de Python sous Windows, puis `construire.py` |
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
+| `docs/architecture.md` | Schéma et explication de l'architecture |
 | `.github/workflows/` | Tests et construction sur GitHub |
 
+Le fonctionnement d'ensemble (interface, serveur, moteurs, modèles et images) est décrit avec un schéma dans [docs/architecture.md](docs/architecture.md).
+
 Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md). L'historique des versions est dans [CHANGELOG.md](CHANGELOG.md).
+
+## Roadmap
+
+Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
+
+- **Profils de modèles par config** : tu choisis ta machine (processeur seul, petite ou grande carte graphique, Mac à puce Apple) et Prisme propose l'ensemble de modèles adapté, téléchargé en un clic.
+- **Serveur MCP pour Claude** : permettre à Claude (Desktop ou Code) de créer et modifier des images avec Prisme, sur ton ordinateur.
+- **Images à la suite plus rapides** : garder les modèles chargés entre deux créations au lieu de les recharger à chaque fois.
+- **Supprimer des modèles depuis l'appli** : libérer de la place sans ouvrir le dossier `models`.
+- **Agrandissement** : agrandir une image terminée.
 
 ## Questions fréquentes
 

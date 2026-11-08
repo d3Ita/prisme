@@ -4,7 +4,7 @@ Thanks for your interest! Bug reports, ideas and pull requests are welcome, in E
 
 ## Reporting a bug
 
-Open an [issue](../../issues/new/choose) with the **Bug report** template. Please include your Prisme version (shown at the bottom of **Réglages**), your GPU and VRAM, and what you expected versus what happened. Never paste your access code (`app/code-acces.txt`).
+Open an [issue](../../issues/new/choose) with the **Bug report** template. Please include your Prisme version (shown at the bottom of **Settings**, Réglages), your GPU and VRAM, and what you expected versus what happened. Never paste your access code (`app/code-acces.txt`).
 
 ## Suggesting a feature
 
@@ -18,7 +18,7 @@ cd prisme
 py -3 app\serveur.py
 ```
 
-Put your models in `models/`; the app installs its engines on first launch. Before opening a pull request:
+Put your models in `models/`; the app installs its engines on first launch. How the pieces fit together is described in [docs/architecture.md](docs/architecture.md). Before opening a pull request:
 
 1. Run the tests: `py -3 -m unittest discover -s tests -v`
 2. Add a test for any change to the server, especially anything touching access control.

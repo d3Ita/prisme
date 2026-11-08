@@ -36,6 +36,7 @@
   <a href="#security">Security</a> ·
   <a href="#faq">FAQ</a> ·
   <a href="#build-from-source">Build</a> ·
+  <a href="#roadmap">Roadmap</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
@@ -66,7 +67,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 
 - **Create** images from a description, 1 to 4 per run
 - **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
-- **Edit** an existing image: click **Modifier** under a result, or drag, paste or attach any picture
+- **Edit** an existing image: click **Edit** (Modifier) under a result, or drag, paste or attach any picture
 - **Formats**: square, landscape, portrait, or the starting image's proportions
 - **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
@@ -115,18 +116,18 @@ Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), 
 
 | Graphics card | System memory | Models | Time per 1024 × 1024 image |
 |---|---|---|---|
-| NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | Recommended set: drawing model Q4_K, text encoder Q8_0, vision F16 | Creation 25 to 50 s, edit 45 to 90 s, model loading included |
+| NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | Recommended set: drawing model Q4_K, text model Q8_0, vision F16 | Creation 25 to 50 s, edit 45 to 90 s, model loading included |
 | Same card with the Vulkan engine | 32 GB | Same models | About 50 s for a creation, model loading included |
 | Apple M3, 18 GB of unified memory (Metal, macOS) | 18 GB (shared) | Full set (before light versions were recommended on Mac) | About 5 minutes for a creation, model loading included |
 
-Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text encoder and keep **Décharger sur le processeur** (CPU offload) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
+Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text model and keep **Offload to the CPU** (Décharger sur le processeur) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
 ## Quick start
 
 1. Download the file for your system from the [website](https://d3ita.github.io/prisme/#download) or the [Releases](../../releases) page. The website keeps a copy of the latest release, which still works when GitHub's download links are down (checksums in [SHA256SUMS.txt](https://d3ita.github.io/prisme/telechargements/SHA256SUMS.txt)).
-2. Click **Télécharger les modèles** (Download models), then **Tout télécharger** to get the [recommended models](#recommended-models) (about 15 GB). You can also put your own models in a `models` folder (LoRA go in `models/loras`): next to the program on Windows and Linux, in `~/Prisme/models` on macOS.
-3. Start Prisme and click **Installer le moteur** (Install engine): Prisme downloads stable-diffusion.cpp once (about 925 MB on Windows with an NVIDIA card, under 40 MB otherwise). Without the NVIDIA driver, Prisme picks the Vulkan version; set `PRISME_ACCELERATION=cuda` or `vulkan` to force a choice.
-4. Click **Choisir les modèles** (Choose models) and pick a file for each role.
+2. Start Prisme and click **Install the engine** (Installer le moteur): Prisme downloads stable-diffusion.cpp once (about 925 MB on Windows with an NVIDIA card, under 40 MB otherwise). Without the NVIDIA driver, Prisme picks the Vulkan version; set `PRISME_ACCELERATION=cuda` or `vulkan` to force a choice.
+3. Click **Download the models** (Télécharger les modèles), then **Download all** (Tout télécharger) to get the [recommended models](#recommended-models) and the text engine used by **Enhance** (about 15 GB in all). Prisme selects them in the settings by itself.
+4. To use your own models instead, put them in a `models` folder (LoRA go in `models/loras`): next to the program on Windows and Linux, in `~/Prisme/models` on macOS. Then click **Choose models** (Choisir les modèles) and pick a file for each role.
 
 ```
 Prisme.exe    (prisme on Linux, Prisme.app on macOS)
@@ -170,17 +171,17 @@ You can also build Prisme yourself or run `app/serveur.py` directly on any syste
 
 ## Recommended models
 
-These official, general-purpose models work with Prisme. The easiest way is **Réglages → Modèles → Télécharger** (or **Télécharger les modèles** on first launch): Prisme downloads them, checks their SHA-256, picks them in the settings and applies the right generation settings. It also adapts to your machine: with less than 12 GB of video memory, less than 24 GB of RAM, or a Mac with less than 24 GB, it recommends the light versions (about 10.7 GB instead of 14.7 GB), which are faster and keep the computer responsive. Each link below opens the model page on Hugging Face if you prefer to download by hand.
+These official, general-purpose models work with Prisme. The easiest way is **Settings → Models → Download** (Réglages → Modèles → Télécharger), or **Download the models** (Télécharger les modèles) on first launch: Prisme downloads them, checks their SHA-256, picks them in the settings and applies the right generation settings. It also adapts to your machine: with less than 12 GB of video memory, less than 24 GB of RAM, or a Mac with less than 24 GB, it recommends the light versions (about 10.7 GB instead of 14.7 GB), which are faster and keep the computer responsive. Each link below opens the model page on Hugging Face if you prefer to download by hand.
 
 | Role in Prisme | Recommended file | Where to find it | Lighter option |
 |---|---|---|---|
-| Modèle de dessin (diffusion model) | `Q5_K`, `Q6_K` or `Q8_0` GGUF | [Qwen-Image-2.1-Turbo-GGUF](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF) | `Q4_K` |
-| Modèle de texte (text model) | `Qwen3VL-8B-Instruct-Q8_0.gguf` (8.7 GB) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `Q4_K_M` (5 GB): edits look grainier |
+| Drawing model (Modèle de dessin) | `Q5_K`, `Q6_K` or `Q8_0` GGUF | [Qwen-Image-2.1-Turbo-GGUF](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF) | `Q4_K` |
+| Text model (Modèle de texte) | `Qwen3VL-8B-Instruct-Q8_0.gguf` (8.7 GB) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `Q4_K_M` (5 GB): edits look grainier |
 | Vision (image encoder, for editing) | `mmproj-Qwen3VL-8B-Instruct-F16.gguf` (1.2 GB) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `mmproj` `Q8_0` |
 | VAE | `vae/diffusion_pytorch_model.safetensors` (675 MB) | [Qwen-Image-2.1-Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae) | |
-| Modèle de langage (prompt enhancement) | The same text encoder and vision files | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | [Qwen3-VL-4B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF) |
+| Language model (Modèle de langage), for **Enhance** | The same text model and vision files | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | [Qwen3-VL-4B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF) |
 
-This Turbo model needs few steps. In **Réglages → Génération**, use 8 steps, CFG 1, the `euler` method and these sigmas:
+This Turbo model needs few steps. In **Settings → Generation** (Réglages → Génération), use 8 steps, CFG 1, the `euler` method and these sigmas:
 
 ```
 1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0
@@ -193,20 +194,20 @@ You can rename the VAE file (for example `qwen-image-vae.safetensors`) so it is 
 A short prompt ("a cat on a roof at night") usually gives a weaker image than a detailed one. Prisme can rewrite it with a language model running on your PC:
 
 1. Put a GGUF language model in `models` (and its `mmproj` vision file so it can see images).
-2. In **Réglages → Amélioration de la description**, keep the **Intégré** engine, click **Installer le moteur** (llama.cpp, about 290 MB, once), then choose the model and vision file.
-3. Click **Améliorer** in the writing area. **Rétablir** brings your text back.
+2. Install the text engine (llama.cpp, about 290 MB, once): **Download all** in the models window does it, or **Settings → Enhancing the description** (Réglages → Amélioration de la description), with the **Built in** (Intégré) engine, then **Install the engine** (Installer le moteur). Downloaded models are chosen for you; otherwise choose the model and vision file there.
+3. Click **Enhance** (Améliorer) in the writing area. **Undo** (Rétablir) brings your text back.
 
 With a starting image, the model looks at the picture and writes an edit instruction that only describes what changes. The language model runs only for the time of the request, then frees the GPU for generation. If you already use [Ollama](https://ollama.com), you can select it instead.
 
 ## Phone access
 
-Network access is **off by default**. Turn it on in **Réglages → Application → Accès depuis le téléphone**, restart Prisme and allow it through your firewall if your system asks. The **Téléphone** button then shows the address to type, for example `192.168.1.22:7861`.
+Network access is **off by default**. Turn it on in **Settings → Application → Phone access** (Réglages → Application → Accès depuis le téléphone), restart Prisme and allow it through your firewall if your system asks. The **Phone** (Téléphone) button then shows the address to type, for example `192.168.1.22:7861`.
 
-On the phone, open that address: it shows a 4-digit code, and Prisme asks you on the PC to **Autoriser** (approve) the device after checking the code matches. The phone then stays connected. A QR code is also available for a direct connection. Don't enable network access on public Wi-Fi: the connection is not encrypted.
+On the phone, open that address: it shows a 4-digit code, and Prisme asks you on the PC to **Approve** (Autoriser) the device after checking the code matches. The phone then stays connected. A QR code is also available for a direct connection. Don't enable network access on public Wi-Fi: the connection is not encrypted.
 
 The QR code link contains an access code stored in `app/code-acces.txt`: delete that file and restart Prisme to create a new code and disconnect the devices already linked.
 
-To stop Prisme, click **Quitter** or close its window: the server shuts down a few seconds later.
+To stop Prisme, click **Quit** (Quitter) or close its window: the server shuts down a few seconds later.
 
 ## Security
 
@@ -214,7 +215,7 @@ To stop Prisme, click **Quitter** or close its window: the server shuts down a f
 - Other devices need a random 128-bit access code, received through the QR code or after you approve them on the PC. After 10 wrong codes or refused requests, a device is blocked for 15 minutes.
 - Websites open in your browser can neither control Prisme nor read its data: requests from another origin or host name are rejected.
 - Settings, models and folders are only reachable from the PC.
-- Once per launch, Prisme asks GitHub for the latest version number to tell you about updates. Nothing else is sent; turn it off in **Réglages → Application**.
+- Once per launch, Prisme asks GitHub for the latest version number to tell you about updates. Nothing else is sent; turn it off in **Settings → Application** (Réglages → Application).
 - **Update** in that notice downloads the new version only from Prisme's GitHub releases, checks its SHA-256 published by GitHub, then replaces the program and restarts it. Settings, images, engines and models are kept.
 
 ## Build from source
@@ -227,11 +228,23 @@ python3 construire.py
 
 On Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` first creates that environment in `.construction/`. The build runs the tests, then makes `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.zip` (macOS) or `dist/Prisme-Linux-x64.tar.gz` (Linux). If a test fails, nothing is built. To run without building: `python3 app/serveur.py`.
 
+How the pieces fit together (interface, server, engines, models and images) is described with a diagram in [docs/architecture.md](docs/architecture.md).
+
+### Tests
+
+The tests use Python's built-in `unittest`: nothing to install. From the repository folder:
+
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
-The tests cover settings validation, image metadata, engine installation, archive extraction, model links and access protections. They run in a temporary folder, and GitHub runs them on Windows and Linux for every push, then builds both versions. The macOS version is built on demand.
+On Windows, type `py -3` instead of `python3`. To run a single test class, for example the model catalog tests:
+
+```bash
+python3 -m unittest tests.test_serveur.ModelesConseillesTest -v
+```
+
+The tests cover settings validation, image metadata, engine installation, archive extraction, downloads (retries, resume, checksums), model links, updates and access protections. They run in a temporary folder and never touch your settings, models or images. GitHub runs them on Windows and Linux, with Python 3.12 and 3.13, for every push, then builds both versions. The macOS version is built on demand.
 
 | File | Role |
 |---|---|
@@ -241,6 +254,17 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | `construire.py` | Builds Prisme for the current system |
 | `construire.ps1` | Prepares a Python environment on Windows, then runs `construire.py` |
 | `tests/test_serveur.py` | Server tests |
+| `docs/architecture.md` | Architecture diagram and explanation |
+
+## Roadmap
+
+Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
+
+- **Model profiles by hardware**: pick your machine (CPU only, small or large graphics card, Apple Silicon) and Prisme offers the matching set of models, downloaded in one click.
+- **MCP server for Claude**: let Claude (Desktop or Code) create and edit images through Prisme, on your computer.
+- **Faster successive images**: keep the models loaded between two creations instead of loading them each time.
+- **Remove models from the app**: free disk space without opening the `models` folder.
+- **Upscaling**: enlarge a finished image.
 
 ## FAQ
 

@@ -26,6 +26,9 @@ dist/
 __pycache__/
 *.pyc
 
+# Environnement Python du serveur MCP
+mcp/.venv/
+
 # Divers
 .claude/
 *.log

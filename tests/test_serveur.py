@@ -842,6 +842,14 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertIn('HttpOnly', cookie)
         self.assertEqual(self.requete('GET', '/?code=faux', entetes={'X-Test-Distant': '1'})[0], 401)
 
+    def test_modele_d_une_seule_creation_verifie(self):
+        for modele in ('../app/code-acces.txt', 'C:/x.gguf', 'absent.gguf'):
+            with self.subTest(modele=modele):
+                corps = json.dumps({'prompt': 'un chat', 'modele': modele})
+                statut, _, reponse = self.poster('/api/generer', corps)
+                self.assertEqual(statut, 400)
+                self.assertIn('Modèle introuvable', json.loads(reponse)['erreur'])
+
     def test_profils_en_lecture_seule_sur_le_pc(self):
         statut, _, corps = self.requete('GET', '/api/profils')
         self.assertEqual(statut, 200)

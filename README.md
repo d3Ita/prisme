@@ -33,6 +33,7 @@
   <a href="#features">Features</a> ·
   <a href="#choosing-models-for-your-machine">Models</a> ·
   <a href="#phone-access">Phone access</a> ·
+  <a href="#using-prisme-with-claude-via-mcp">Claude (MCP)</a> ·
   <a href="#security">Security</a> ·
   <a href="#faq">FAQ</a> ·
   <a href="#build-from-source">Build</a> ·
@@ -228,6 +229,18 @@ The QR code link contains an access code stored in `app/code-acces.txt`: delete 
 
 To stop Prisme, click **Quit** (Quitter) or close its window: the server shuts down a few seconds later.
 
+## Using Prisme with Claude via MCP
+
+The [`mcp/`](mcp/README.md) folder holds an MCP server: Claude Desktop or Claude Code can then create and edit images with Prisme, on your computer. It offers `generate_image`, `edit_image`, `list_models`, `list_profiles` and `get_status`, talks only to Prisme on `127.0.0.1`, copies the images to a folder of your choice, and can only edit images found in that folder.
+
+```bash
+python3 -m venv mcp/.venv
+mcp/.venv/bin/pip install -r mcp/requirements.txt
+claude mcp add prisme -- "$PWD/mcp/.venv/bin/python" "$PWD/mcp/server.py"
+```
+
+Prisme must be running with a model profile downloaded. The [MCP README](mcp/README.md) covers Windows, the Claude Desktop configuration, the settings (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) and troubleshooting. The MCP server needs the official `mcp` Python package; Prisme itself still needs nothing.
+
 ## Security
 
 - The server only listens on your PC unless phone access is enabled.
@@ -271,9 +284,11 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | `app/index.html` | The whole interface: HTML, CSS and JavaScript with no dependency |
 | `app/modeles.json` | Catalog of downloadable models and profiles by hardware |
 | `app/icone.py` | Program icon and splash screen, made from the logo |
+| `mcp/` | MCP server for Claude, and its README |
 | `construire.py` | Builds Prisme for the current system |
 | `construire.ps1` | Prepares a Python environment on Windows, then runs `construire.py` |
 | `tests/test_serveur.py` | Server tests |
+| `tests/test_mcp.py` | MCP server tests, against a fake Prisme |
 | `docs/architecture.md` | Architecture diagram and explanation |
 
 ## Roadmap
@@ -281,7 +296,7 @@ The tests cover settings validation, image metadata, engine installation, archiv
 Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
 
 - ~~**Model profiles by hardware**~~: done, in the next version (see [Choosing models for your machine](#choosing-models-for-your-machine)).
-- **MCP server for Claude**: let Claude (Desktop or Code) create and edit images through Prisme, on your computer.
+- ~~**MCP server for Claude**~~: done, in the next version (see [Using Prisme with Claude via MCP](#using-prisme-with-claude-via-mcp)).
 - **Faster successive images**: keep the models loaded between two creations instead of loading them each time.
 - **Remove models from the app**: free disk space without opening the `models` folder.
 - **Upscaling**: enlarge a finished image.

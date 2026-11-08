@@ -1,0 +1,4 @@
+# Serveur MCP de Prisme : SDK MCP officiel (FastMCP, transport stdio)
+mcp>=1.2,<2
+# Facultatif : apercus JPEG plus legers quand le PNG est trop gros pour etre montre a Claude
+# Pillow>=10

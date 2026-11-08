@@ -1862,6 +1862,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 nombre = max(1, min(4, int(p.get('nombre') or 1)))
                 seed = p.get('seed')
                 seed = random.randint(0, 2**31 - 1) if seed in (None, '') else int(seed)
+                modele = str(p.get('modele') or '')
             except (ValueError, TypeError, json.JSONDecodeError):
                 return self.envoyer(400, {'erreur': 'Paramètres invalides.'})
             if not prompt:
@@ -1870,6 +1871,11 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(400, {'erreur': 'Taille invalide : multiples de 16, entre 256 et 2048.'})
 
             r = lire_reglages()
+            # Modele de dessin choisi pour cette creation seulement (serveur MCP) ; les reglages ne changent pas
+            if modele:
+                if not chemin_relatif_sur(modele) or not (MODELES / modele).is_file():
+                    return self.envoyer(400, {'erreur': 'Modèle introuvable dans le dossier models.'})
+                r = {**r, 'modele_diffusion': modele}
             with verrou:
                 if etat['occupe']:
                     return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})

@@ -35,6 +35,7 @@
   <a href="#utilisation">Utilisation</a> ·
   <a href="#construire-depuis-les-sources">Construire</a> ·
   <a href="#roadmap">Roadmap</a> ·
+  <a href="#utiliser-prisme-avec-claude-via-mcp">Claude (MCP)</a> ·
   <a href="#sécurité">Sécurité</a> ·
   <a href="#questions-fréquentes">Questions</a> ·
   <a href="#licence">Licence</a>
@@ -242,6 +243,18 @@ Sur le téléphone, tape simplement l'adresse : la page affiche un code à 4 chi
 
 Le téléphone doit être sur le même réseau que le PC. Le lien du QR code contient un code d'accès enregistré dans `app/code-acces.txt` : supprimer ce fichier puis relancer Prisme en crée un nouveau et déconnecte les appareils déjà reliés. N'active pas cet accès sur un réseau public (gare, café, hôtel) : la connexion n'est pas chiffrée.
 
+## Utiliser Prisme avec Claude via MCP
+
+Le dossier [`mcp/`](mcp/README.md#français) contient un serveur MCP : Claude Desktop ou Claude Code peut alors créer et modifier des images avec Prisme, sur ton ordinateur. Il propose `generate_image`, `edit_image`, `list_models`, `list_profiles` et `get_status`, ne parle qu'à Prisme sur `127.0.0.1`, copie les images dans le dossier de ton choix, et ne peut modifier que les images de ce dossier.
+
+```bash
+python3 -m venv mcp/.venv
+mcp/.venv/bin/pip install -r mcp/requirements.txt
+claude mcp add prisme -- "$PWD/mcp/.venv/bin/python" "$PWD/mcp/server.py"
+```
+
+Prisme doit être lancé, avec un profil de modèles téléchargé. Le [README du serveur MCP](mcp/README.md#français) explique l'installation sous Windows, la configuration de Claude Desktop, les réglages (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) et le dépannage. Le serveur MCP a besoin du paquet Python officiel `mcp` ; Prisme lui-même n'a toujours besoin de rien.
+
 ## Sécurité
 
 - Le serveur de Prisme n'écoute que ce PC, sauf si l'accès depuis le téléphone est activé.
@@ -293,6 +306,8 @@ python3 app/serveur.py
 | `construire.py` | Construction de Prisme pour le système en cours |
 | `construire.ps1` | Préparation de Python sous Windows, puis `construire.py` |
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
+| `tests/test_mcp.py` | Tests du serveur MCP, avec un faux Prisme |
+| `mcp/` | Serveur MCP pour Claude, et son README |
 | `docs/architecture.md` | Schéma et explication de l'architecture |
 | `.github/workflows/` | Tests et construction sur GitHub |
 
@@ -305,7 +320,7 @@ Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md). L'historique des versio
 Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
 
 - ~~**Profils de modèles par config**~~ : fait, dans la prochaine version (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
-- **Serveur MCP pour Claude** : permettre à Claude (Desktop ou Code) de créer et modifier des images avec Prisme, sur ton ordinateur.
+- ~~**Serveur MCP pour Claude**~~ : fait, dans la prochaine version (voir [Utiliser Prisme avec Claude via MCP](#utiliser-prisme-avec-claude-via-mcp)).
 - **Images à la suite plus rapides** : garder les modèles chargés entre deux créations au lieu de les recharger à chaque fois.
 - **Supprimer des modèles depuis l'appli** : libérer de la place sans ouvrir le dossier `models`.
 - **Agrandissement** : agrandir une image terminée.

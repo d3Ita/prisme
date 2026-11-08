@@ -9,6 +9,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 - **Model profiles by hardware**: the models window offers eight profiles (CPU only, 4 to 6 GB, 8 GB, 12 GB and 16 GB cards, 8 GB, 16 GB and 32 GB Macs), each with its size, indicative speed, licenses and a **Recommended for your machine** badge. **Download this profile** fetches the whole set; files already present are only selected, not downloaded again. The catalog lives in `app/modeles.json`.
 - Experimental **Z-Image Turbo** profiles for computers without a dedicated graphics card, 4 to 6 GB cards and 8 GB Macs (creation only, not tested with Prisme yet).
 - `GET /api/profils` (PC only, read-only): the profiles, what is already downloaded and the suggested profile.
+- **MCP server for Claude** (`mcp/`): Claude Desktop or Claude Code can create and edit images with Prisme on this computer, with `generate_image`, `edit_image`, `list_models`, `list_profiles` and `get_status`. Long creations return a task id to follow with `get_status`. It only talks to Prisme on `127.0.0.1` and only edits images from its own folder.
+- `POST /api/generer` accepts an optional `modele`: a drawing model file from `models/`, used for that creation only (for the MCP server's `model` parameter).
 - Hardware detection reads AMD and Intel cards too (`rocm-smi`, `/sys` on Linux, the Windows registry, `vulkaninfo`). It only suggests a profile; nothing is sent.
 
 ### Changed

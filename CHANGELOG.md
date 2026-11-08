@@ -2,6 +2,11 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
+## Not released yet
+
+- **Sturdier downloads**: when GitHub or Hugging Face answer with a temporary error (504, 503, timeout…) or the connection drops, Prisme tries again by itself, and model downloads resume where they stopped. If GitHub's direct release link keeps failing, the engine is downloaded through the GitHub API instead; the SHA-256 check guarantees it is the same file.
+- Clearer message when a download still fails: which server, which error, and to try again later.
+
 ## 1.8.3 · 2026-11-05
 
 - **One-click updates**: the new-version notice has an **Update** button. Prisme downloads the new version from its GitHub releases only, checks the SHA-256 published by GitHub, replaces the program and restarts by itself; the open window reloads on the new version. Available from this version on, in the built programs (not when running the Python script).

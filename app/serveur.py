@@ -19,6 +19,7 @@ import sys
 import tarfile
 import tempfile
 import zipfile
+import http.client
 import urllib.error
 import urllib.request
 import threading
@@ -661,18 +662,82 @@ def contexte_ssl():
     return _contexte_ssl
 
 
+# Erreurs des serveurs de telechargement qui passent en general d'elles-memes : on reessaie
+CODES_PASSAGERS = {408, 425, 429, 500, 502, 503, 504}
+ESSAIS = 6
+PAUSE_ESSAI = 2
+
+
+def erreur_passagere(e):
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code in CODES_PASSAGERS
+    return isinstance(e, (OSError, http.client.HTTPException))
+
+
+def erreur_lisible(e, url):
+    """Message clair quand un telechargement echoue malgre les nouveaux essais."""
+    hote = urlparse(url).hostname or url
+    if isinstance(e, urllib.error.HTTPError):
+        if e.code in CODES_PASSAGERS:
+            return RuntimeError(f'Le serveur de téléchargement ({hote}) ne répond pas (erreur {e.code}). Réessaie dans quelques minutes.')
+        return RuntimeError(f'Téléchargement refusé par {hote} (erreur {e.code}).')
+    return RuntimeError(f'Téléchargement impossible depuis {hote} : vérifie la connexion Internet, puis réessaie.')
+
+
+def lien_api_github(url):
+    """Le meme fichier par l'API GitHub, quand le lien direct d'une release ne repond pas (erreurs 504 de github.com)."""
+    m = re.fullmatch(r'https://github\.com/([\w.-]+)/([\w.-]+)/releases/download/([^/]+)/([^/?#]+)', url)
+    if not m:
+        return None
+    proprietaire, depot, tag, nom = m.groups()
+    requete = urllib.request.Request(f'https://api.github.com/repos/{proprietaire}/{depot}/releases/tags/{tag}',
+                                     headers={'User-Agent': f'Prisme/{VERSION}', 'Accept': 'application/vnd.github+json'})
+    with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=30) as reponse:
+        fichiers = json.load(reponse).get('assets') or []
+    lien = next((a.get('url') for a in fichiers if a.get('name') == unquote(nom)), None)
+    return lien if lien and lien.startswith(f'https://api.github.com/repos/{proprietaire}/{depot}/releases/assets/') else None
+
+
+def verifier_reception(reponse, recu):
+    """Une connexion coupee peut rendre un fichier tronque sans erreur : on compare avec la taille annoncee."""
+    annonce = reponse.headers.get('Content-Length')
+    if annonce and annonce.isdigit() and recu != int(annonce):
+        raise http.client.IncompleteRead(b'', int(annonce) - recu)
+
+
 def telecharger(archive, destination, progression):
-    """Telecharge une archive en verifiant sa taille et son empreinte SHA-256."""
-    empreinte = hashlib.sha256()
-    requete = urllib.request.Request(archive['url'], headers={'User-Agent': f'Prisme/{VERSION}'})
-    with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=60) as reponse, open(destination, 'wb') as fichier:
-        while True:
-            bloc = reponse.read(1024 * 1024)
-            if not bloc:
-                break
-            fichier.write(bloc)
-            empreinte.update(bloc)
-            progression(len(bloc))
+    """Telecharge une archive en verifiant sa taille et son empreinte SHA-256. Les erreurs passageres sont reessayees ;
+    apres deux echecs du lien direct d'une release GitHub, le fichier passe par l'API GitHub. L'empreinte garantit
+    que c'est bien le meme fichier, quel que soit le chemin."""
+    url, en_tetes = archive['url'], {}
+    for essai in range(ESSAIS):
+        if essai == 2:
+            try:
+                secours = lien_api_github(archive['url'])
+            except Exception:
+                secours = None
+            if secours:
+                url, en_tetes = secours, {'Accept': 'application/octet-stream'}
+        recu = 0
+        empreinte = hashlib.sha256()
+        try:
+            requete = urllib.request.Request(url, headers={'User-Agent': f'Prisme/{VERSION}', **en_tetes})
+            with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=60) as reponse, open(destination, 'wb') as fichier:
+                while bloc := reponse.read(1024 * 1024):
+                    fichier.write(bloc)
+                    empreinte.update(bloc)
+                    recu += len(bloc)
+                    progression(len(bloc))
+                verifier_reception(reponse, recu)
+            break
+        except Exception as e:
+            # La progression revient en arriere de ce qui a ete recu pendant cet essai
+            progression(-recu)
+            if not erreur_passagere(e):
+                raise erreur_lisible(e, url) if isinstance(e, urllib.error.HTTPError) else e
+            if essai == ESSAIS - 1:
+                raise erreur_lisible(e, url)
+            time.sleep(min(PAUSE_ESSAI * 2 ** essai, 20))
     if destination.stat().st_size != archive['taille'] or empreinte.hexdigest() != archive['sha256']:
         raise RuntimeError('Le fichier téléchargé ne correspond pas à la version attendue (empreinte différente).')
 
@@ -871,22 +936,38 @@ def telecharger_modele(modele):
         libre = shutil.disk_usage(MODELES).free
         if libre < modele['taille'] - deja + 200 * 1024 * 1024:
             raise RuntimeError(f'Pas assez de place sur le disque : il faut {(modele["taille"] - deja) / 1e9:.1f} Go libres.')
-        en_tetes = {'User-Agent': f'Prisme/{VERSION}'}
-        if deja:
-            en_tetes['Range'] = f'bytes={deja}-'
-        with urllib.request.urlopen(urllib.request.Request(modele['url'], headers=en_tetes), context=contexte_ssl(), timeout=60) as reponse:
-            # Un serveur qui ne reprend pas renvoie tout le fichier : on recommence du debut
-            if deja and reponse.status != 206:
-                deja = 0
-            with verrou_modeles:
-                suivi['fait'] = deja
-            with open(partiel, 'ab' if deja else 'wb') as fichier:
-                while bloc := reponse.read(1024 * 1024):
-                    if suivi.get('annule'):
-                        raise InterruptedError
-                    fichier.write(bloc)
+        for essai in range(ESSAIS):
+            deja = partiel.stat().st_size if partiel.exists() else 0
+            en_tetes = {'User-Agent': f'Prisme/{VERSION}'}
+            if deja:
+                en_tetes['Range'] = f'bytes={deja}-'
+            try:
+                with urllib.request.urlopen(urllib.request.Request(modele['url'], headers=en_tetes), context=contexte_ssl(),
+                                            timeout=60) as reponse:
+                    # Un serveur qui ne reprend pas renvoie tout le fichier : on recommence du debut
+                    if deja and reponse.status != 206:
+                        deja = 0
                     with verrou_modeles:
-                        suivi['fait'] += len(bloc)
+                        suivi['fait'] = deja
+                    recu = 0
+                    with open(partiel, 'ab' if deja else 'wb') as fichier:
+                        while bloc := reponse.read(1024 * 1024):
+                            if suivi.get('annule'):
+                                raise InterruptedError
+                            fichier.write(bloc)
+                            recu += len(bloc)
+                            with verrou_modeles:
+                                suivi['fait'] += len(bloc)
+                    verifier_reception(reponse, recu)
+                break
+            except InterruptedError:
+                raise
+            except Exception as e:
+                if not erreur_passagere(e):
+                    raise erreur_lisible(e, modele['url']) if isinstance(e, urllib.error.HTTPError) else e
+                if essai == ESSAIS - 1:
+                    raise erreur_lisible(e, modele['url'])
+                time.sleep(min(PAUSE_ESSAI * 2 ** essai, 20))
         with verrou_modeles:
             suivi['phase'] = 'verification'
         if partiel.stat().st_size != modele['taille'] or empreinte_fichier(partiel) != modele['sha256']:

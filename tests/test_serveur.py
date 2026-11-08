@@ -319,6 +319,106 @@ class ChoixMoteursTest(unittest.TestCase):
         self.assertNotIn('requiert', serveur.MOTEURS_PAR_SYSTEME['windows-vulkan']['texte'])
 
 
+class TelechargementsTest(unittest.TestCase):
+    """Erreurs passageres des serveurs de telechargement : nouveaux essais, reprise, message clair."""
+
+    def setUp(self):
+        from unittest import mock
+        patch = mock.patch.object(serveur, 'PAUSE_ESSAI', 0)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.dossier = Path(tempfile.mkdtemp(dir=DOSSIER_TEST.name))
+
+    def servir(self, contenu, echecs=0, coupures=0):
+        """Serveur local : renvoie 504 les premieres fois, puis coupe la connexion en cours de route, puis sert le fichier."""
+        import http.server
+        compteur = {'echecs': echecs, 'coupures': coupures, 'requetes': 0}
+
+        class Fichier(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                compteur['requetes'] += 1
+                if compteur['echecs']:
+                    compteur['echecs'] -= 1
+                    self.send_response(504)
+                    self.end_headers()
+                    return
+                debut = 0
+                if self.headers.get('Range'):
+                    debut = int(self.headers['Range'].split('=')[1].split('-')[0])
+                    self.send_response(206)
+                else:
+                    self.send_response(200)
+                self.send_header('Content-Length', str(len(contenu) - debut))
+                self.end_headers()
+                if compteur['coupures']:
+                    compteur['coupures'] -= 1
+                    self.wfile.write(contenu[debut:debut + (len(contenu) - debut) // 2])
+                    self.wfile.flush()
+                    self.connection.close()
+                    return
+                self.wfile.write(contenu[debut:])
+
+        hote = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Fichier)
+        threading.Thread(target=hote.serve_forever, daemon=True).start()
+        self.addCleanup(hote.server_close)
+        self.addCleanup(hote.shutdown)
+        return f'http://127.0.0.1:{hote.server_address[1]}/fichier', compteur
+
+    def test_moteur_apres_erreurs_504(self):
+        import hashlib
+        contenu = os.urandom(200_000)
+        url, compteur = self.servir(contenu, echecs=2)
+        total = []
+        serveur.telecharger({'url': url, 'taille': len(contenu), 'sha256': hashlib.sha256(contenu).hexdigest()},
+                            self.dossier / 'moteur.zip', total.append)
+        self.assertEqual((self.dossier / 'moteur.zip').read_bytes(), contenu)
+        self.assertEqual(sum(total), len(contenu))
+        self.assertEqual(compteur['requetes'], 3)
+
+    def test_moteur_coupe_en_route_puis_complet(self):
+        import hashlib
+        contenu = os.urandom(300_000)
+        url, _ = self.servir(contenu, coupures=1)
+        total = []
+        serveur.telecharger({'url': url, 'taille': len(contenu), 'sha256': hashlib.sha256(contenu).hexdigest()},
+                            self.dossier / 'moteur.zip', total.append)
+        self.assertEqual(sum(total), len(contenu))
+
+    def test_message_clair_si_le_serveur_ne_repond_jamais(self):
+        from unittest import mock
+        url, compteur = self.servir(b'x', echecs=99)
+        with mock.patch.object(serveur, 'ESSAIS', 3), self.assertRaises(RuntimeError) as erreur:
+            serveur.telecharger({'url': url, 'taille': 1, 'sha256': '0' * 64}, self.dossier / 'moteur.zip', lambda n: None)
+        self.assertIn('ne répond pas (erreur 504)', str(erreur.exception))
+        self.assertEqual(compteur['requetes'], 3)
+
+    def test_modele_repris_apres_coupure(self):
+        import hashlib
+        contenu = os.urandom(400_000)
+        url, compteur = self.servir(contenu, echecs=1, coupures=1)
+        m = {'id': 'essai-reprise', 'fichier': 'essai-reprise.gguf', 'url': url, 'taille': len(contenu),
+             'sha256': hashlib.sha256(contenu).hexdigest(), 'remplit': ['modele_diffusion']}
+        serveur.telechargements_modeles[m['id']] = {'phase': 'telechargement', 'fait': 0, 'total': m['taille'], 'erreur': None}
+        self.addCleanup(lambda: (serveur.MODELES / m['fichier']).unlink(missing_ok=True))
+        serveur.telecharger_modele(m)
+        self.assertEqual(serveur.telechargements_modeles[m['id']]['phase'], 'termine')
+        self.assertEqual((serveur.MODELES / m['fichier']).read_bytes(), contenu)
+        self.assertEqual(compteur['requetes'], 3)
+
+    def test_lien_de_secours_github(self):
+        import io
+        from unittest import mock
+        reponse = io.BytesIO(json.dumps({'assets': [
+            {'name': 'moteur.zip', 'url': 'https://api.github.com/repos/projet/moteur/releases/assets/42'},
+            {'name': 'autre.zip', 'url': 'https://api.github.com/repos/projet/moteur/releases/assets/43'}]}).encode())
+        with mock.patch.object(serveur.urllib.request, 'urlopen', return_value=reponse):
+            self.assertEqual(serveur.lien_api_github('https://github.com/projet/moteur/releases/download/v1/moteur.zip'),
+                             'https://api.github.com/repos/projet/moteur/releases/assets/42')
+        self.assertIsNone(serveur.lien_api_github('https://huggingface.co/projet/modele/resolve/main/modele.gguf'))
+
 class CertificatsTest(unittest.TestCase):
     """Telechargements en https : si le Python embarque ne trouve aucun certificat (exe Mac), ceux du systeme sont charges."""
 

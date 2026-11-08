@@ -245,6 +245,23 @@ class OutilsMcpTest(unittest.TestCase):
         self.assertEqual(prisme_client.taille_de_sortie(4000, 100), (1024, 256))
         self.assertEqual(prisme_client.taille_de_sortie(0, 0), (1024, 1024))
 
+    def test_apercu_jpeg_pour_une_grande_image(self):
+        try:
+            from PIL import Image as ImagePil
+        except ImportError:
+            self.skipTest('Pillow absent')
+        import io
+        import os
+        # Bruit : un PNG qui ne se compresse pas, comme une vraie photo
+        tampon = io.BytesIO()
+        ImagePil.frombytes('RGB', (1024, 768), os.urandom(1024 * 768 * 3)).save(tampon, 'PNG')
+        grand = tampon.getvalue()
+        self.assertGreater(len(grand), prisme_client.APERCU_MAX)
+        donnees, genre = prisme_client.apercu(grand)
+        self.assertEqual(genre, 'jpeg')
+        self.assertLessEqual(len(donnees), prisme_client.APERCU_MAX)
+        self.assertTrue(donnees.startswith(b'\xff\xd8'))
+
     def test_apercu_limite(self):
         petit = png()
         self.assertEqual(prisme_client.apercu(petit), (petit, 'png'))

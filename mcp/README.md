@@ -29,7 +29,7 @@ Each image is copied to `PRISME_OUTPUT_DIR` and shown to Claude. If a creation t
 
    On Windows: `py -3 -m venv mcp\.venv`, then `mcp\.venv\Scripts\pip install -r mcp\requirements.txt` and `mcp\.venv\Scripts\python mcp\server.py --check`. The check prints the address, the timeout, the image folder and the five tools.
 
-Optional: `pip install Pillow` in the same environment shows large images to Claude as a lighter JPEG preview; without it, an image over 900 KB is only given as a file path.
+The requirements are the official `mcp` package and Pillow, which turns each image into a lighter JPEG preview for Claude (a 1024 × 1024 PNG is too large to send as is). The full PNG stays in `PRISME_OUTPUT_DIR`.
 
 ## Configuration
 
@@ -115,7 +115,7 @@ Chaque image est copiée dans `PRISME_OUTPUT_DIR` et montrée à Claude. Si une 
 
    Sous Windows : `py -3 -m venv mcp\.venv`, puis `mcp\.venv\Scripts\pip install -r mcp\requirements.txt` et `mcp\.venv\Scripts\python mcp\server.py --check`. La vérification affiche l'adresse, le délai, le dossier des images et les cinq outils.
 
-Facultatif : `pip install Pillow` dans le même environnement montre les grandes images à Claude sous forme d'aperçu JPEG plus léger ; sans lui, une image de plus de 900 Ko n'est donnée que par son chemin.
+Il faut le paquet officiel `mcp` et Pillow, qui transforme chaque image en aperçu JPEG plus léger pour Claude (un PNG de 1024 × 1024 est trop gros pour être envoyé tel quel). Le PNG complet reste dans `PRISME_OUTPUT_DIR`.
 
 ### Configuration
 

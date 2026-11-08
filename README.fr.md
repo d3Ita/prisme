@@ -264,7 +264,7 @@ mcp/.venv/bin/pip install -r mcp/requirements.txt
 claude mcp add prisme -- "$PWD/mcp/.venv/bin/python" "$PWD/mcp/server.py"
 ```
 
-Prisme doit être lancé, avec un profil de modèles téléchargé. Le [README du serveur MCP](mcp/README.md#français) explique l'installation sous Windows, la configuration de Claude Desktop, les réglages (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) et le dépannage. Le serveur MCP a besoin du paquet Python officiel `mcp` ; Prisme lui-même n'a toujours besoin de rien.
+Prisme doit être lancé, avec un profil de modèles téléchargé. Le [README du serveur MCP](mcp/README.md#français) explique l'installation sous Windows, la configuration de Claude Desktop, les réglages (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) et le dépannage. Le serveur MCP a besoin du paquet Python officiel `mcp` et de Pillow ; Prisme lui-même n'a toujours besoin de rien.
 
 ## Sécurité
 

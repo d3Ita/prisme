@@ -250,7 +250,7 @@ mcp/.venv/bin/pip install -r mcp/requirements.txt
 claude mcp add prisme -- "$PWD/mcp/.venv/bin/python" "$PWD/mcp/server.py"
 ```
 
-Prisme must be running with a model profile downloaded. The [MCP README](mcp/README.md) covers Windows, the Claude Desktop configuration, the settings (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) and troubleshooting. The MCP server needs the official `mcp` Python package; Prisme itself still needs nothing.
+Prisme must be running with a model profile downloaded. The [MCP README](mcp/README.md) covers Windows, the Claude Desktop configuration, the settings (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) and troubleshooting. The MCP server needs the official `mcp` Python package and Pillow; Prisme itself still needs nothing.
 
 ## Security
 

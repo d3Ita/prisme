@@ -2,6 +2,10 @@
 
 **English** · [Français](#français)
 
+![How Prisme works](schemas/fonctionnement-en.svg)
+
+In more detail:
+
 ```mermaid
 flowchart LR
     subgraph Clients
@@ -53,6 +57,8 @@ On macOS, `models/`, `images/`, the engines and the settings live in `~/Prisme`.
 ---
 
 ## Français
+
+![Comment fonctionne Prisme](schemas/fonctionnement-fr.svg)
 
 Le schéma ci-dessus montre les mêmes éléments : le navigateur du PC et, si tu les actives, le téléphone et Claude (MCP) parlent au serveur Python ; le serveur lance les moteurs, qui lisent les modèles et écrivent les images.
 

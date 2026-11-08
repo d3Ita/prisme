@@ -57,6 +57,8 @@ Most local image tools ask you to install Python, manage dependencies, or wire n
 
 Prisme aims to be the simplest way to run image models locally, not the most powerful one: an easy alternative to ComfyUI and to cloud image generators.
 
+![How Prisme works: your browser, phone or Claude talk to Prisme, which drives the engines and models on your computer](docs/schemas/fonctionnement-en.svg)
+
 ### Who is Prisme for?
 
 - **People discovering local AI image generation**, who want results without learning a node editor
@@ -125,6 +127,8 @@ Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), 
 Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text model and keep **Offload to the CPU** (Décharger sur le processeur) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
 ## Quick start
+
+![Get started in 4 steps: download, install the engine, pick your machine, describe the image](docs/schemas/demarrage-en.svg)
 
 1. Download the file for your system from the [website](https://d3ita.github.io/prisme/#download) or the [Releases](../../releases) page. The website keeps a copy of the latest release, which still works when GitHub's download links are down (checksums in [SHA256SUMS.txt](https://d3ita.github.io/prisme/telechargements/SHA256SUMS.txt)).
 2. Start Prisme and click **Install the engine** (Installer le moteur): Prisme downloads stable-diffusion.cpp once (about 925 MB on Windows with an NVIDIA card, under 40 MB otherwise). Without the NVIDIA driver, Prisme picks the Vulkan version; set `PRISME_ACCELERATION=cuda` or `vulkan` to force a choice.
@@ -242,6 +246,8 @@ The QR code link contains an access code stored in `app/code-acces.txt`: delete 
 To stop Prisme, click **Quit** (Quitter) or close its window: the server shuts down a few seconds later.
 
 ## Using Prisme with Claude via MCP
+
+![Prisme with Claude: you ask Claude, Claude calls Prisme, the image comes back; licenses are approved in Prisme's window](docs/schemas/claude-en.svg)
 
 If Claude Desktop or Claude Code is installed on your computer, Prisme offers **Connect to Claude** (Connecter à Claude) in a banner and in **Settings → Application**. One click adds Prisme to Claude's configuration (a copy of the original is kept); restart Claude, then just ask: *"Create an image of a fox in the snow with Prisme"*. Nothing else to install: the MCP server is built into the program (`Prisme.exe --mcp`), and Claude starts Prisme by itself if it isn't open.
 

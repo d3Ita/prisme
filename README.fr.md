@@ -52,6 +52,8 @@ Application locale pour créer et modifier des images par intelligence artificie
 - **Ceux qui en ont assez des abonnements et des crédits** des générateurs en ligne
 - **Les familles et petites équipes** qui veulent profiter de la carte graphique d'un PC depuis leurs téléphones
 
+![Comment fonctionne Prisme : ton navigateur, ton téléphone ou Claude parlent à Prisme, qui pilote les moteurs et les modèles sur ton ordinateur](docs/schemas/fonctionnement-fr.svg)
+
 C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne : moins de possibilités avancées, beaucoup moins de complexité.
 
 ## Fonctions
@@ -116,6 +118,8 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et le modèle de texte Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
 ## Installation
+
+![Démarrer en 4 étapes : télécharger, installer le moteur, choisir sa machine, décrire l'image](docs/schemas/demarrage-fr.svg)
 
 1. Télécharge le fichier de ton système depuis le [site](https://d3ita.github.io/prisme/#download) ou la page des versions ([Releases](../../releases)), ou construis-le (voir plus bas). Le site garde une copie de la dernière version, qui marche même quand les liens de téléchargement de GitHub sont en panne (empreintes dans [SHA256SUMS.txt](https://d3ita.github.io/prisme/telechargements/SHA256SUMS.txt)).
 2. Lance Prisme, puis clique sur **Installer le moteur** : Prisme télécharge stable-diffusion.cpp une seule fois (environ 925 Mo sous Windows avec une carte NVIDIA, moins de 40 Mo sinon). Sans pilote NVIDIA, Prisme choisit la version Vulkan ; la variable `PRISME_ACCELERATION=cuda` ou `vulkan` force le choix.
@@ -256,6 +260,8 @@ Sur le téléphone, tape simplement l'adresse : la page affiche un code à 4 chi
 Le téléphone doit être sur le même réseau que le PC. Le lien du QR code contient un code d'accès enregistré dans `app/code-acces.txt` : supprimer ce fichier puis relancer Prisme en crée un nouveau et déconnecte les appareils déjà reliés. N'active pas cet accès sur un réseau public (gare, café, hôtel) : la connexion n'est pas chiffrée.
 
 ## Utiliser Prisme avec Claude via MCP
+
+![Prisme avec Claude : tu demandes à Claude, Claude appelle Prisme, l'image revient ; les licences s'acceptent dans la fenêtre de Prisme](docs/schemas/claude-fr.svg)
 
 Si Claude Desktop ou Claude Code est installé sur ton ordinateur, Prisme propose **Connecter à Claude** dans un bandeau et dans **Réglages → Application**. Un clic ajoute Prisme à la configuration de Claude (une copie de l'original est gardée) ; relance Claude, puis demande-lui simplement : *« Crée avec Prisme l'image d'un renard dans la neige »*. Rien d'autre à installer : le serveur MCP est intégré au programme (`Prisme.exe --mcp`), et Claude lance Prisme tout seul s'il n'est pas ouvert.
 

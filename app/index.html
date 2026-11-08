@@ -45,7 +45,7 @@ const EN = {
   'Il reste à installer le moteur d\'images et à choisir tes modèles :': 'Install the image engine and choose your models:',
   'Installer le moteur': 'Install the engine', 'Télécharger les modèles': 'Download the models', 'Choisir les modèles': 'Choose models',
   'Ouvrir le dossier models': 'Open the models folder', 'Moteur d\'images non installé': 'Image engine not installed',
-  'Modèle de dessin': 'Drawing model', 'Encodeur de texte': 'Text encoder', 'Vision': 'Vision', 'VAE': 'VAE',
+  'Modèle de dessin': 'Drawing model', 'Encodeur de texte': 'Text encoder', 'Modèle de texte': 'Text model', 'Vision': 'Vision', 'VAE': 'VAE',
   'Prisme pour Mac nécessite une puce Apple (M1 ou plus récente)': 'Prisme for Mac needs an Apple chip (M1 or later)',
   // Fil
   'Aujourd\'hui': 'Today', 'Hier': 'Yesterday', 'Sans description': 'No description',
@@ -114,6 +114,7 @@ const EN = {
   'Modèles et paramètres utilisés pour les prochaines générations.': 'Models and parameters used for the next creations.',
   'Modèles': 'Models', 'Télécharger': 'Download', 'Actualiser': 'Refresh', 'Ouvrir le dossier': 'Open the folder',
   'Fait l\'image ·': 'Makes the image ·', 'Comprend la description ·': 'Understands the description ·',
+  'Comprend la description, sert aussi à Améliorer ·': 'Understands the description, also used by Enhance ·',
   'Lit l\'image de départ ·': 'Reads the starting image ·', 'Produit l\'image finale ·': 'Produces the final image ·', 'Où le trouver': 'Where to get it',
   'Aucun (modification d\'image désactivée)': 'None (image editing disabled)', 'introuvable': 'not found', 'Désactivée': 'Off',
   'LoRA': 'LoRA', 'Fichier introuvable dans models\\loras': 'File not found in models\\loras',
@@ -159,12 +160,17 @@ const EN = {
   'Aucune mise à jour automatique disponible.': 'No automatic update available.', 'Mise à jour déjà en cours.': 'Update already running.',
   'Prisme ne peut pas se remplacer à cet endroit : télécharge la nouvelle version à la main.': 'Prisme cannot replace itself in this location: download the new version by hand.',
   'La nouvelle version est incomplète.': 'The new version is incomplete.',
-  'Produit l\'image finale': 'Produces the final image', 'Installe d\'abord le moteur d\'images.': 'Install the image engine first.',
+  'Produit l\'image finale': 'Produces the final image', 'Fait l\'image': 'Makes the image',
+  'Comprend ta description, et sert aussi au bouton Améliorer': 'Understands your description, and is also used by the Enhance button',
+  'Lit l\'image de départ, pour la modifier': 'Reads the starting image, to edit it',
+  'Fait fonctionner le bouton Améliorer, avec le modèle de texte': 'Runs the Enhance button, together with the text model',
+  'Installer': 'Install',
+  'Installe d\'abord le moteur d\'images.': 'Install the image engine first.',
   // Messages du serveur
   'Accès refusé : reconnecte-toi depuis l\'adresse de Prisme.': 'Access refused: reconnect from Prisme\'s address.',
   'Adresse non autorisée.': 'Address not allowed.', 'Attends la fin de l\'amélioration de la description.': 'Wait for the description enhancement to finish.',
   'Attends la fin du calcul en cours.': 'Wait for the current task to finish.', 'Cette demande a expiré.': 'This request has expired.',
-  'Choisis au moins le modèle de dessin, l\'encodeur de texte et le VAE.': 'Choose at least the drawing model, the text encoder and the VAE.',
+  'Choisis au moins le modèle de dessin, le modèle de texte et le VAE.': 'Choose at least the drawing model, the text model and the VAE.',
   'Choisis un modèle d\'amélioration dans les Réglages.': 'Choose an enhancement model in Settings.',
   'Disponible seulement sur le PC.': 'Only available on the PC.', 'Données invalides.': 'Invalid data.',
   'Image de départ introuvable.': 'Starting image not found.', 'Image introuvable': 'Image not found', 'Image introuvable.': 'Image not found.',
@@ -196,6 +202,7 @@ const MOTIFS_EN = [
   [/^Installer le moteur \((.+)\)$/, 'Install the engine ($1)'], [/^Installation de (.+)…$/, 'Installing $1…'],
   [/^Téléchargement de (.+) : (.+) sur (.+)$/, 'Downloading $1: $2 of $3'],
   [/^Téléchargé une seule fois depuis la version officielle de (.+) \((.+)\)\.$/, 'Downloaded once from the official release of $1 ($2).'],
+  [/^Version officielle (.+) · (.+)$/, 'Official release $1 · $2'],
   [/^(.+) (\S+) installé\.$/, '$1 $2 installed.'], [/^(.+) n'est pas encore installé\.$/, '$1 is not installed yet.'],
   [/^(.+) est installé$/, '$1 is installed'], [/^(\d+) fichiers trouvés dans (.+)$/, '$1 files found in $2'],
   [/^Aucun modèle trouvé dans (.+)$/, 'No model found in $1'], [/^(\d+) modèles disponibles dans Ollama\.$/, '$1 models available in Ollama.'],
@@ -633,6 +640,7 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 .modele .barre-installation { grid-column: 1 / -1; margin-top: 4px; }
 .modele .etat-modele { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--texte-2); }
 .modele .etat-modele.alerte { color: var(--danger); }
+.liste-modeles .role-modele { margin: -4px 0 8px; font-size: 12.5px; color: var(--texte-3); }
 .modele .present { color: var(--succes); font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 5px; }
 .carte-modeles > footer { display: flex; gap: 8px; align-items: center; padding: 14px 24px; border-top: 1px solid var(--bordure); flex-wrap: wrap; }
 .carte-modeles > footer .espace { flex: 1; }
@@ -958,7 +966,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       <section class="bloc">
         <h4>Modèles <span class="liens"><button type="button" class="bouton-lien" id="ouvrir-modeles">Télécharger</button><button type="button" class="bouton-lien" id="actualiser-modeles">Actualiser</button><button type="button" class="bouton-lien" id="dossier-modeles">Ouvrir le dossier</button></span></h4>
         <div class="reglage"><label for="r-diffusion">Modèle de dessin<small>Fait l'image · <a class="lien-modele" href="https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-diffusion" data-cle="modele_diffusion"></select></div>
-        <div class="reglage"><label for="r-texte">Encodeur de texte<small>Comprend la description · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-texte" data-cle="modele_texte"></select></div>
+        <div class="reglage"><label for="r-texte">Modèle de texte<small>Comprend la description, sert aussi à Améliorer · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-texte" data-cle="modele_texte"></select></div>
         <div class="reglage"><label for="r-vision">Vision<small>Lit l'image de départ · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vision" data-cle="modele_vision"></select></div>
         <div class="reglage"><label for="r-vae">VAE<small>Produit l'image finale · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vae" data-cle="vae"></select></div>
         <p class="note-champ" id="dossier-chemin" style="margin:4px 0 0"></p>
@@ -1609,14 +1617,64 @@ $('#config-dossier').addEventListener('click', () => api('/api/dossier-modeles',
 let minuteurModeles = null;
 const ACTIFS = ['attente', 'telechargement', 'verification'];
 
+const ROLES_MODELES = {
+  'Modèle de dessin': 'Fait l\'image', 'Modèle de texte': 'Comprend ta description, et sert aussi au bouton Améliorer',
+  'Vision': 'Lit l\'image de départ, pour la modifier', 'VAE': 'Produit l\'image finale',
+};
+// Le moteur de texte manque et peut s'installer tout de suite (sous Windows CUDA, il reprend le moteur d'images)
+function moteurTexteAInstaller(m) {
+  const t = m?.texte;
+  return !!t && !t.installe && !(t.requiert && !m[t.requiert].installe)
+    && !['telechargement', 'extraction'].includes(t.installation?.phase);
+}
+function rendreMoteurTexte(m) {
+  const info = m?.texte;
+  if (!info) return null;
+  const inst = info.installation, actif = !!inst && ['telechargement', 'extraction'].includes(inst.phase);
+  const prerequis = info.requiert && !m[info.requiert].installe;
+  const bloc = document.createElement('section');
+  bloc.innerHTML = `<h4>Moteur de texte</h4><p class="role-modele">Fait fonctionner le bouton Améliorer, avec le modèle de texte</p>
+    <div class="modele"><div><strong translate="no"></strong><span class="conseil">Conseillé</span><small></small></div><div class="action"></div></div>`;
+  const ligne = bloc.querySelector('.modele'), action = ligne.querySelector('.action');
+  ligne.querySelector('strong').textContent = `${info.nom} ${info.version}`;
+  ligne.querySelector('small').textContent = `Version officielle ${info.acceleration} · ${taille(info.taille)}`;
+  if (info.installe) action.innerHTML = '<span class="present"><svg class="i"><use href="#i-ok"/></svg>Installé</span>';
+  else if (!actif) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'bouton-primaire'; b.textContent = 'Installer';
+    b.disabled = !!prerequis;
+    b.addEventListener('click', () => installerMoteur('texte').then(majModeles));
+    action.append(b);
+  }
+  let detail = '';
+  if (actif) {
+    detail = inst.phase === 'extraction' ? `Installation de ${info.nom}…` : `Téléchargement de ${info.nom} : ${taille(inst.fait)} sur ${taille(inst.total)}`;
+    const barre = document.createElement('div');
+    barre.className = 'barre-installation';
+    barre.innerHTML = '<span></span>';
+    barre.firstChild.style.width = Math.floor(inst.fait / inst.total * 100) + '%';
+    ligne.append(barre);
+  } else if (!info.installe && inst?.phase === 'erreur') detail = inst.erreur;
+  else if (!info.installe && prerequis) detail = 'Installe d\'abord le moteur d\'images.';
+  if (detail) {
+    const texte = document.createElement('p');
+    texte.className = 'etat-modele' + (inst?.phase === 'erreur' && !actif ? ' alerte' : '');
+    texte.textContent = detail;
+    ligne.append(texte);
+  }
+  return bloc;
+}
+
 function rendreModeles(infos) {
   const liste = $('#liste-modeles');
   liste.innerHTML = '';
   const roles = [...new Set(infos.modeles.map(m => m.role))];
   for (const role of roles) {
     const bloc = document.createElement('section');
-    bloc.innerHTML = `<h4></h4>`;
+    bloc.innerHTML = `<h4></h4><p class="role-modele"></p>`;
     bloc.querySelector('h4').textContent = role;
+    bloc.querySelector('p').textContent = ROLES_MODELES[role] || '';
+    bloc.querySelector('p').hidden = !ROLES_MODELES[role];
     for (const m of infos.modeles.filter(x => x.role === role)) {
       const t = m.telechargement, actif = t && ACTIFS.includes(t.phase);
       const ligne = document.createElement('div');
@@ -1658,6 +1716,8 @@ function rendreModeles(infos) {
     }
     liste.append(bloc);
   }
+  const blocMoteur = rendreMoteurTexte(infos.moteurs);
+  if (blocMoteur) liste.append(blocMoteur);
   // Ce que Prisme a vu de la machine, et pourquoi il conseille ces versions
   const machine = infos.machine, go = o => Math.round(o / 2 ** 30);
   const ligneMachine = $('#machine-modeles');
@@ -1669,11 +1729,13 @@ function rendreModeles(infos) {
       ? `${description} : Prisme conseille les versions légères, plus rapides et plus stables sur ta machine.`
       : `${description} : Prisme conseille les versions complètes, de meilleure qualité.`;
   }
+  // Tout telecharger prend aussi le moteur de texte, s'il peut s'installer
   const manquants = infos.modeles.filter(m => m.conseille && !m.present);
-  const restant = manquants.reduce((t, m) => t + m.taille, 0);
-  $('#tout-telecharger').hidden = !manquants.length;
+  const moteurTexte = moteurTexteAInstaller(infos.moteurs);
+  const restant = manquants.reduce((t, m) => t + m.taille, 0) + (moteurTexte ? infos.moteurs.texte.taille : 0);
+  $('#tout-telecharger').hidden = !manquants.length && !moteurTexte;
   $('#tout-telecharger').textContent = `Tout télécharger · ${taille(restant)}`;
-  $('#tout-telecharger').disabled = manquants.every(m => m.telechargement && ACTIFS.includes(m.telechargement.phase));
+  $('#tout-telecharger').disabled = !moteurTexte && manquants.every(m => m.telechargement && ACTIFS.includes(m.telechargement.phase));
   $('#place-disque').textContent = `${taille(infos.libre)} libres sur le disque`;
 }
 
@@ -1682,7 +1744,8 @@ async function majModeles() {
   let infos;
   try { infos = await api('/api/modeles-conseilles'); } catch (err) { note(err.message, 'erreur'); return; }
   rendreModeles(infos);
-  const enCours = infos.modeles.some(m => m.telechargement && ACTIFS.includes(m.telechargement.phase));
+  const enCours = infos.modeles.some(m => m.telechargement && ACTIFS.includes(m.telechargement.phase))
+    || ['telechargement', 'extraction'].includes(infos.moteurs?.texte?.installation?.phase);
   const termines = infos.modeles.filter(m => m.present && m.telechargement?.phase === 'termine' && !etat.modelesAnnonces?.has(m.id));
   if (termines.length) {
     etat.modelesAnnonces = etat.modelesAnnonces || new Set();
@@ -1709,7 +1772,9 @@ $('#config-telecharger').addEventListener('click', ouvrirModeles);
 $('#ouvrir-modeles').addEventListener('click', ouvrirModeles);
 $('#tout-telecharger').addEventListener('click', async () => {
   const infos = await api('/api/modeles-conseilles').catch(() => null);
-  if (infos) telechargerModeles(infos.modeles.filter(m => m.conseille && !m.present).map(m => m.id));
+  if (!infos) return;
+  if (moteurTexteAInstaller(infos.moteurs)) await installerMoteur('texte');
+  telechargerModeles(infos.modeles.filter(m => m.conseille && !m.present).map(m => m.id));
 });
 
 // ---------- Nouvelle version ----------

@@ -304,6 +304,20 @@ class ModelesConseillesTest(unittest.TestCase):
                 self.assertEqual(serveur.profil_machine()['profil'], attendu, (mac, vive, video))
         serveur._machine = None
 
+    def test_fenetre_propose_le_modele_et_le_moteur_de_texte(self):
+        from unittest import mock
+        for profil in ('complet', 'leger'):
+            with mock.patch.object(serveur, 'profil_machine', return_value={'profil': profil}):
+                infos = serveur.etat_modeles_conseilles()
+            # Chaque role a un modele conseille, sous un nom clair
+            roles = {m['role'] for m in infos['modeles'] if m['conseille']}
+            self.assertEqual(roles, {'Modèle de dessin', 'Modèle de texte', 'Vision', 'VAE'}, profil)
+            # Le moteur de texte du bouton Ameliorer est propose dans la meme fenetre
+            texte = infos['moteurs']['texte']
+            self.assertEqual(texte['nom'], 'llama.cpp')
+            self.assertGreater(texte['taille'], 0)
+            self.assertIn('installe', texte)
+
 
 class ChoixMoteursTest(unittest.TestCase):
     def test_windows_sans_nvidia_passe_par_vulkan(self):

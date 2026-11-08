@@ -175,7 +175,7 @@ These official, general-purpose models work with Prisme. The easiest way is **R�
 | Role in Prisme | Recommended file | Where to find it | Lighter option |
 |---|---|---|---|
 | Modèle de dessin (diffusion model) | `Q5_K`, `Q6_K` or `Q8_0` GGUF | [Qwen-Image-2.1-Turbo-GGUF](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF) | `Q4_K` |
-| Encodeur de texte (text encoder) | `Qwen3VL-8B-Instruct-Q8_0.gguf` (8.7 GB) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `Q4_K_M` (5 GB): edits look grainier |
+| Modèle de texte (text model) | `Qwen3VL-8B-Instruct-Q8_0.gguf` (8.7 GB) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `Q4_K_M` (5 GB): edits look grainier |
 | Vision (image encoder, for editing) | `mmproj-Qwen3VL-8B-Instruct-F16.gguf` (1.2 GB) | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | `mmproj` `Q8_0` |
 | VAE | `vae/diffusion_pytorch_model.safetensors` (675 MB) | [Qwen-Image-2.1-Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae) | |
 | Modèle de langage (prompt enhancement) | The same text encoder and vision files | [Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) | [Qwen3-VL-4B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF) |

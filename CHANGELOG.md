@@ -2,6 +2,11 @@
 
 All notable changes to Prisme. Downloads are on the [Releases](https://github.com/d3Ita/prisme/releases) page.
 
+## Not released yet
+
+- **Models window**: the text encoder is now called **Text model**, and each role says what it is for (the text model also powers **Enhance**).
+- The **text engine** (llama.cpp) needed by **Enhance** can be installed from the models window, and **Download all** installs it too. Before, it was only offered in Settings.
+
 ## 1.8.4 · 2026-11-08
 
 - **Sturdier downloads**: when GitHub or Hugging Face answer with a temporary error (504, 503, timeout…) or the connection drops, Prisme tries again by itself, and model downloads resume where they stopped. If GitHub's direct release link keeps failing, the engine is downloaded through the GitHub API instead; the SHA-256 check guarantees it is the same file.

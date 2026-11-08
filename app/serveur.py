@@ -343,7 +343,7 @@ def valider_reglages(donnees):
     except (TypeError, ValueError):
         return None, 'Une valeur est invalide.'
     if not r['modele_diffusion'] or not r['modele_texte'] or not r['vae']:
-        return None, 'Choisis au moins le modèle de dessin, l\'encodeur de texte et le VAE.'
+        return None, 'Choisis au moins le modèle de dessin, le modèle de texte et le VAE.'
     if not 1 <= r['etapes'] <= 150:
         return None, 'Le nombre d\'étapes doit être entre 1 et 150.'
     if not 0 <= r['cfg'] <= 30:
@@ -395,7 +395,7 @@ def problemes_configuration(r):
         problemes.append('Bibliothèques système manquantes : sudo apt install ' + ' '.join(manquants))
     if not SD_CLI.is_file():
         problemes.append('Moteur d\'images non installé')
-    roles = {'modele_diffusion': 'Modèle de dessin', 'modele_texte': 'Encodeur de texte', 'vae': 'VAE'}
+    roles = {'modele_diffusion': 'Modèle de dessin', 'modele_texte': 'Modèle de texte', 'vae': 'VAE'}
     for cle, nom in roles.items():
         if not r[cle]:
             problemes.append(f'{nom} : aucun fichier choisi dans les Réglages')
@@ -841,12 +841,12 @@ MODELES_CONSEILLES = [
      'fichier': 'Qwen-Image-2.1-Turbo-Q8_0.gguf', 'url': DESSIN + 'Qwen-Image-2.1-Turbo-Q8_0.gguf',
      'taille': 7591577312, 'sha256': '8d74ae0be534df394ea2d29f04b77f879318c9e0df20a3e208e6bedbf89b4159',
      'remplit': ['modele_diffusion']},
-    {'id': 'texte-q8', 'role': 'Encodeur de texte', 'titre': 'Qwen3-VL 8B · Q8_0',
+    {'id': 'texte-q8', 'role': 'Modèle de texte', 'titre': 'Qwen3-VL 8B · Q8_0',
      'detail': 'Meilleure qualité, sert aussi à améliorer les descriptions', 'pour': ('complet',),
      'fichier': 'Qwen3VL-8B-Instruct-Q8_0.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q8_0.gguf',
      'taille': 8709519456, 'sha256': '0d264b3941185d00a74f75c4245521dae088ff1efc90ab8d1754e83f5844adb0',
      'remplit': ['modele_texte', 'amelioration_modele_local']},
-    {'id': 'texte-q4', 'role': 'Encodeur de texte', 'titre': 'Qwen3-VL 8B · Q4_K_M',
+    {'id': 'texte-q4', 'role': 'Modèle de texte', 'titre': 'Qwen3-VL 8B · Q4_K_M',
      'detail': 'Plus léger, sert aussi à améliorer les descriptions', 'pour': ('leger',),
      'fichier': 'Qwen3VL-8B-Instruct-Q4_K_M.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q4_K_M.gguf',
      'taille': 5027784800, 'sha256': '67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2',
@@ -1053,7 +1053,8 @@ def etat_modeles_conseilles():
                       'telechargement': dict(telechargements_modeles[m['id']]) if m['id'] in telechargements_modeles else None}
                    for m in MODELES_CONSEILLES]
     MODELES.mkdir(parents=True, exist_ok=True)
-    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine}
+    # Le moteur de texte (pour Ameliorer) est propose dans la meme fenetre
+    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs()}
 
 
 # Avis de nouvelle version : le numero de la derniere version publiee sur GitHub, lu une fois au lancement

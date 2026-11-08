@@ -213,22 +213,128 @@ class ModelesConseillesTest(unittest.TestCase):
 
     def test_catalogue(self):
         import re
+        catalogue = serveur.CATALOGUE
+        ids = [m['id'] for m in catalogue['modeles']]
+        self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(len(serveur.MODELES_PAR_ID), len(serveur.MODELES_CONSEILLES))
-        for m in serveur.MODELES_CONSEILLES:
-            self.assertTrue(m['url'].startswith('https://huggingface.co/'), m['url'])
-            self.assertFalse(any(mot in (m['url'] + m['fichier']).lower() for mot in LiensModelesTest.INTERDITS), m['url'])
-            self.assertRegex(m['sha256'], r'^[0-9a-f]{64}$')
-            self.assertGreater(m['taille'], 100_000_000)
-            self.assertTrue(serveur.chemin_relatif_sur(m['fichier']) and '/' not in m['fichier'])
-            self.assertTrue(set(m['remplit']) <= set(serveur.REGLAGES_DEFAUT), m['id'])
-        # Pour chaque ensemble (complet, leger), un seul modele conseille par role
-        for profil in ('complet', 'leger'):
-            for role in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae'):
-                conseilles = [m['id'] for m in serveur.MODELES_CONSEILLES if role in m['remplit'] and profil in m['pour']]
-                self.assertEqual(len(conseilles), 1, (profil, role, conseilles))
-        # L'ensemble leger tient dans environ 11 Go
-        leger = sum(m['taille'] for m in serveur.MODELES_CONSEILLES if 'leger' in m['pour'])
-        self.assertLess(leger, 11 * 1024 ** 3)
+        for m in catalogue['modeles']:
+            with self.subTest(modele=m['id']):
+                for champ in ('id', 'role', 'famille', 'nom', 'quantification', 'detail', 'page', 'url', 'fichier', 'taille',
+                              'sha256', 'licence', 'remplit', 'vide', 'reglages'):
+                    self.assertIn(champ, m)
+                self.assertIn(m['role'], serveur.ROLES_MODELES)
+                self.assertTrue(m['detail']['fr'] and m['detail']['en'])
+                self.assertTrue(m['url'].startswith(m['page'] + '/resolve/main/'), m['url'])
+                self.assertTrue(m['page'].startswith('https://huggingface.co/'), m['page'])
+                self.assertFalse(any(mot in (m['url'] + m['fichier']).lower() for mot in LiensModelesTest.INTERDITS), m['url'])
+                self.assertGreater(m['taille'], 100_000_000)
+                if m['sha256'] is not None:
+                    self.assertRegex(m['sha256'], r'^[0-9a-f]{64}$')
+                self.assertTrue(m['licence']['nom'] and m['licence']['url'].startswith('https://'))
+                self.assertTrue(serveur.chemin_relatif_sur(m['fichier']) and '/' not in m['fichier'])
+                self.assertTrue(set(m['remplit'] + m['vide']) <= set(serveur.REGLAGES_DEFAUT), m['id'])
+                if m['reglages']:
+                    self.assertIsNone(serveur.valider_reglages({**BASE, **m['reglages']})[1])
+        # Deux fichiers differents ne portent jamais le meme nom dans models/
+        fichiers = [m['fichier'] for m in catalogue['modeles']]
+        self.assertEqual(len(fichiers), len(set(fichiers)))
+
+    def test_profils(self):
+        par_id = {m['id']: m for m in serveur.CATALOGUE['modeles']}
+        ids = [p['id'] for p in serveur.PROFILS]
+        self.assertEqual(len(ids), len(set(ids)))
+        for profil in serveur.PROFILS:
+            with self.subTest(profil=profil['id']):
+                for champ in ('nom', 'description', 'materiel'):
+                    self.assertTrue(profil[champ]['fr'] and profil[champ]['en'], champ)
+                self.assertTrue(profil['vitesse']['fr'] and profil['vitesse']['en'])
+                self.assertIn(profil['statut'], ('recommande', 'experimental'))
+                self.assertIn(profil['cible']['type'], ('pc', 'mac'))
+                modeles = [par_id[i] for i in profil['modeles']]
+                roles = [m['role'] for m in modeles]
+                # Un fichier par role ; la vision (modification d'image) est facultative
+                for role in ('image', 'texte', 'vae'):
+                    self.assertEqual(roles.count(role), 1, role)
+                self.assertLessEqual(roles.count('edition'), 1)
+                self.assertEqual(profil['edition'], 'edition' in roles)
+                # Les fichiers d'un profil vont ensemble
+                self.assertEqual(len({m['famille'] for m in modeles}), 1)
+                self.assertEqual(profil['taille_totale'], sum(m['taille'] for m in modeles))
+                if profil['statut'] == 'recommande':
+                    for m in modeles:
+                        self.assertTrue(m['url'] and m['sha256'], m['id'])
+        # Toujours un profil sans carte graphique, et un profil par taille de Mac
+        self.assertTrue(any(p['cible'] == {'type': 'pc', 'video_min': 0, 'memoire_min': 0} for p in serveur.PROFILS))
+        self.assertEqual(len([p for p in serveur.PROFILS if p['cible']['type'] == 'mac']), 3)
+
+    def test_suggestion_selon_la_machine(self):
+        go = serveur.GO
+        carte = lambda video: {'nom': 'Carte', 'video': video * go}
+        cas = [
+            ({'mac': False, 'memoire': 8 * go, 'video': 0, 'carte': None}, 'cpu-8go'),
+            ({'mac': False, 'memoire': 16 * go, 'video': 0.5 * go, 'carte': carte(0.5)}, 'cpu-8go'),
+            ({'mac': False, 'memoire': 16 * go, 'video': 4 * go, 'carte': carte(4)}, 'gpu-4go'),
+            ({'mac': False, 'memoire': 16 * go, 'video': 6 * go, 'carte': carte(6)}, 'gpu-4go'),
+            ({'mac': False, 'memoire': 32 * go, 'video': 8 * go, 'carte': carte(8)}, 'gpu-8go'),
+            ({'mac': False, 'memoire': 16 * go, 'video': 12 * go, 'carte': carte(12)}, 'gpu-8go'),
+            ({'mac': False, 'memoire': 32 * go, 'video': 12 * go, 'carte': carte(12)}, 'gpu-12go'),
+            ({'mac': False, 'memoire': 64 * go, 'video': 24 * go, 'carte': carte(24)}, 'gpu-16go'),
+            ({'mac': False, 'memoire': 0, 'video': 16 * go, 'carte': carte(16)}, 'gpu-16go'),
+            # Carte vue mais memoire illisible : l'utilisateur choisit
+            ({'mac': False, 'memoire': 32 * go, 'video': 0, 'carte': {'nom': 'Radeon', 'video': 0}}, None),
+            ({'mac': False, 'memoire': 8 * go, 'video': 0, 'carte': {'nom': 'Iris', 'video': 0, 'integree': True}}, 'cpu-8go'),
+            ({'mac': True, 'memoire': 8 * go, 'video': 8 * go, 'carte': None}, 'mac-8go'),
+            ({'mac': True, 'memoire': 18 * go, 'video': 18 * go, 'carte': None}, 'mac-16go'),
+            ({'mac': True, 'memoire': 36 * go, 'video': 36 * go, 'carte': None}, 'mac-32go'),
+            ({'mac': True, 'memoire': 0, 'video': 0, 'carte': None}, None),
+        ]
+        for machine, attendu in cas:
+            with self.subTest(machine=machine):
+                self.assertEqual(serveur.suggerer_profil(machine), attendu)
+
+    def test_profil_deja_telecharge_applique_sans_retelecharger(self):
+        from unittest import mock
+        serveur.MODELES.mkdir(parents=True, exist_ok=True)
+        zimage = [serveur.MODELES_PAR_ID[i] for i in ('zimage-q3', 'qwen3-4b-q4', 'zimage-vae')]
+        serveur.FICHIER_REGLAGES.parent.mkdir(exist_ok=True)
+        serveur.FICHIER_REGLAGES.write_text(json.dumps({'modele_vision': 'mmproj.gguf', 'amelioration_vision_locale': 'mmproj.gguf',
+                                                        'etapes': 8, 'cfg': 1.0, 'sigmas': serveur.SIGMAS_RAPIDE}), encoding='utf-8')
+        fichiers = []
+        try:
+            for m in zimage:
+                chemin = serveur.MODELES / m['fichier']
+                with open(chemin, 'wb') as f:
+                    f.truncate(m['taille'])
+                fichiers.append(chemin)
+            with mock.patch.object(serveur, 'telecharger_modele') as telecharger:
+                for m in zimage:
+                    serveur.demander_modele(m['id'])
+                telecharger.assert_not_called()
+            r = serveur.lire_reglages()
+            self.assertEqual((r['modele_diffusion'], r['modele_texte'], r['vae'], r['amelioration_modele_local']),
+                             ('z_image_turbo-Q3_K.gguf', 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf', 'z-image-vae.safetensors',
+                              'Qwen3-4B-Instruct-2507-Q4_K_M.gguf'))
+            # La vision de Qwen3-VL ne va pas avec ce modele de texte, et les sigmas de Qwen-Image non plus
+            self.assertEqual((r['modele_vision'], r['amelioration_vision_locale'], r['sigmas'], r['etapes']), ('', '', '', 8))
+            profil = next(p for p in serveur.etat_profils()['profils'] if p['id'] == 'cpu-8go')
+            self.assertEqual((profil['taille_restante'], profil['installe'], profil['actif']), (0, True, True))
+            self.assertEqual(serveur.telechargements_modeles['zimage-q3']['phase'], 'termine')
+        finally:
+            for chemin in fichiers:
+                chemin.unlink(missing_ok=True)
+            for m in zimage:
+                serveur.telechargements_modeles.pop(m['id'], None)
+
+    def test_modification_sans_vision_message_clair(self):
+        import base64
+        serveur.etat.clear()
+        serveur.etat.update(occupe=True, resultats=[], erreur=None)
+        r = {**serveur.REGLAGES_DEFAUT, **BASE, 'modele_vision': ''}
+        source = 'data:image/png;base64,' + base64.b64encode(b'\x89PNG').decode()
+        serveur.generer({'reglages': r, 'prompt': 'neige', 'largeur': 512, 'hauteur': 512, 'nombre': 1, 'seed': 1,
+                         'source_data': source})
+        self.assertIn('ne savent pas modifier une image', serveur.etat['erreur'])
+        self.assertEqual(serveur.etat['phase'], 'erreur')
 
     def servir(self, contenu):
         """Petit serveur HTTP local qui sait reprendre un telechargement (en-tete Range)."""
@@ -259,7 +365,8 @@ class ModelesConseillesTest(unittest.TestCase):
     def modele(self, contenu, **autres):
         import hashlib
         m = {'id': 'essai', 'fichier': 'essai-dessin.gguf', 'url': self.servir(contenu), 'taille': len(contenu),
-             'sha256': hashlib.sha256(contenu).hexdigest(), 'remplit': ['modele_diffusion'], 'profil_rapide': True}
+             'sha256': hashlib.sha256(contenu).hexdigest(), 'remplit': ['modele_diffusion'],
+             'reglages': serveur.MODELES_PAR_ID['dessin-q4']['reglages']}
         m.update(autres)
         serveur.telechargements_modeles[m['id']] = {'phase': 'telechargement', 'fait': 0, 'total': m['taille'], 'erreur': None}
         return m
@@ -307,7 +414,7 @@ class ModelesConseillesTest(unittest.TestCase):
     def test_fenetre_propose_le_modele_et_le_moteur_de_texte(self):
         from unittest import mock
         for profil in ('complet', 'leger'):
-            with mock.patch.object(serveur, 'profil_machine', return_value={'profil': profil}):
+            with mock.patch.object(serveur, 'profil_machine', return_value={'profil': profil, 'mac': False, 'suggestion': None}):
                 infos = serveur.etat_modeles_conseilles()
             # Chaque role a un modele conseille, sous un nom clair
             roles = {m['role'] for m in infos['modeles'] if m['conseille']}
@@ -734,6 +841,20 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertIn(f'prisme_acces={serveur.CODE}', cookie)
         self.assertIn('HttpOnly', cookie)
         self.assertEqual(self.requete('GET', '/?code=faux', entetes={'X-Test-Distant': '1'})[0], 401)
+
+    def test_profils_en_lecture_seule_sur_le_pc(self):
+        statut, _, corps = self.requete('GET', '/api/profils')
+        self.assertEqual(statut, 200)
+        infos = json.loads(corps)
+        self.assertEqual({p['id'] for p in infos['profils']}, {p['id'] for p in serveur.PROFILS})
+        self.assertIn('suggestion', infos)
+        self.assertIn(infos['conseille'], {p['id'] for p in serveur.PROFILS})
+        self.assertGreater(infos['libre'], 0)
+        premier = infos['profils'][0]['modeles'][0]
+        self.assertTrue(premier['url'].startswith('https://huggingface.co/') and 'present' in premier)
+        # La configuration de la machine ne sort pas du PC
+        self.assertEqual(self.distant('/api/profils', serveur.CODE)[0], 403)
+        self.assertEqual(self.poster('/api/profils')[0], 404)
 
     def test_installation_de_moteur(self):
         self.assertEqual(self.poster('/api/installer-moteur', json.dumps({'moteur': 'inconnu'}))[0], 400)

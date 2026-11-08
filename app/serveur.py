@@ -826,47 +826,17 @@ def etat_moteurs():
                 for nom, m in MOTEURS.items()}
 
 
-# Modeles conseilles, telechargeables depuis Prisme : modeles officiels et generalistes, verifies par empreinte
-HF = 'https://huggingface.co/'
-DESSIN = HF + 'AtomicChat/Qwen-Image-2.1-Turbo-GGUF/resolve/main/'
-VL8B = HF + 'Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/'
+# Modeles conseilles, telechargeables depuis Prisme : modeles officiels et generalistes, verifies par empreinte.
+# Le catalogue (fichiers et profils par machine) est dans app/modeles.json
+CATALOGUE = json.loads((RESSOURCES / 'modeles.json').read_text(encoding='utf-8'))
+ROLES_MODELES = {'image': 'Modèle de dessin', 'texte': 'Modèle de texte', 'edition': 'Vision', 'vae': 'VAE'}
 MODELES_CONSEILLES = [
-    {'id': 'dessin-q4', 'role': 'Modèle de dessin', 'titre': 'Qwen-Image 2.1 Turbo · Q4_K',
-     'detail': 'Léger : cartes graphiques de 8 Go', 'pour': ('complet', 'leger'), 'profil_rapide': True,
-     'fichier': 'Qwen-Image-2.1-Turbo-AD-Q4_K.gguf', 'url': DESSIN + 'Qwen-Image-2.1-Turbo-AD-Q4_K.gguf',
-     'taille': 4201694944, 'sha256': '4bb73c53cbe284bbd6d69b9fdc59539c531f0389dd2aa567663d777f8130bc59',
-     'remplit': ['modele_diffusion']},
-    {'id': 'dessin-q8', 'role': 'Modèle de dessin', 'titre': 'Qwen-Image 2.1 Turbo · Q8_0',
-     'detail': 'Meilleure qualité : cartes de 12 Go ou plus', 'pour': (), 'profil_rapide': True,
-     'fichier': 'Qwen-Image-2.1-Turbo-Q8_0.gguf', 'url': DESSIN + 'Qwen-Image-2.1-Turbo-Q8_0.gguf',
-     'taille': 7591577312, 'sha256': '8d74ae0be534df394ea2d29f04b77f879318c9e0df20a3e208e6bedbf89b4159',
-     'remplit': ['modele_diffusion']},
-    {'id': 'texte-q8', 'role': 'Modèle de texte', 'titre': 'Qwen3-VL 8B · Q8_0',
-     'detail': 'Meilleure qualité, sert aussi à améliorer les descriptions', 'pour': ('complet',),
-     'fichier': 'Qwen3VL-8B-Instruct-Q8_0.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q8_0.gguf',
-     'taille': 8709519456, 'sha256': '0d264b3941185d00a74f75c4245521dae088ff1efc90ab8d1754e83f5844adb0',
-     'remplit': ['modele_texte', 'amelioration_modele_local']},
-    {'id': 'texte-q4', 'role': 'Modèle de texte', 'titre': 'Qwen3-VL 8B · Q4_K_M',
-     'detail': 'Plus léger, sert aussi à améliorer les descriptions', 'pour': ('leger',),
-     'fichier': 'Qwen3VL-8B-Instruct-Q4_K_M.gguf', 'url': VL8B + 'Qwen3VL-8B-Instruct-Q4_K_M.gguf',
-     'taille': 5027784800, 'sha256': '67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2',
-     'remplit': ['modele_texte', 'amelioration_modele_local']},
-    {'id': 'vision-f16', 'role': 'Vision', 'titre': 'Vision Qwen3-VL 8B · F16',
-     'detail': 'Pour modifier une image de départ', 'pour': ('complet',),
-     'fichier': 'mmproj-Qwen3VL-8B-Instruct-F16.gguf', 'url': VL8B + 'mmproj-Qwen3VL-8B-Instruct-F16.gguf',
-     'taille': 1159029824, 'sha256': 'ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38',
-     'remplit': ['modele_vision', 'amelioration_vision_locale']},
-    {'id': 'vision-q8', 'role': 'Vision', 'titre': 'Vision Qwen3-VL 8B · Q8_0',
-     'detail': 'Plus légère, pour modifier une image de départ', 'pour': ('leger',),
-     'fichier': 'mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf', 'url': VL8B + 'mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf',
-     'taille': 752289728, 'sha256': 'c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd',
-     'remplit': ['modele_vision', 'amelioration_vision_locale']},
-    {'id': 'vae', 'role': 'VAE', 'titre': 'VAE Qwen-Image 2.1 Turbo',
-     'detail': 'Produit l\'image finale', 'pour': ('complet', 'leger'),
-     'fichier': 'qwen-image-vae.safetensors', 'url': HF + 'Qwen/Qwen-Image-2.1-Turbo/resolve/main/vae/diffusion_pytorch_model.safetensors',
-     'taille': 675508656, 'sha256': '71879ffd5321e6d10c3c87513e2b474b1252efa7f3dec2969214a9bf06a6dd5c',
-     'remplit': ['vae']},
+    m | {'role': ROLES_MODELES[m['role']], 'role_id': m['role'],
+         'titre': f"{m['nom']} · {m['quantification']}" if m['quantification'] else m['nom'],
+         'detail': m['detail']['fr'], 'detail_en': m['detail']['en']}
+    for m in CATALOGUE['modeles']
 ]
+PROFILS = CATALOGUE['profils']
 MODELES_PAR_ID = {m['id']: m for m in MODELES_CONSEILLES}
 GO = 1024 ** 3
 
@@ -874,6 +844,11 @@ GO = 1024 ** 3
 def memoire_systeme():
     """Memoire vive totale, en octets (0 si elle n'a pas pu etre lue)."""
     try:
+        if SYSTEME == 'linux':
+            with open('/proc/meminfo', encoding='ascii') as f:
+                for ligne in f:
+                    if ligne.startswith('MemTotal:'):
+                        return int(ligne.split()[1]) * 1024
         if WINDOWS:
             class Etat(ctypes.Structure):
                 _fields_ = [('dwLength', ctypes.c_ulong), ('dwMemoryLoad', ctypes.c_ulong)] + \
@@ -889,16 +864,104 @@ def memoire_systeme():
         return 0
 
 
-def memoire_video():
-    """Memoire de la carte graphique, lue pour les cartes NVIDIA ; sur Mac, la memoire est partagee."""
+def sortie_outil(commande):
+    """Sortie d'un outil de diagnostic deja present sur la machine (nvidia-smi...), ou '' s'il manque."""
+    try:
+        return subprocess.run(commande, capture_output=True, text=True, timeout=10, creationflags=SANS_CONSOLE).stdout
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return ''
+
+
+def cartes_registre():
+    """Cartes graphiques declarees dans le registre de Windows, avec leur memoire (toutes marques)."""
+    import winreg
+    cartes = []
+    classe = r'SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}'
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, classe) as cle:
+            for i in range(winreg.QueryInfoKey(cle)[0]):
+                sous = winreg.EnumKey(cle, i)
+                if not sous.isdigit():
+                    continue
+                try:
+                    with winreg.OpenKey(cle, sous) as carte:
+                        nom = str(winreg.QueryValueEx(carte, 'DriverDesc')[0])
+                        memoire = 0
+                        for valeur in ('HardwareInformation.qwMemorySize', 'HardwareInformation.MemorySize'):
+                            try:
+                                brut = winreg.QueryValueEx(carte, valeur)[0]
+                            except OSError:
+                                continue
+                            memoire = int.from_bytes(brut[:8], 'little') if isinstance(brut, bytes) else int(brut)
+                            break
+                except OSError:
+                    continue
+                if 'Basic' not in nom and 'Virtual' not in nom:
+                    cartes.append({'nom': nom, 'video': memoire, 'source': 'registre'})
+    except OSError:
+        pass
+    return cartes
+
+
+def carte_graphique():
+    """Carte graphique principale et sa memoire video, lues avec les outils presents (nvidia-smi, rocm-smi,
+    /sys sous Linux, registre de Windows, vulkaninfo). None si aucune carte dediee n'est trouvee."""
+    if MAC:
+        return None
+    cartes = []
+    for ligne in sortie_outil(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader,nounits']).splitlines():
+        nom, _, memoire = ligne.rpartition(',')
+        if nom.strip() and memoire.strip().isdigit():
+            cartes.append({'nom': nom.strip(), 'video': int(memoire) * 1024 * 1024, 'source': 'nvidia-smi'})
+    if not cartes and SYSTEME == 'linux':
+        try:
+            for nom, infos in (json.loads(sortie_outil(['rocm-smi', '--showmeminfo', 'vram', '--json']) or '{}')).items():
+                total = next((v for k, v in infos.items() if 'Total' in k and 'Used' not in k), None)
+                if total:
+                    cartes.append({'nom': nom, 'video': int(total), 'source': 'rocm-smi'})
+        except (ValueError, AttributeError, TypeError):
+            pass
+        for fichier in Path('/sys/class/drm').glob('card*/device/mem_info_vram_total'):
+            try:
+                cartes.append({'nom': 'AMD', 'video': int(fichier.read_text()), 'source': 'sysfs'})
+            except (OSError, ValueError):
+                pass
+    if not cartes and WINDOWS:
+        cartes = cartes_registre()
+    if not cartes:
+        # vulkaninfo donne le type de carte, pas sa memoire
+        types = re.findall(r'deviceType\s*=\s*PHYSICAL_DEVICE_TYPE_(\w+)', sortie_outil(['vulkaninfo', '--summary']))
+        noms = re.findall(r'deviceName\s*=\s*(.+)', sortie_outil(['vulkaninfo', '--summary']))
+        for genre, nom in zip(types, noms):
+            if genre in ('DISCRETE_GPU', 'INTEGRATED_GPU'):
+                cartes.append({'nom': nom.strip(), 'video': 0, 'integree': genre == 'INTEGRATED_GPU', 'source': 'vulkaninfo'})
+    return max(cartes, key=lambda c: (c['video'], not c.get('integree')), default=None)
+
+
+def memoire_video(carte=None):
+    """Memoire de la carte graphique ; sur Mac, la memoire est partagee."""
     if MAC:
         return memoire_systeme()
-    try:
-        sortie = subprocess.run(['nvidia-smi', '--query-gpu=memory.total', '--format=csv,noheader,nounits'],
-                                capture_output=True, text=True, timeout=10, creationflags=SANS_CONSOLE).stdout
-        return int(sortie.split()[0]) * 1024 * 1024
-    except (OSError, ValueError, IndexError, subprocess.SubprocessError):
-        return 0
+    return (carte or {}).get('video', 0)
+
+
+def suggerer_profil(machine):
+    """Profil de modeles le plus complet que la machine peut porter, ou None si sa configuration n'a pas pu etre lue
+    (l'utilisateur choisit alors lui-meme). Les seuils sont dans app/modeles.json (en Gio)."""
+    go = lambda octets: (octets or 0) / GO
+    if machine.get('mac'):
+        if not machine.get('memoire'):
+            return None
+        candidats = [p for p in PROFILS if p['cible']['type'] == 'mac' and go(machine['memoire']) >= p['cible']['memoire_min']]
+    else:
+        carte, video = machine.get('carte'), machine.get('video') or 0
+        # Carte dediee vue, mais sa memoire est illisible : mieux vaut laisser choisir
+        if carte and not video and not carte.get('integree'):
+            return None
+        candidats = [p for p in PROFILS if p['cible']['type'] == 'pc' and go(video) >= p['cible']['video_min']
+                     and (not machine.get('memoire') or go(machine['memoire']) >= p['cible']['memoire_min'])]
+    meilleur = max(candidats, key=lambda p: (p['cible']['video_min'], p['cible']['memoire_min']), default=None)
+    return meilleur['id'] if meilleur else None
 
 
 _machine = None
@@ -909,13 +972,26 @@ def profil_machine():
     ou moins de 24 Go de memoire vive), complet sinon."""
     global _machine
     if _machine is None:
-        vive, video = memoire_systeme(), memoire_video()
+        carte = carte_graphique()
+        vive, video = memoire_systeme(), memoire_video(carte)
         if MAC:
             leger = not vive or vive < 24 * GO
         else:
             leger = bool(video and video < 11.5 * GO) or bool(vive and vive < 24 * GO)
-        _machine = {'profil': 'leger' if leger else 'complet', 'memoire': vive, 'video': video, 'mac': MAC}
+        machine = {'profil': 'leger' if leger else 'complet', 'memoire': vive, 'video': video, 'mac': MAC,
+                   'systeme': SYSTEME, 'carte': carte}
+        machine['suggestion'] = suggerer_profil(machine)
+        _machine = machine
     return _machine
+
+
+def profil_conseille(machine):
+    """Profil suggere, ou a defaut l'ensemble leger ou complet d'avant la detection detaillee."""
+    if machine.get('suggestion'):
+        return machine['suggestion']
+    if machine.get('mac'):
+        return 'mac-16go' if machine['profil'] == 'leger' else 'mac-32go'
+    return 'gpu-8go' if machine['profil'] == 'leger' else 'gpu-12go'
 SIGMAS_RAPIDE = '1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0'
 # Etat de chaque telechargement : attente, telechargement, verification, termine, annule, erreur
 telechargements_modeles = {}
@@ -932,18 +1008,27 @@ def empreinte_fichier(chemin):
     return empreinte.hexdigest()
 
 
+def reglages_generation_automatiques(r):
+    """Vrai si les reglages de generation sont ceux par defaut ou ceux d'un modele du catalogue : l'utilisateur ne les a
+    pas changes, Prisme peut donc les adapter au modele de dessin choisi."""
+    actuels = {cle: r[cle] for cle in ('etapes', 'cfg', 'methode', 'sigmas')}
+    connus = [{cle: REGLAGES_DEFAUT[cle] for cle in actuels}] + [m['reglages'] for m in MODELES_CONSEILLES if m.get('reglages')]
+    return any(actuels == {cle: c[cle] for cle in actuels} for c in connus)
+
+
 def utiliser_modele(modele):
     """Choisit le modele telecharge dans les reglages : on le telecharge pour s'en servir."""
     r = lire_reglages()
-    change = False
+    avant = dict(r)
     for cle in modele['remplit']:
-        if r[cle] != modele['fichier']:
-            r[cle] = modele['fichier']
-            change = True
-            # Ce modele Turbo demande peu d'etapes : profil rapide, sauf si l'utilisateur a deja regle les etapes
-            if cle == 'modele_diffusion' and modele.get('profil_rapide') and r['etapes'] == REGLAGES_DEFAUT['etapes']:
-                r.update(etapes=8, cfg=1.0, methode='euler', sigmas=SIGMAS_RAPIDE)
-    if change:
+        r[cle] = modele['fichier']
+    # Un modele de texte sans vision retire la vision d'un autre modele, qui ne marcherait pas avec lui
+    for cle in modele.get('vide', []):
+        r[cle] = ''
+    # Reglages propres au modele de dessin (Turbo : 8 etapes), sauf si l'utilisateur a regle les siens
+    if modele.get('reglages') and 'modele_diffusion' in modele['remplit'] and reglages_generation_automatiques(avant):
+        r.update(modele['reglages'])
+    if r != avant:
         DONNEES.mkdir(exist_ok=True)
         FICHIER_REGLAGES.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
 
@@ -1037,6 +1122,13 @@ def demander_modele(ident):
     with verrou_modeles:
         if telechargements_modeles.get(ident, {}).get('phase') in ('attente', 'telechargement', 'verification'):
             return
+    final = MODELES / modele['fichier']
+    if final.is_file() and final.stat().st_size == modele['taille']:
+        utiliser_modele(modele)
+        with verrou_modeles:
+            telechargements_modeles[ident] = {'phase': 'termine', 'fait': modele['taille'], 'total': modele['taille'], 'erreur': None}
+        return
+    with verrou_modeles:
         telechargements_modeles[ident] = {'phase': 'attente', 'fait': 0, 'total': modele['taille'], 'erreur': None}
         file_modeles.append(ident)
         if travailleur_modeles is None:
@@ -1044,17 +1136,41 @@ def demander_modele(ident):
             travailleur_modeles.start()
 
 
+def etat_profils():
+    """Profils de modeles, avec ce qui est deja telecharge et le profil suggere pour cette machine."""
+    machine = profil_machine()
+    r = lire_reglages()
+    profils = []
+    for p in PROFILS:
+        fichiers = [MODELES_PAR_ID[i] for i in p['modeles']]
+        presents = {m['id'] for m in fichiers if (MODELES / m['fichier']).is_file()}
+        profils.append({k: p[k] for k in ('id', 'nom', 'description', 'materiel', 'cible', 'taille_totale', 'vitesse', 'statut',
+                                          'edition')}
+                       | {'modeles': [{k: m[k] for k in ('id', 'role_id', 'nom', 'quantification', 'fichier', 'url', 'page',
+                                                          'taille', 'sha256', 'licence')} | {'present': m['id'] in presents}
+                                      for m in fichiers],
+                          'taille_restante': sum(m['taille'] for m in fichiers if m['id'] not in presents),
+                          'installe': len(presents) == len(fichiers),
+                          'actif': all(r[m['remplit'][0]] == m['fichier'] for m in fichiers)})
+    MODELES.mkdir(parents=True, exist_ok=True)
+    return {'profils': profils, 'suggestion': machine['suggestion'], 'conseille': profil_conseille(machine),
+            'machine': machine, 'libre': shutil.disk_usage(MODELES).free}
+
+
 def etat_modeles_conseilles():
+    profils = etat_profils()
+    conseilles = set(next(p for p in PROFILS if p['id'] == profils['conseille'])['modeles'])
     with verrou_modeles:
         machine = profil_machine()
-        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'fichier', 'taille')}
-                   | {'conseille': machine['profil'] in m['pour'], 'present': (MODELES / m['fichier']).is_file(),
+        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'detail_en', 'fichier', 'taille')}
+                   | {'conseille': m['id'] in conseilles, 'present': (MODELES / m['fichier']).is_file(),
                       'reprise': (MODELES / (m['fichier'] + '.partiel')).is_file(),
                       'telechargement': dict(telechargements_modeles[m['id']]) if m['id'] in telechargements_modeles else None}
                    for m in MODELES_CONSEILLES]
     MODELES.mkdir(parents=True, exist_ok=True)
     # Le moteur de texte (pour Ameliorer) est propose dans la meme fenetre
-    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs()}
+    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs(),
+            'profils': profils['profils'], 'suggestion': profils['suggestion'], 'conseille': profils['conseille']}
 
 
 # Avis de nouvelle version : le numero de la derniere version publiee sur GitHub, lu une fois au lancement
@@ -1341,6 +1457,9 @@ def generer(params):
                 f.write(base64.b64decode(donnees))
             source = source_temp = Path(chemin)
 
+        if source and not r['modele_vision']:
+            raise RuntimeError('Ces modèles ne savent pas modifier une image : choisis un profil avec la vision '
+                               '(Qwen-Image) dans la fenêtre des modèles.')
         manquants = modeles_manquants(r, bool(source))
         if manquants:
             raise RuntimeError('Modèle introuvable dans le dossier models : ' + ', '.join(manquants) + '. Vérifie les réglages.')
@@ -1655,6 +1774,10 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             self.envoyer(200, etat_modeles_conseilles())
+        elif chemin == '/api/profils':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            self.envoyer(200, etat_profils())
         elif chemin == '/api/etat':
             with verrou:
                 copie = dict(etat)

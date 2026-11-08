@@ -31,7 +31,7 @@
   <a href="https://d3ita.github.io/prisme/"><strong>Website</strong></a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#features">Features</a> ·
-  <a href="#recommended-models">Models</a> ·
+  <a href="#choosing-models-for-your-machine">Models</a> ·
   <a href="#phone-access">Phone access</a> ·
   <a href="#security">Security</a> ·
   <a href="#faq">FAQ</a> ·
@@ -169,6 +169,25 @@ The engines need OpenMP and Vulkan. If Prisme reports missing libraries, install
 
 You can also build Prisme yourself or run `app/serveur.py` directly on any system.
 
+## Choosing models for your machine
+
+Open the models window (**Download the models**, or **Settings → Models → Download**) and pick the card that matches your computer. Prisme reads your graphics card and memory with the tools already on your system (`nvidia-smi`, `rocm-smi`, the Windows registry, `/sys` and `/proc/meminfo` on Linux, `vulkaninfo`, `sysctl` on macOS) and marks the profile it recommends. Nothing is sent anywhere. If it can't read everything, choose the profile yourself.
+
+**Download this profile** shows the size and the free disk space first, then fetches the whole set, checks each file's SHA-256 and selects it in the settings. Files you already have are not downloaded again, and the text engine used by **Enhance** is added if it's missing. **Choose models one by one (advanced mode)** lists every file.
+
+| Profile | Hardware | Models | Download | Image editing | Status |
+|---|---|---|---|---|---|
+| CPU only | No dedicated graphics card (or integrated graphics), 8 GB of RAM | Z-Image Turbo Q3_K, Qwen3 4B Instruct Q4_K_M, FLUX.1 VAE | 6.0 GB | No | Experimental |
+| 4 to 6 GB card | 4 to 6 GB of video memory | Z-Image Turbo Q4_K, Qwen3 4B Instruct Q4_K_M, FLUX.1 VAE | 6.7 GB | No | Experimental |
+| 8 GB card | 8 GB of video memory (or more, with less than 24 GB of RAM) | Qwen-Image 2.1 Turbo Q4_K, Qwen3-VL 8B Q4_K_M, vision Q8_0, VAE | 10.7 GB | Yes | Recommended |
+| 12 GB card | 12 GB of video memory and 24 GB of RAM or more | Qwen-Image 2.1 Turbo Q4_K, Qwen3-VL 8B Q8_0, vision F16, VAE | 14.7 GB | Yes | Recommended, tested (25 to 50 s per image on an RTX 4070 SUPER) |
+| 16 GB card or more | 16 GB of video memory or more and 24 GB of RAM or more | Qwen-Image 2.1 Turbo Q8_0, Qwen3-VL 8B Q8_0, vision F16, VAE | 18.1 GB | Yes | Recommended |
+| 8 GB Mac | Apple Silicon, 8 GB of unified memory | Same as CPU only | 6.0 GB | No | Experimental |
+| 16 GB Mac | Apple Silicon, 16 to 24 GB of unified memory | Same as 8 GB card | 10.7 GB | Yes | Recommended |
+| 32 GB Mac or more | Apple Silicon, 32 GB of unified memory or more | Same as 12 GB card | 14.7 GB | Yes | Recommended |
+
+The Z-Image Turbo profiles follow the [stable-diffusion.cpp documentation](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/z_image.md) but have not been tested with Prisme yet. They create images only (no editing), and the CPU-only profile also depends on the engine running without a graphics card, which has not been tested either. Licenses: Qwen-Image 2.1 Turbo and its VAE are under the [Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE) (non-commercial use only); Qwen3-VL, Z-Image Turbo, Qwen3 4B and the FLUX.1 VAE are under Apache-2.0. The catalog, with every file's link, size and SHA-256, is in [`app/modeles.json`](app/modeles.json).
+
 ## Recommended models
 
 These official, general-purpose models work with Prisme. The easiest way is **Settings → Models → Download** (Réglages → Modèles → Télécharger), or **Download the models** (Télécharger les modèles) on first launch: Prisme downloads them, checks their SHA-256, picks them in the settings and applies the right generation settings. It also adapts to your machine: with less than 12 GB of video memory, less than 24 GB of RAM, or a Mac with less than 24 GB, it recommends the light versions (about 10.7 GB instead of 14.7 GB), which are faster and keep the computer responsive. Each link below opens the model page on Hugging Face if you prefer to download by hand.
@@ -250,6 +269,7 @@ The tests cover settings validation, image metadata, engine installation, archiv
 |---|---|
 | `app/serveur.py` | Local server, Python standard library only: API, engines, network access |
 | `app/index.html` | The whole interface: HTML, CSS and JavaScript with no dependency |
+| `app/modeles.json` | Catalog of downloadable models and profiles by hardware |
 | `app/icone.py` | Program icon and splash screen, made from the logo |
 | `construire.py` | Builds Prisme for the current system |
 | `construire.ps1` | Prepares a Python environment on Windows, then runs `construire.py` |
@@ -260,7 +280,7 @@ The tests cover settings validation, image metadata, engine installation, archiv
 
 Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
 
-- **Model profiles by hardware**: pick your machine (CPU only, small or large graphics card, Apple Silicon) and Prisme offers the matching set of models, downloaded in one click.
+- ~~**Model profiles by hardware**~~: done, in the next version (see [Choosing models for your machine](#choosing-models-for-your-machine)).
 - **MCP server for Claude**: let Claude (Desktop or Code) create and edit images through Prisme, on your computer.
 - **Faster successive images**: keep the models loaded between two creations instead of loading them each time.
 - **Remove models from the app**: free disk space without opening the `models` folder.

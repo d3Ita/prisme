@@ -1,0 +1,591 @@
+{
+  "_lisez_moi": "Catalogue des modeles telechargeables et des profils par machine. Tailles et empreintes SHA-256 relevees sur Hugging Face. Champ null = non verifie.",
+  "version": 1,
+  "modeles": [
+    {
+      "id": "dessin-q4",
+      "role": "image",
+      "famille": "qwen-image-2.1",
+      "nom": "Qwen-Image 2.1 Turbo",
+      "quantification": "Q4_K",
+      "detail": {
+        "fr": "Léger : cartes graphiques de 8 Go",
+        "en": "Light: 8 GB graphics cards"
+      },
+      "page": "https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF",
+      "url": "https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF/resolve/main/Qwen-Image-2.1-Turbo-AD-Q4_K.gguf",
+      "fichier": "Qwen-Image-2.1-Turbo-AD-Q4_K.gguf",
+      "taille": 4201694944,
+      "sha256": "4bb73c53cbe284bbd6d69b9fdc59539c531f0389dd2aa567663d777f8130bc59",
+      "licence": {
+        "nom": "Qwen Research License",
+        "commercial": false,
+        "url": "https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE"
+      },
+      "remplit": [
+        "modele_diffusion"
+      ],
+      "vide": [],
+      "reglages": {
+        "etapes": 8,
+        "cfg": 1.0,
+        "methode": "euler",
+        "sigmas": "1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0"
+      }
+    },
+    {
+      "id": "dessin-q8",
+      "role": "image",
+      "famille": "qwen-image-2.1",
+      "nom": "Qwen-Image 2.1 Turbo",
+      "quantification": "Q8_0",
+      "detail": {
+        "fr": "Meilleure qualité : cartes de 12 Go ou plus",
+        "en": "Best quality: 12 GB cards or more"
+      },
+      "page": "https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF",
+      "url": "https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF/resolve/main/Qwen-Image-2.1-Turbo-Q8_0.gguf",
+      "fichier": "Qwen-Image-2.1-Turbo-Q8_0.gguf",
+      "taille": 7591577312,
+      "sha256": "8d74ae0be534df394ea2d29f04b77f879318c9e0df20a3e208e6bedbf89b4159",
+      "licence": {
+        "nom": "Qwen Research License",
+        "commercial": false,
+        "url": "https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE"
+      },
+      "remplit": [
+        "modele_diffusion"
+      ],
+      "vide": [],
+      "reglages": {
+        "etapes": 8,
+        "cfg": 1.0,
+        "methode": "euler",
+        "sigmas": "1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0"
+      }
+    },
+    {
+      "id": "texte-q8",
+      "role": "texte",
+      "famille": "qwen-image-2.1",
+      "nom": "Qwen3-VL 8B",
+      "quantification": "Q8_0",
+      "detail": {
+        "fr": "Meilleure qualité, sert aussi à améliorer les descriptions",
+        "en": "Best quality, also used to enhance descriptions"
+      },
+      "page": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q8_0.gguf",
+      "fichier": "Qwen3VL-8B-Instruct-Q8_0.gguf",
+      "taille": 8709519456,
+      "sha256": "0d264b3941185d00a74f75c4245521dae088ff1efc90ab8d1754e83f5844adb0",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "modele_texte",
+        "amelioration_modele_local"
+      ],
+      "vide": [],
+      "reglages": null
+    },
+    {
+      "id": "texte-q4",
+      "role": "texte",
+      "famille": "qwen-image-2.1",
+      "nom": "Qwen3-VL 8B",
+      "quantification": "Q4_K_M",
+      "detail": {
+        "fr": "Plus léger, sert aussi à améliorer les descriptions",
+        "en": "Lighter, also used to enhance descriptions"
+      },
+      "page": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+      "fichier": "Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+      "taille": 5027784800,
+      "sha256": "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "modele_texte",
+        "amelioration_modele_local"
+      ],
+      "vide": [],
+      "reglages": null
+    },
+    {
+      "id": "vision-f16",
+      "role": "edition",
+      "famille": "qwen-image-2.1",
+      "nom": "Vision Qwen3-VL 8B",
+      "quantification": "F16",
+      "detail": {
+        "fr": "Pour modifier une image de départ",
+        "en": "To edit a starting image"
+      },
+      "page": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-F16.gguf",
+      "fichier": "mmproj-Qwen3VL-8B-Instruct-F16.gguf",
+      "taille": 1159029824,
+      "sha256": "ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "modele_vision",
+        "amelioration_vision_locale"
+      ],
+      "vide": [],
+      "reglages": null
+    },
+    {
+      "id": "vision-q8",
+      "role": "edition",
+      "famille": "qwen-image-2.1",
+      "nom": "Vision Qwen3-VL 8B",
+      "quantification": "Q8_0",
+      "detail": {
+        "fr": "Plus légère, pour modifier une image de départ",
+        "en": "Lighter, to edit a starting image"
+      },
+      "page": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf",
+      "fichier": "mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf",
+      "taille": 752289728,
+      "sha256": "c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "modele_vision",
+        "amelioration_vision_locale"
+      ],
+      "vide": [],
+      "reglages": null
+    },
+    {
+      "id": "vae",
+      "role": "vae",
+      "famille": "qwen-image-2.1",
+      "nom": "VAE Qwen-Image 2.1 Turbo",
+      "quantification": null,
+      "detail": {
+        "fr": "Produit l'image finale",
+        "en": "Produces the final image"
+      },
+      "page": "https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo",
+      "url": "https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/resolve/main/vae/diffusion_pytorch_model.safetensors",
+      "fichier": "qwen-image-vae.safetensors",
+      "taille": 675508656,
+      "sha256": "71879ffd5321e6d10c3c87513e2b474b1252efa7f3dec2969214a9bf06a6dd5c",
+      "licence": {
+        "nom": "Qwen Research License",
+        "commercial": false,
+        "url": "https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE"
+      },
+      "remplit": [
+        "vae"
+      ],
+      "vide": [],
+      "reglages": null
+    },
+    {
+      "id": "zimage-q3",
+      "role": "image",
+      "famille": "z-image-turbo",
+      "nom": "Z-Image Turbo",
+      "quantification": "Q3_K",
+      "detail": {
+        "fr": "Très léger : processeur seul ou petite carte, création seulement",
+        "en": "Very light: CPU only or small card, creation only"
+      },
+      "page": "https://huggingface.co/leejet/Z-Image-Turbo-GGUF",
+      "url": "https://huggingface.co/leejet/Z-Image-Turbo-GGUF/resolve/main/z_image_turbo-Q3_K.gguf",
+      "fichier": "z_image_turbo-Q3_K.gguf",
+      "taille": 3143559104,
+      "sha256": "4b44bdaa7814f20d7cf144e3939bd93aa32f50660204dd0c2aea5c5376232980",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "modele_diffusion"
+      ],
+      "vide": [],
+      "reglages": {
+        "etapes": 8,
+        "cfg": 1.0,
+        "methode": "euler",
+        "sigmas": ""
+      }
+    },
+    {
+      "id": "zimage-q4",
+      "role": "image",
+      "famille": "z-image-turbo",
+      "nom": "Z-Image Turbo",
+      "quantification": "Q4_K",
+      "detail": {
+        "fr": "Léger : cartes de 4 à 6 Go, création seulement",
+        "en": "Light: 4 to 6 GB cards, creation only"
+      },
+      "page": "https://huggingface.co/leejet/Z-Image-Turbo-GGUF",
+      "url": "https://huggingface.co/leejet/Z-Image-Turbo-GGUF/resolve/main/z_image_turbo-Q4_K.gguf",
+      "fichier": "z_image_turbo-Q4_K.gguf",
+      "taille": 3864250304,
+      "sha256": "14b375ab4f226bc5378f68f37e899ef3c2242b8541e61e2bc1aff40976086fbd",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "modele_diffusion"
+      ],
+      "vide": [],
+      "reglages": {
+        "etapes": 8,
+        "cfg": 1.0,
+        "methode": "euler",
+        "sigmas": ""
+      }
+    },
+    {
+      "id": "qwen3-4b-q4",
+      "role": "texte",
+      "famille": "z-image-turbo",
+      "nom": "Qwen3 4B Instruct 2507",
+      "quantification": "Q4_K_M",
+      "detail": {
+        "fr": "Pour Z-Image, sert aussi à améliorer les descriptions",
+        "en": "For Z-Image, also used to enhance descriptions"
+      },
+      "page": "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF",
+      "url": "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+      "fichier": "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+      "taille": 2497281120,
+      "sha256": "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "modele_texte",
+        "amelioration_modele_local"
+      ],
+      "vide": [
+        "modele_vision",
+        "amelioration_vision_locale"
+      ],
+      "reglages": null
+    },
+    {
+      "id": "zimage-vae",
+      "role": "vae",
+      "famille": "z-image-turbo",
+      "nom": "VAE Z-Image (FLUX.1)",
+      "quantification": null,
+      "detail": {
+        "fr": "Produit l'image finale avec Z-Image",
+        "en": "Produces the final image with Z-Image"
+      },
+      "page": "https://huggingface.co/Comfy-Org/Z-Image-Turbo",
+      "url": "https://huggingface.co/Comfy-Org/Z-Image-Turbo/resolve/main/split_files/vae/ae.safetensors",
+      "fichier": "z-image-vae.safetensors",
+      "taille": 335304388,
+      "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      },
+      "remplit": [
+        "vae"
+      ],
+      "vide": [],
+      "reglages": null
+    }
+  ],
+  "profils": [
+    {
+      "id": "cpu-8go",
+      "nom": {
+        "fr": "Processeur seul",
+        "en": "CPU only"
+      },
+      "description": {
+        "fr": "Z-Image Turbo très léger. Lent, création seulement, pas de modification d'image.",
+        "en": "Very light Z-Image Turbo. Slow, creation only, no image editing."
+      },
+      "materiel": {
+        "fr": "Sans carte graphique dédiée (ou carte intégrée), 8 Go de mémoire vive",
+        "en": "No dedicated graphics card (or integrated graphics), 8 GB of RAM"
+      },
+      "cible": {
+        "type": "pc",
+        "video_min": 0,
+        "memoire_min": 0
+      },
+      "modeles": [
+        "zimage-q3",
+        "qwen3-4b-q4",
+        "zimage-vae"
+      ],
+      "taille_totale": 5976144612,
+      "vitesse": {
+        "fr": "Non mesurée : la plus lente, plusieurs minutes par image",
+        "en": "Not measured: the slowest, several minutes per image",
+        "mesuree": false
+      },
+      "statut": "experimental",
+      "edition": false
+    },
+    {
+      "id": "gpu-4go",
+      "nom": {
+        "fr": "Carte de 4 à 6 Go",
+        "en": "4 to 6 GB card"
+      },
+      "description": {
+        "fr": "Z-Image Turbo léger. Création seulement, pas de modification d'image.",
+        "en": "Light Z-Image Turbo. Creation only, no image editing."
+      },
+      "materiel": {
+        "fr": "Carte graphique de 4 à 6 Go de mémoire vidéo",
+        "en": "Graphics card with 4 to 6 GB of video memory"
+      },
+      "cible": {
+        "type": "pc",
+        "video_min": 3.5,
+        "memoire_min": 0
+      },
+      "modeles": [
+        "zimage-q4",
+        "qwen3-4b-q4",
+        "zimage-vae"
+      ],
+      "taille_totale": 6696835812,
+      "vitesse": {
+        "fr": "Non mesurée",
+        "en": "Not measured",
+        "mesuree": false
+      },
+      "statut": "experimental",
+      "edition": false
+    },
+    {
+      "id": "gpu-8go",
+      "nom": {
+        "fr": "Carte de 8 Go",
+        "en": "8 GB card"
+      },
+      "description": {
+        "fr": "Qwen-Image 2.1 Turbo en versions légères : création et modification.",
+        "en": "Qwen-Image 2.1 Turbo, light versions: creation and editing."
+      },
+      "materiel": {
+        "fr": "Carte graphique de 8 Go (ou plus, avec moins de 24 Go de mémoire vive)",
+        "en": "Graphics card with 8 GB (or more, with less than 24 GB of RAM)"
+      },
+      "cible": {
+        "type": "pc",
+        "video_min": 7.5,
+        "memoire_min": 0
+      },
+      "modeles": [
+        "dessin-q4",
+        "texte-q4",
+        "vision-q8",
+        "vae"
+      ],
+      "taille_totale": 10657278128,
+      "vitesse": {
+        "fr": "Non mesurée",
+        "en": "Not measured",
+        "mesuree": false
+      },
+      "statut": "recommande",
+      "edition": true
+    },
+    {
+      "id": "gpu-12go",
+      "nom": {
+        "fr": "Carte de 12 Go",
+        "en": "12 GB card"
+      },
+      "description": {
+        "fr": "Qwen-Image 2.1 Turbo, modèle de texte et vision complets : meilleure qualité de modification.",
+        "en": "Qwen-Image 2.1 Turbo with the full text model and vision: better edits."
+      },
+      "materiel": {
+        "fr": "Carte graphique de 12 Go et 24 Go de mémoire vive ou plus",
+        "en": "Graphics card with 12 GB and 24 GB of RAM or more"
+      },
+      "cible": {
+        "type": "pc",
+        "video_min": 11.5,
+        "memoire_min": 24
+      },
+      "modeles": [
+        "dessin-q4",
+        "texte-q8",
+        "vision-f16",
+        "vae"
+      ],
+      "taille_totale": 14745752880,
+      "vitesse": {
+        "fr": "Création 25 à 50 s, modification 45 à 90 s (RTX 4070 SUPER)",
+        "en": "Creation 25 to 50 s, edit 45 to 90 s (RTX 4070 SUPER)",
+        "mesuree": true
+      },
+      "statut": "recommande",
+      "edition": true
+    },
+    {
+      "id": "gpu-16go",
+      "nom": {
+        "fr": "Carte de 16 Go ou plus",
+        "en": "16 GB card or more"
+      },
+      "description": {
+        "fr": "Qwen-Image 2.1 Turbo en Q8_0 : la meilleure qualité.",
+        "en": "Qwen-Image 2.1 Turbo in Q8_0: the best quality."
+      },
+      "materiel": {
+        "fr": "Carte graphique de 16 Go ou plus et 24 Go de mémoire vive ou plus",
+        "en": "Graphics card with 16 GB or more and 24 GB of RAM or more"
+      },
+      "cible": {
+        "type": "pc",
+        "video_min": 15.5,
+        "memoire_min": 24
+      },
+      "modeles": [
+        "dessin-q8",
+        "texte-q8",
+        "vision-f16",
+        "vae"
+      ],
+      "taille_totale": 18135635248,
+      "vitesse": {
+        "fr": "Non mesurée",
+        "en": "Not measured",
+        "mesuree": false
+      },
+      "statut": "recommande",
+      "edition": true
+    },
+    {
+      "id": "mac-8go",
+      "nom": {
+        "fr": "Mac 8 Go",
+        "en": "8 GB Mac"
+      },
+      "description": {
+        "fr": "Z-Image Turbo très léger. Création seulement, pas de modification d'image.",
+        "en": "Very light Z-Image Turbo. Creation only, no image editing."
+      },
+      "materiel": {
+        "fr": "Mac à puce Apple avec 8 Go de mémoire unifiée",
+        "en": "Apple Silicon Mac with 8 GB of unified memory"
+      },
+      "cible": {
+        "type": "mac",
+        "video_min": 0,
+        "memoire_min": 0
+      },
+      "modeles": [
+        "zimage-q3",
+        "qwen3-4b-q4",
+        "zimage-vae"
+      ],
+      "taille_totale": 5976144612,
+      "vitesse": {
+        "fr": "Non mesurée",
+        "en": "Not measured",
+        "mesuree": false
+      },
+      "statut": "experimental",
+      "edition": false
+    },
+    {
+      "id": "mac-16go",
+      "nom": {
+        "fr": "Mac 16 Go",
+        "en": "16 GB Mac"
+      },
+      "description": {
+        "fr": "Qwen-Image 2.1 Turbo en versions légères : création et modification.",
+        "en": "Qwen-Image 2.1 Turbo, light versions: creation and editing."
+      },
+      "materiel": {
+        "fr": "Mac à puce Apple avec 16 à 24 Go de mémoire unifiée",
+        "en": "Apple Silicon Mac with 16 to 24 GB of unified memory"
+      },
+      "cible": {
+        "type": "mac",
+        "video_min": 0,
+        "memoire_min": 12
+      },
+      "modeles": [
+        "dessin-q4",
+        "texte-q4",
+        "vision-q8",
+        "vae"
+      ],
+      "taille_totale": 10657278128,
+      "vitesse": {
+        "fr": "Non mesurée",
+        "en": "Not measured",
+        "mesuree": false
+      },
+      "statut": "recommande",
+      "edition": true
+    },
+    {
+      "id": "mac-32go",
+      "nom": {
+        "fr": "Mac 32 Go ou plus",
+        "en": "32 GB Mac or more"
+      },
+      "description": {
+        "fr": "Qwen-Image 2.1 Turbo, modèle de texte et vision complets.",
+        "en": "Qwen-Image 2.1 Turbo with the full text model and vision."
+      },
+      "materiel": {
+        "fr": "Mac à puce Apple avec 32 Go de mémoire unifiée ou plus",
+        "en": "Apple Silicon Mac with 32 GB of unified memory or more"
+      },
+      "cible": {
+        "type": "mac",
+        "video_min": 0,
+        "memoire_min": 24
+      },
+      "modeles": [
+        "dessin-q4",
+        "texte-q8",
+        "vision-f16",
+        "vae"
+      ],
+      "taille_totale": 14745752880,
+      "vitesse": {
+        "fr": "Non mesurée",
+        "en": "Not measured",
+        "mesuree": false
+      },
+      "statut": "recommande",
+      "edition": true
+    }
+  ]
+}

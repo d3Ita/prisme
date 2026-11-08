@@ -37,6 +37,7 @@ def main():
     options = ['--noconfirm', '--clean', '--name', 'Prisme', '--windowed', '--icon', icone,
                '--add-data', f'{RACINE / "app" / "index.html"}{os.pathsep}.',
                '--add-data', f'{RACINE / "app" / "logo.png"}{os.pathsep}.',
+               '--add-data', f'{RACINE / "app" / "modeles.json"}{os.pathsep}.',
                '--workpath', TRAVAIL / 'build', '--specpath', TRAVAIL]
     if WINDOWS:
         # L'ecran de demarrage n'existe pas sous Mac ; sous Linux, il demanderait Tk sur la machine

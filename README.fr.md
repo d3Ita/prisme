@@ -31,7 +31,7 @@
 <p align="center">
   <a href="https://d3ita.github.io/prisme/"><strong>Site</strong></a> ·
   <a href="#installation">Installation</a> ·
-  <a href="#modèles-conseillés">Modèles</a> ·
+  <a href="#choisir-ses-modèles-selon-sa-machine">Modèles</a> ·
   <a href="#utilisation">Utilisation</a> ·
   <a href="#construire-depuis-les-sources">Construire</a> ·
   <a href="#roadmap">Roadmap</a> ·
@@ -167,6 +167,25 @@ Les moteurs ont besoin d'OpenMP et de Vulkan. Si Prisme signale des bibliothèqu
 
 Si tu préfères ne pas faire confiance au programme, construis-le toi-même à partir du code (voir plus bas) ou lance directement `app/serveur.py`, sur n'importe quel système.
 
+## Choisir ses modèles selon sa machine
+
+Ouvre la fenêtre des modèles (**Télécharger les modèles**, ou **Réglages → Modèles → Télécharger**) et choisis la carte qui correspond à ton ordinateur. Prisme lit ta carte graphique et ta mémoire avec les outils déjà présents sur ton système (`nvidia-smi`, `rocm-smi`, le registre de Windows, `/sys` et `/proc/meminfo` sous Linux, `vulkaninfo`, `sysctl` sous macOS) et marque le profil qu'il recommande. Rien n'est envoyé. S'il n'arrive pas à tout lire, choisis toi-même.
+
+**Télécharger ce profil** affiche d'abord la taille et la place libre sur le disque, puis récupère tout l'ensemble, vérifie l'empreinte SHA-256 de chaque fichier et le choisit dans les réglages. Les fichiers que tu as déjà ne sont pas retéléchargés, et le moteur de texte utilisé par **Améliorer** est ajouté s'il manque. **Choisir les modèles un par un (mode avancé)** affiche chaque fichier.
+
+| Profil | Matériel | Modèles | Téléchargement | Modification d'image | État |
+|---|---|---|---|---|---|
+| Processeur seul | Sans carte graphique dédiée (ou carte intégrée), 8 Go de mémoire vive | Z-Image Turbo Q3_K, Qwen3 4B Instruct Q4_K_M, VAE FLUX.1 | 6,0 Go | Non | Expérimental |
+| Carte de 4 à 6 Go | 4 à 6 Go de mémoire vidéo | Z-Image Turbo Q4_K, Qwen3 4B Instruct Q4_K_M, VAE FLUX.1 | 6,7 Go | Non | Expérimental |
+| Carte de 8 Go | 8 Go de mémoire vidéo (ou plus, avec moins de 24 Go de mémoire vive) | Qwen-Image 2.1 Turbo Q4_K, Qwen3-VL 8B Q4_K_M, vision Q8_0, VAE | 10,7 Go | Oui | Recommandé |
+| Carte de 12 Go | 12 Go de mémoire vidéo et 24 Go de mémoire vive ou plus | Qwen-Image 2.1 Turbo Q4_K, Qwen3-VL 8B Q8_0, vision F16, VAE | 14,7 Go | Oui | Recommandé, testé (25 à 50 s par image sur une RTX 4070 SUPER) |
+| Carte de 16 Go ou plus | 16 Go de mémoire vidéo ou plus et 24 Go de mémoire vive ou plus | Qwen-Image 2.1 Turbo Q8_0, Qwen3-VL 8B Q8_0, vision F16, VAE | 18,1 Go | Oui | Recommandé |
+| Mac 8 Go | Puce Apple, 8 Go de mémoire unifiée | Comme « Processeur seul » | 6,0 Go | Non | Expérimental |
+| Mac 16 Go | Puce Apple, 16 à 24 Go de mémoire unifiée | Comme « Carte de 8 Go » | 10,7 Go | Oui | Recommandé |
+| Mac 32 Go ou plus | Puce Apple, 32 Go de mémoire unifiée ou plus | Comme « Carte de 12 Go » | 14,7 Go | Oui | Recommandé |
+
+Les profils Z-Image Turbo suivent la [documentation de stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/z_image.md) mais n'ont pas encore été testés avec Prisme. Ils créent des images sans pouvoir les modifier, et le profil « Processeur seul » dépend aussi du fonctionnement du moteur sans carte graphique, pas encore testé non plus. Licences : Qwen-Image 2.1 Turbo et son VAE sont sous [Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE) (usage non commercial uniquement) ; Qwen3-VL, Z-Image Turbo, Qwen3 4B et le VAE FLUX.1 sont sous Apache-2.0. Le catalogue, avec le lien, la taille et l'empreinte SHA-256 de chaque fichier, est dans [`app/modeles.json`](app/modeles.json).
+
 ## Modèles conseillés
 
 Ces modèles officiels et généralistes fonctionnent avec Prisme. Le plus simple : **Réglages → Modèles → Télécharger** (ou **Télécharger les modèles** au premier lancement). Prisme les télécharge, vérifie leur empreinte SHA-256, les choisit dans les réglages et applique les bons réglages de génération. Il s'adapte aussi à ta machine : avec moins de 12 Go de mémoire vidéo, moins de 24 Go de mémoire vive, ou un Mac de moins de 24 Go, il conseille les versions légères (environ 10,7 Go au lieu de 14,7 Go), plus rapides et qui laissent l'ordinateur réactif. Chaque lien ci-dessous ouvre la page du modèle sur Hugging Face, si tu préfères les télécharger toi-même.
@@ -268,6 +287,7 @@ python3 app/serveur.py
 |---|---|
 | `app/serveur.py` | Serveur local (bibliothèque standard Python uniquement) : API, moteurs, accès réseau |
 | `app/index.html` | Interface complète : HTML, CSS et JavaScript sans dépendance |
+| `app/modeles.json` | Catalogue des modèles téléchargeables et des profils par machine |
 | `app/icone.py` | Icône du programme et écran de démarrage, faits à partir du logo |
 | `app/logo.png`, `docs/logo.png` | Logo de l'application et du README |
 | `construire.py` | Construction de Prisme pour le système en cours |
@@ -284,7 +304,7 @@ Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md). L'historique des versio
 
 Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
 
-- **Profils de modèles par config** : tu choisis ta machine (processeur seul, petite ou grande carte graphique, Mac à puce Apple) et Prisme propose l'ensemble de modèles adapté, téléchargé en un clic.
+- ~~**Profils de modèles par config**~~ : fait, dans la prochaine version (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
 - **Serveur MCP pour Claude** : permettre à Claude (Desktop ou Code) de créer et modifier des images avec Prisme, sur ton ordinateur.
 - **Images à la suite plus rapides** : garder les modèles chargés entre deux créations au lieu de les recharger à chaque fois.
 - **Supprimer des modèles depuis l'appli** : libérer de la place sans ouvrir le dossier `models`.

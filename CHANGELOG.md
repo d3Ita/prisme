@@ -6,6 +6,7 @@ All notable changes to Prisme. Downloads are on the [Releases](https://github.co
 
 - **Sturdier downloads**: when GitHub or Hugging Face answer with a temporary error (504, 503, timeout…) or the connection drops, Prisme tries again by itself, and model downloads resume where they stopped. If GitHub's direct release link keeps failing, the engine is downloaded through the GitHub API instead; the SHA-256 check guarantees it is the same file.
 - Clearer message when a download still fails: which server, which error, and to try again later.
+- Phone access: a request refused by the PC now always receives its answer, instead of the connection being cut abruptly on Windows.
 
 ## 1.8.3 · 2026-11-05
 

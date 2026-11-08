@@ -1561,6 +1561,13 @@ class Gestionnaire(BaseHTTPRequestHandler):
     def envoyer(self, code, corps, type_contenu='application/json; charset=utf-8', cache=False):
         if not isinstance(corps, bytes):
             corps = json.dumps(corps, ensure_ascii=False).encode('utf-8')
+        # Une requete refusee avant d'avoir lu son corps : on le lit quand meme, sinon Windows coupe la connexion
+        # brutalement et l'appareil ne recoit pas la reponse
+        if self.command == 'POST' and not getattr(self, 'corps_lu', True):
+            taille = int(self.headers.get('Content-Length') or 0)
+            if 0 < taille <= TAILLE_MAX_REQUETE:
+                self.rfile.read(taille)
+            self.corps_lu = True
         self.send_response(code)
         self.send_header('Content-Type', type_contenu)
         self.send_header('Content-Length', str(len(corps)))
@@ -1572,6 +1579,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
         taille = int(self.headers.get('Content-Length') or 0)
         if taille > TAILLE_MAX_REQUETE:
             raise ValueError('requete trop grande')
+        self.corps_lu = True
         return json.loads(self.rfile.read(taille) or b'{}')
 
     def do_GET(self):
@@ -1664,6 +1672,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             self.envoyer(404, {'erreur': 'Introuvable'})
 
     def do_POST(self):
+        self.corps_lu = False
         if not self.controler():
             return
         if not self.origine_autorisee():

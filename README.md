@@ -109,7 +109,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 | macOS 13 or later | `Prisme-macOS-arm64.zip` | Apple Silicon (M1 or later, Metal), 16 GB of memory or more recommended | Tested on M3 |
 | Linux x64 (Ubuntu 24.04 or similar) | `Prisme-Linux-x64.tar.gz` | Any GPU with a Vulkan driver | Experimental |
 
-You also need models compatible with stable-diffusion.cpp (GGUF or safetensors, see [Recommended models](#recommended-models)) and an internet connection on first launch, to install the engines.
+You also need models compatible with stable-diffusion.cpp (GGUF or safetensors, see [Choosing models for your machine](#choosing-models-for-your-machine)) and an internet connection on first launch, to install the engines.
 
 Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), a VAE and, for editing, an image encoder (`--llm_vision`). The interface is in English and French.
 
@@ -127,7 +127,7 @@ Other cards have not been measured yet. As a guide: with 8 GB of video memory, p
 
 1. Download the file for your system from the [website](https://d3ita.github.io/prisme/#download) or the [Releases](../../releases) page. The website keeps a copy of the latest release, which still works when GitHub's download links are down (checksums in [SHA256SUMS.txt](https://d3ita.github.io/prisme/telechargements/SHA256SUMS.txt)).
 2. Start Prisme and click **Install the engine** (Installer le moteur): Prisme downloads stable-diffusion.cpp once (about 925 MB on Windows with an NVIDIA card, under 40 MB otherwise). Without the NVIDIA driver, Prisme picks the Vulkan version; set `PRISME_ACCELERATION=cuda` or `vulkan` to force a choice.
-3. Click **Download the models** (Télécharger les modèles), then **Download all** (Tout télécharger) to get the [recommended models](#recommended-models) and the text engine used by **Enhance** (about 15 GB in all). Prisme selects them in the settings by itself.
+3. Click **Download the models** (Télécharger les modèles), then **Download all** (Tout télécharger) to get the [models for your machine](#choosing-models-for-your-machine) and the text engine used by **Enhance** (5 to 13 GB depending on the profile). Prisme selects them in the settings by itself.
 4. To use your own models instead, put them in a `models` folder (LoRA go in `models/loras`): next to the program on Windows and Linux, in `~/Prisme/models` on macOS. Then click **Choose models** (Choisir les modèles) and pick a file for each role.
 
 ```
@@ -176,22 +176,33 @@ Open the models window (**Download the models**, or **Settings → Models → Do
 
 **Download this profile** shows the size and the free disk space first, then fetches the whole set, checks each file's SHA-256 and selects it in the settings. Files you already have are not downloaded again, and the text engine used by **Enhance** is added if it's missing. **Choose models one by one (advanced mode)** lists every file.
 
-| Profile | Hardware | Models | Download | Image editing | Status |
-|---|---|---|---|---|---|
-| CPU only | No dedicated graphics card (or integrated graphics), 8 GB of RAM | Z-Image Turbo Q3_K, Qwen3 4B Instruct Q4_K_M, FLUX.1 VAE | 6.0 GB | No | Experimental |
-| 4 to 6 GB card | 4 to 6 GB of video memory | Z-Image Turbo Q4_K, Qwen3 4B Instruct Q4_K_M, FLUX.1 VAE | 6.7 GB | No | Experimental |
-| 8 GB card | 8 GB of video memory (or more, with less than 24 GB of RAM) | Qwen-Image 2.1 Turbo Q4_K, Qwen3-VL 8B Q4_K_M, vision Q8_0, VAE | 10.7 GB | Yes | Recommended |
-| 12 GB card | 12 GB of video memory and 24 GB of RAM or more | Qwen-Image 2.1 Turbo Q4_K, Qwen3-VL 8B Q8_0, vision F16, VAE | 14.7 GB | Yes | Recommended, tested (25 to 50 s per image on an RTX 4070 SUPER) |
-| 16 GB card or more | 16 GB of video memory or more and 24 GB of RAM or more | Qwen-Image 2.1 Turbo Q8_0, Qwen3-VL 8B Q8_0, vision F16, VAE | 18.1 GB | Yes | Recommended |
-| 8 GB Mac | Apple Silicon, 8 GB of unified memory | Same as CPU only | 6.0 GB | No | Experimental |
-| 16 GB Mac | Apple Silicon, 16 to 24 GB of unified memory | Same as 8 GB card | 10.7 GB | Yes | Recommended |
-| 32 GB Mac or more | Apple Silicon, 32 GB of unified memory or more | Same as 12 GB card | 14.7 GB | Yes | Recommended |
+The profiles for your machine use only **Apache-2.0** models, which allow commercial use, including of the images you create: [FLUX.2 klein 4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B) creates and edits images, [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) understands the description (and powers **Enhance**), and the [FLUX.2 small decoder](https://huggingface.co/black-forest-labs/FLUX.2-small-decoder) produces the final image.
 
-The Z-Image Turbo profiles follow the [stable-diffusion.cpp documentation](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/z_image.md) but have not been tested with Prisme yet. They create images only (no editing), and the CPU-only profile also depends on the engine running without a graphics card, which has not been tested either. Licenses: Qwen-Image 2.1 Turbo and its VAE are under the [Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE) (non-commercial use only); Qwen3-VL, Z-Image Turbo, Qwen3 4B and the FLUX.1 VAE are under Apache-2.0. The catalog, with every file's link, size and SHA-256, is in [`app/modeles.json`](app/modeles.json).
+| Profile | Hardware | FLUX.2 klein 4B | Qwen3 4B | Download |
+|---|---|---|---|---|
+| CPU only | No dedicated graphics card (or integrated graphics), 8 GB of RAM | Q4_0 | Q4_K_M | 5.2 GB |
+| 4 to 6 GB card | 4 to 6 GB of video memory | Q4_0 | Q4_K_M | 5.2 GB |
+| 8 GB card | 8 GB of video memory (or more, with less than 24 GB of RAM) | Q8_0 | Q4_K_M | 7.0 GB |
+| 12 GB card | 12 GB of video memory and 24 GB of RAM or more | Q8_0 | Q8_0 | 8.8 GB |
+| 16 GB card or more | 16 GB of video memory or more and 24 GB of RAM or more | BF16 (original) | Q8_0 | 12.3 GB |
+| 8 GB Mac | Apple Silicon, 8 GB of unified memory | Q4_0 | Q4_K_M | 5.2 GB |
+| 16 GB Mac | Apple Silicon, 16 to 24 GB of unified memory | Q8_0 | Q4_K_M | 7.0 GB |
+| 32 GB Mac or more | Apple Silicon, 32 GB of unified memory or more | Q8_0 | Q8_0 | 8.8 GB |
 
-## Recommended models
+These FLUX.2 klein profiles follow the [stable-diffusion.cpp documentation](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/flux2.md) but have not been tested with Prisme yet: they are marked **Experimental** until they are. The CPU-only profile also depends on the engine running without a graphics card, which has not been tested either.
 
-These official, general-purpose models work with Prisme. The easiest way is **Settings → Models → Download** (Réglages → Modèles → Télécharger), or **Download the models** (Télécharger les modèles) on first launch: Prisme downloads them, checks their SHA-256, picks them in the settings and applies the right generation settings. It also adapts to your machine: with less than 12 GB of video memory, less than 24 GB of RAM, or a Mac with less than 24 GB, it recommends the light versions (about 10.7 GB instead of 14.7 GB), which are faster and keep the computer responsive. Each link below opens the model page on Hugging Face if you prefer to download by hand.
+**Other choices**, never suggested automatically:
+
+| Option | What it is | Download | License |
+|---|---|---|---|
+| Z-Image Turbo | Another image style, creation only (no editing) | 6.7 GB | Apache-2.0 |
+| Qwen-Image · 8 GB, 12 GB, 16 GB | Qwen-Image 2.1 Turbo: very good quality, tested (25 to 50 s per image on an RTX 4070 SUPER) | 10.7, 14.7 or 18.1 GB | [Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE): research or evaluation only, no commercial use of the models or the images |
+
+Before downloading a Qwen-Image profile, Prisme asks you to accept its license; the server refuses the download otherwise. The catalog, with every file's link, size, SHA-256 and license, is in [`app/modeles.json`](app/modeles.json).
+
+### Qwen-Image 2.1 Turbo by hand
+
+If you prefer to download Qwen-Image 2.1 Turbo yourself (after reading [its license](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE)):
 
 | Role in Prisme | Recommended file | Where to find it | Lighter option |
 |---|---|---|---|
@@ -207,7 +218,7 @@ This Turbo model needs few steps. In **Settings → Generation** (Réglages → 
 1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0
 ```
 
-You can rename the VAE file (for example `qwen-image-vae.safetensors`) so it is easy to spot. Check each model's license on its page before using it.
+You can rename the VAE file (for example `qwen-image-vae.safetensors`) so it is easy to spot. Attribution required by its license: "Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT, Copyright (c) 2026 Hangzhou Tongyi Laboratory Technology Co., Ltd. All Rights Reserved."
 
 ## Prompt enhancement
 
@@ -304,7 +315,10 @@ Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https:/
 ## FAQ
 
 **Is Prisme free?**
-Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits. The recommended models are free to download too; check each model's license on its page.
+Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits. The models it offers are free to download too.
+
+**Can I use the images commercially?**
+With the profiles for your machine (FLUX.2 klein 4B, Qwen3 4B, Apache-2.0), yes. With the Qwen-Image options, no: their license only allows research or evaluation. Prisme itself (MIT) adds no restriction. You remain responsible for what your images show.
 
 **Does it work offline?**
 Yes, once the engine and the models are downloaded. Image creation, editing and prompt enhancement all run on your computer. The only optional connection is a version check on GitHub at launch, which you can turn off.
@@ -313,7 +327,7 @@ Yes, once the engine and the models are downloaded. Image creation, editing and 
 A graphics card with 8 GB of video memory or more: NVIDIA (CUDA) or AMD and Intel (Vulkan) on Windows, any Vulkan card on Linux, or an Apple Silicon Mac. See [Requirements](#requirements).
 
 **Which models does it support?**
-Models that stable-diffusion.cpp can run with an LLM text encoder, in GGUF or safetensors format, plus LoRA. Prisme downloads a tested set for you: see [Recommended models](#recommended-models).
+Models that stable-diffusion.cpp can run with an LLM text encoder, in GGUF or safetensors format, plus LoRA. Prisme downloads a set suited to your machine: see [Choosing models for your machine](#choosing-models-for-your-machine).
 
 **Is it an alternative to ComfyUI?**
 For creating and editing images from a description, yes, with a much simpler interface. For complex multi-step workflows, ComfyUI stays more powerful.

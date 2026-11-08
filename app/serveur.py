@@ -519,7 +519,8 @@ class MoteurTexte:
         raise RuntimeError('Le moteur de texte a mis trop longtemps à démarrer.')
 
     def discuter(self, messages, temperature):
-        corps = json.dumps({'messages': messages, 'temperature': temperature, 'max_tokens': 400}).encode()
+        corps = json.dumps({'messages': messages, 'temperature': temperature, 'max_tokens': 400,
+                            'chat_template_kwargs': {'enable_thinking': False}}).encode()
         requete = urllib.request.Request(f'http://127.0.0.1:{self.port}/v1/chat/completions', corps,
                                          {'Content-Type': 'application/json'})
         try:
@@ -837,6 +838,8 @@ MODELES_CONSEILLES = [
     for m in CATALOGUE['modeles']
 ]
 PROFILS = CATALOGUE['profils']
+# Les options (licence non commerciale, autre style) ne sont jamais suggerees automatiquement
+PRINCIPAUX = [p for p in PROFILS if p['categorie'] == 'principal']
 MODELES_PAR_ID = {m['id']: m for m in MODELES_CONSEILLES}
 GO = 1024 ** 3
 
@@ -952,13 +955,13 @@ def suggerer_profil(machine):
     if machine.get('mac'):
         if not machine.get('memoire'):
             return None
-        candidats = [p for p in PROFILS if p['cible']['type'] == 'mac' and go(machine['memoire']) >= p['cible']['memoire_min']]
+        candidats = [p for p in PRINCIPAUX if p['cible']['type'] == 'mac' and go(machine['memoire']) >= p['cible']['memoire_min']]
     else:
         carte, video = machine.get('carte'), machine.get('video') or 0
         # Carte dediee vue, mais sa memoire est illisible : mieux vaut laisser choisir
         if carte and not video and not carte.get('integree'):
             return None
-        candidats = [p for p in PROFILS if p['cible']['type'] == 'pc' and go(video) >= p['cible']['video_min']
+        candidats = [p for p in PRINCIPAUX if p['cible']['type'] == 'pc' and go(video) >= p['cible']['video_min']
                      and (not machine.get('memoire') or go(machine['memoire']) >= p['cible']['memoire_min'])]
     meilleur = max(candidats, key=lambda p: (p['cible']['video_min'], p['cible']['memoire_min']), default=None)
     return meilleur['id'] if meilleur else None
@@ -1144,8 +1147,8 @@ def etat_profils():
     for p in PROFILS:
         fichiers = [MODELES_PAR_ID[i] for i in p['modeles']]
         presents = {m['id'] for m in fichiers if (MODELES / m['fichier']).is_file()}
-        profils.append({k: p[k] for k in ('id', 'nom', 'description', 'materiel', 'cible', 'taille_totale', 'vitesse', 'statut',
-                                          'edition')}
+        profils.append({k: p[k] for k in ('id', 'nom', 'description', 'materiel', 'cible', 'categorie', 'taille_totale', 'vitesse',
+                                          'statut', 'edition', 'licence_a_accepter')}
                        | {'modeles': [{k: m[k] for k in ('id', 'role_id', 'nom', 'quantification', 'fichier', 'url', 'page',
                                                           'taille', 'sha256', 'licence')} | {'present': m['id'] in presents}
                                       for m in fichiers],
@@ -1162,7 +1165,7 @@ def etat_modeles_conseilles():
     conseilles = set(next(p for p in PROFILS if p['id'] == profils['conseille'])['modeles'])
     with verrou_modeles:
         machine = profil_machine()
-        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'detail_en', 'fichier', 'taille')}
+        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'detail_en', 'fichier', 'taille', 'licence')}
                    | {'conseille': m['id'] in conseilles, 'present': (MODELES / m['fichier']).is_file(),
                       'reprise': (MODELES / (m['fichier'] + '.partiel')).is_file(),
                       'telechargement': dict(telechargements_modeles[m['id']]) if m['id'] in telechargements_modeles else None}
@@ -1357,10 +1360,22 @@ def adresse_reseau():
             return '127.0.0.1'
 
 
-def arguments(r, prompt, largeur, hauteur, seed, source, sortie):
+def mode_edition(r):
+    """Comment le modele de dessin choisi modifie une image : 'reference' (l'image seule, FLUX.2 klein), 'vision' (avec
+    le fichier de vision du modele de texte, Qwen-Image) ou None (creation seulement, ou fichier de vision manquant)."""
+    connu = next((m for m in MODELES_CONSEILLES if m['role_id'] == 'image' and m['fichier'] == r['modele_diffusion']), None)
+    if connu and connu['edition'] == 'reference':
+        return 'reference'
+    if connu and connu['edition'] != 'vision':
+        return None
+    # Modele du catalogue qui passe par la vision, ou modele personnel : il faut le fichier de vision
+    return 'vision' if r['modele_vision'] else None
+
+
+def arguments(r, prompt, largeur, hauteur, seed, source, sortie, vision=True):
     edition = []
     if source:
-        edition = ['--llm_vision', str(MODELES / r['modele_vision']), '-r', str(source)]
+        edition = (['--llm_vision', str(MODELES / r['modele_vision'])] if vision else []) + ['-r', str(source)]
     options = (['--sigmas', r['sigmas']] if r['sigmas'] else []) \
         + (['--diffusion-fa'] if r['flash_attention'] else []) \
         + (['--offload-to-cpu'] if r['dechargement_cpu'] else []) \
@@ -1457,10 +1472,11 @@ def generer(params):
                 f.write(base64.b64decode(donnees))
             source = source_temp = Path(chemin)
 
-        if source and not r['modele_vision']:
-            raise RuntimeError('Ces modèles ne savent pas modifier une image : choisis un profil avec la vision '
-                               '(Qwen-Image) dans la fenêtre des modèles.')
-        manquants = modeles_manquants(r, bool(source))
+        mode = mode_edition(r) if source else None
+        if source and not mode:
+            raise RuntimeError('Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire '
+                               '(FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.')
+        manquants = modeles_manquants(r, mode == 'vision')
         if manquants:
             raise RuntimeError('Modèle introuvable dans le dossier models : ' + ', '.join(manquants) + '. Vérifie les réglages.')
 
@@ -1473,7 +1489,8 @@ def generer(params):
                 etat.update(phase='chargement', etape=0, index=i + 1, seed=seed, debut_image=time.time())
             journal = deque(maxlen=80)
             processus = lancer_moteur(
-                [str(SD_CLI)] + arguments(r, params['prompt'], params['largeur'], params['hauteur'], seed, source, sortie),
+                [str(SD_CLI)] + arguments(r, params['prompt'], params['largeur'], params['hauteur'], seed, source, sortie,
+                                          vision=mode == 'vision'),
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
 
             reste = ''
@@ -1765,7 +1782,9 @@ class Gestionnaire(BaseHTTPRequestHandler):
         elif chemin == '/api/reglages':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
-            self.envoyer(200, {'reglages': lire_reglages(), 'defauts': REGLAGES_DEFAUT, 'modeles': lister_modeles(),
+            reglages = lire_reglages()
+            self.envoyer(200, {'reglages': reglages, 'edition_possible': mode_edition(reglages) is not None,
+                               'defauts': REGLAGES_DEFAUT, 'modeles': lister_modeles(),
                                'methodes': METHODES, 'dossier': str(MODELES),
                                'loras': lister_loras(), 'dossier_loras': str(LORAS)})
         elif chemin == '/api/images':
@@ -1952,10 +1971,16 @@ class Gestionnaire(BaseHTTPRequestHandler):
         elif chemin in ('/api/telecharger-modele', '/api/annuler-modele'):
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
-            ident = str(self.lire_json().get('id') or '')
+            donnees = self.lire_json()
+            ident = str(donnees.get('id') or '')
             if ident not in MODELES_PAR_ID:
                 return self.envoyer(400, {'erreur': 'Modèle inconnu.'})
             if chemin == '/api/telecharger-modele':
+                modele = MODELES_PAR_ID[ident]
+                deja = (MODELES / modele['fichier']).is_file()
+                if not modele['licence']['commercial'] and not deja and donnees.get('licence_acceptee') is not True:
+                    return self.envoyer(400, {'erreur': f'Accepte d\'abord la licence de ce modèle ({modele["licence"]["nom"]} : '
+                                                        'pas d\'usage commercial).'})
                 demander_modele(ident)
             else:
                 with verrou_modeles:

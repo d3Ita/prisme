@@ -7,7 +7,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 ### Added
 
 - **Model profiles by hardware**: the models window offers eight profiles (CPU only, 4 to 6 GB, 8 GB, 12 GB and 16 GB cards, 8 GB, 16 GB and 32 GB Macs), each with its size, indicative speed, licenses and a **Recommended for your machine** badge. **Download this profile** fetches the whole set; files already present are only selected, not downloaded again. The catalog lives in `app/modeles.json`.
-- Experimental **Z-Image Turbo** profiles for computers without a dedicated graphics card, 4 to 6 GB cards and 8 GB Macs (creation only, not tested with Prisme yet).
+- **Profiles under permissive licenses only**: the profiles suggested for your machine use FLUX.2 klein 4B, Qwen3 4B and the FLUX.2 small decoder, all Apache-2.0 (commercial use allowed). FLUX.2 klein creates and edits images with a single model, without a vision file. Experimental until tested with Prisme.
+- **Other choices**: Z-Image Turbo (Apache-2.0, creation only) and Qwen-Image 2.1 Turbo (8, 12 and 16 GB). Qwen-Image is under a research license (non-commercial): Prisme asks you to accept it before downloading, and the server refuses the download otherwise.
 - `GET /api/profils` (PC only, read-only): the profiles, what is already downloaded and the suggested profile.
 - **MCP server for Claude** (`mcp/`): Claude Desktop or Claude Code can create and edit images with Prisme on this computer, with `generate_image`, `edit_image`, `list_models`, `list_profiles` and `get_status`. Long creations return a task id to follow with `get_status`. It only talks to Prisme on `127.0.0.1` and only edits images from its own folder.
 - `POST /api/generer` accepts an optional `modele`: a drawing model file from `models/`, used for that creation only (for the MCP server's `model` parameter).
@@ -17,6 +18,7 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - The per-file list moves to **Choose models one by one (advanced mode)**.
 - Generation settings follow the chosen drawing model (8 steps and its own sigmas), unless you changed them yourself.
+- **Enhance** asks the built-in text engine to answer without a thinking phase, which keeps Qwen3 4B fast.
 
 ### Fixed
 

@@ -219,8 +219,8 @@ class ModelesConseillesTest(unittest.TestCase):
         self.assertEqual(len(serveur.MODELES_PAR_ID), len(serveur.MODELES_CONSEILLES))
         for m in catalogue['modeles']:
             with self.subTest(modele=m['id']):
-                for champ in ('id', 'role', 'famille', 'nom', 'quantification', 'detail', 'page', 'url', 'fichier', 'taille',
-                              'sha256', 'licence', 'remplit', 'vide', 'reglages'):
+                for champ in ('id', 'role', 'familles', 'nom', 'quantification', 'detail', 'page', 'url', 'fichier', 'taille',
+                              'sha256', 'licence', 'remplit', 'vide', 'reglages', 'edition'):
                     self.assertIn(champ, m)
                 self.assertIn(m['role'], serveur.ROLES_MODELES)
                 self.assertTrue(m['detail']['fr'] and m['detail']['en'])
@@ -231,6 +231,10 @@ class ModelesConseillesTest(unittest.TestCase):
                 if m['sha256'] is not None:
                     self.assertRegex(m['sha256'], r'^[0-9a-f]{64}$')
                 self.assertTrue(m['licence']['nom'] and m['licence']['url'].startswith('https://'))
+                # Une licence non commerciale est toujours resumee pour l'utilisateur, en francais et en anglais
+                if not m['licence']['commercial']:
+                    self.assertTrue(m['licence']['resume']['fr'] and m['licence']['resume']['en'])
+                self.assertIn(m['edition'], (None, 'reference', 'vision') if m['role'] == 'image' else (None,))
                 self.assertTrue(serveur.chemin_relatif_sur(m['fichier']) and '/' not in m['fichier'])
                 self.assertTrue(set(m['remplit'] + m['vide']) <= set(serveur.REGLAGES_DEFAUT), m['id'])
                 if m['reglages']:
@@ -249,23 +253,32 @@ class ModelesConseillesTest(unittest.TestCase):
                     self.assertTrue(profil[champ]['fr'] and profil[champ]['en'], champ)
                 self.assertTrue(profil['vitesse']['fr'] and profil['vitesse']['en'])
                 self.assertIn(profil['statut'], ('recommande', 'experimental'))
-                self.assertIn(profil['cible']['type'], ('pc', 'mac'))
+                self.assertIn(profil['categorie'], ('principal', 'option'))
+                self.assertIn(profil['cible']['type'], ('pc', 'mac') if profil['categorie'] == 'principal' else ('tous',))
                 modeles = [par_id[i] for i in profil['modeles']]
                 roles = [m['role'] for m in modeles]
                 # Un fichier par role ; la vision (modification d'image) est facultative
                 for role in ('image', 'texte', 'vae'):
                     self.assertEqual(roles.count(role), 1, role)
                 self.assertLessEqual(roles.count('edition'), 1)
-                self.assertEqual(profil['edition'], 'edition' in roles)
+                dessin = next(m for m in modeles if m['role'] == 'image')
+                self.assertEqual(profil['edition'], dessin['edition'] == 'reference' or (dessin['edition'] == 'vision' and 'edition' in roles))
                 # Les fichiers d'un profil vont ensemble
-                self.assertEqual(len({m['famille'] for m in modeles}), 1)
+                self.assertTrue(set.intersection(*(set(m['familles']) for m in modeles)), profil['id'])
+                # Les profils principaux n'ont que des licences permissives ; les autres demandent d'accepter la leur
+                non_commercial = any(not m['licence']['commercial'] for m in modeles)
+                self.assertEqual(profil['licence_a_accepter'], non_commercial)
+                if profil['categorie'] == 'principal':
+                    self.assertFalse(non_commercial)
                 self.assertEqual(profil['taille_totale'], sum(m['taille'] for m in modeles))
                 if profil['statut'] == 'recommande':
                     for m in modeles:
                         self.assertTrue(m['url'] and m['sha256'], m['id'])
         # Toujours un profil sans carte graphique, et un profil par taille de Mac
-        self.assertTrue(any(p['cible'] == {'type': 'pc', 'video_min': 0, 'memoire_min': 0} for p in serveur.PROFILS))
-        self.assertEqual(len([p for p in serveur.PROFILS if p['cible']['type'] == 'mac']), 3)
+        self.assertTrue(any(p['cible'] == {'type': 'pc', 'video_min': 0, 'memoire_min': 0} for p in serveur.PRINCIPAUX))
+        self.assertEqual(len([p for p in serveur.PRINCIPAUX if p['cible']['type'] == 'mac']), 3)
+        # Chaque profil principal sait modifier une image
+        self.assertTrue(all(p['edition'] for p in serveur.PRINCIPAUX))
 
     def test_suggestion_selon_la_machine(self):
         go = serveur.GO
@@ -288,14 +301,18 @@ class ModelesConseillesTest(unittest.TestCase):
             ({'mac': True, 'memoire': 36 * go, 'video': 36 * go, 'carte': None}, 'mac-32go'),
             ({'mac': True, 'memoire': 0, 'video': 0, 'carte': None}, None),
         ]
+        principaux = {p['id'] for p in serveur.PRINCIPAUX}
         for machine, attendu in cas:
             with self.subTest(machine=machine):
-                self.assertEqual(serveur.suggerer_profil(machine), attendu)
+                suggestion = serveur.suggerer_profil(machine)
+                self.assertEqual(suggestion, attendu)
+                # Jamais une option a licence non commerciale
+                self.assertTrue(suggestion is None or suggestion in principaux)
 
     def test_profil_deja_telecharge_applique_sans_retelecharger(self):
         from unittest import mock
         serveur.MODELES.mkdir(parents=True, exist_ok=True)
-        zimage = [serveur.MODELES_PAR_ID[i] for i in ('zimage-q3', 'qwen3-4b-q4', 'zimage-vae')]
+        zimage = [serveur.MODELES_PAR_ID[i] for i in ('klein-q4', 'qwen3-4b-q4', 'klein-vae')]
         serveur.FICHIER_REGLAGES.parent.mkdir(exist_ok=True)
         serveur.FICHIER_REGLAGES.write_text(json.dumps({'modele_vision': 'mmproj.gguf', 'amelioration_vision_locale': 'mmproj.gguf',
                                                         'etapes': 8, 'cfg': 1.0, 'sigmas': serveur.SIGMAS_RAPIDE}), encoding='utf-8')
@@ -312,18 +329,36 @@ class ModelesConseillesTest(unittest.TestCase):
                 telecharger.assert_not_called()
             r = serveur.lire_reglages()
             self.assertEqual((r['modele_diffusion'], r['modele_texte'], r['vae'], r['amelioration_modele_local']),
-                             ('z_image_turbo-Q3_K.gguf', 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf', 'z-image-vae.safetensors',
-                              'Qwen3-4B-Instruct-2507-Q4_K_M.gguf'))
+                             ('flux-2-klein-4b-Q4_0.gguf', 'Qwen3-4B-Q4_K_M.gguf', 'flux2-vae-small-decoder.safetensors',
+                              'Qwen3-4B-Q4_K_M.gguf'))
             # La vision de Qwen3-VL ne va pas avec ce modele de texte, et les sigmas de Qwen-Image non plus
-            self.assertEqual((r['modele_vision'], r['amelioration_vision_locale'], r['sigmas'], r['etapes']), ('', '', '', 8))
+            self.assertEqual((r['modele_vision'], r['amelioration_vision_locale'], r['sigmas'], r['etapes']), ('', '', '', 4))
+            # FLUX.2 klein modifie une image sans fichier de vision
+            self.assertEqual(serveur.mode_edition(r), 'reference')
             profil = next(p for p in serveur.etat_profils()['profils'] if p['id'] == 'cpu-8go')
             self.assertEqual((profil['taille_restante'], profil['installe'], profil['actif']), (0, True, True))
-            self.assertEqual(serveur.telechargements_modeles['zimage-q3']['phase'], 'termine')
+            self.assertEqual(serveur.telechargements_modeles['klein-q4']['phase'], 'termine')
         finally:
             for chemin in fichiers:
                 chemin.unlink(missing_ok=True)
             for m in zimage:
                 serveur.telechargements_modeles.pop(m['id'], None)
+
+    def test_arguments_de_modification_selon_le_modele(self):
+        sortie, source = Path('sortie.png'), Path('depart.png')
+        klein = {**serveur.REGLAGES_DEFAUT, **BASE, 'modele_diffusion': 'flux-2-klein-4b-Q8_0.gguf', 'modele_vision': ''}
+        qwen = {**serveur.REGLAGES_DEFAUT, **BASE, 'modele_diffusion': 'Qwen-Image-2.1-Turbo-AD-Q4_K.gguf',
+                'modele_vision': 'mmproj-Qwen3VL-8B-Instruct-F16.gguf'}
+        zimage = {**serveur.REGLAGES_DEFAUT, **BASE, 'modele_diffusion': 'z_image_turbo-Q4_K.gguf', 'modele_vision': 'mmproj.gguf'}
+        self.assertEqual([serveur.mode_edition(x) for x in (klein, qwen, zimage)], ['reference', 'vision', None])
+        self.assertEqual(serveur.mode_edition({**qwen, 'modele_vision': ''}), None)
+        # Modele personnel : la vision decide
+        self.assertEqual(serveur.mode_edition({**klein, 'modele_diffusion': 'mien.gguf', 'modele_vision': 'v.gguf'}), 'vision')
+        args = serveur.arguments(klein, 'neige', 512, 512, 1, source, sortie, vision=False)
+        self.assertIn('-r', args)
+        self.assertNotIn('--llm_vision', args)
+        args = serveur.arguments(qwen, 'neige', 512, 512, 1, source, sortie, vision=True)
+        self.assertIn('--llm_vision', args)
 
     def test_modification_sans_vision_message_clair(self):
         import base64
@@ -416,9 +451,9 @@ class ModelesConseillesTest(unittest.TestCase):
         for profil in ('complet', 'leger'):
             with mock.patch.object(serveur, 'profil_machine', return_value={'profil': profil, 'mac': False, 'suggestion': None}):
                 infos = serveur.etat_modeles_conseilles()
-            # Chaque role a un modele conseille, sous un nom clair
+            # Chaque role a un modele conseille, sous un nom clair (FLUX.2 klein n'a pas besoin de fichier de vision)
             roles = {m['role'] for m in infos['modeles'] if m['conseille']}
-            self.assertEqual(roles, {'Modèle de dessin', 'Modèle de texte', 'Vision', 'VAE'}, profil)
+            self.assertEqual(roles, {'Modèle de dessin', 'Modèle de texte', 'VAE'}, profil)
             # Le moteur de texte du bouton Ameliorer est propose dans la meme fenetre
             texte = infos['moteurs']['texte']
             self.assertEqual(texte['nom'], 'llama.cpp')
@@ -841,6 +876,19 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertIn(f'prisme_acces={serveur.CODE}', cookie)
         self.assertIn('HttpOnly', cookie)
         self.assertEqual(self.requete('GET', '/?code=faux', entetes={'X-Test-Distant': '1'})[0], 401)
+
+    def test_licence_non_commerciale_a_accepter(self):
+        from unittest import mock
+        with mock.patch.object(serveur, 'demander_modele') as demander:
+            statut, _, corps = self.poster('/api/telecharger-modele', json.dumps({'id': 'dessin-q4'}))
+            self.assertEqual(statut, 400)
+            self.assertIn('Accepte d\'abord la licence', json.loads(corps)['erreur'])
+            self.assertEqual(self.poster('/api/telecharger-modele', json.dumps({'id': 'dessin-q4', 'licence_acceptee': 'oui'}))[0], 400)
+            demander.assert_not_called()
+            self.assertEqual(self.poster('/api/telecharger-modele', json.dumps({'id': 'dessin-q4', 'licence_acceptee': True}))[0], 200)
+            # Licence permissive : rien a accepter
+            self.assertEqual(self.poster('/api/telecharger-modele', json.dumps({'id': 'klein-q4'}))[0], 200)
+            self.assertEqual([c.args[0] for c in demander.call_args_list], ['dessin-q4', 'klein-q4'])
 
     def test_modele_d_une_seule_creation_verifie(self):
         for modele in ('../app/code-acces.txt', 'C:/x.gguf', 'absent.gguf'):

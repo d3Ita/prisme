@@ -123,7 +123,7 @@ class Prisme:
         return {'models_folder': infos.get('dossier'), 'files': infos.get('modeles', []),
                 'selected': {'drawing_model': r.get('modele_diffusion') or None, 'text_model': r.get('modele_texte') or None,
                              'vision': r.get('modele_vision') or None, 'vae': r.get('vae') or None},
-                'can_edit_images': bool(r.get('modele_vision')),
+                'can_edit_images': bool(infos.get('edition_possible', r.get('modele_vision'))),
                 'loras': [l.get('nom') for l in infos.get('loras', []) if isinstance(l, dict)] or infos.get('loras', [])}
 
     def liste_profils(self):
@@ -132,6 +132,8 @@ class Prisme:
                     'download_size_gb': round(p['taille_totale'] / 1e9, 1), 'remaining_gb': round(p['taille_restante'] / 1e9, 1),
                     'status': 'recommended' if p['statut'] == 'recommande' else 'experimental',
                     'image_editing': p['edition'], 'downloaded': p['installe'], 'in_use': p['actif'],
+                    'category': 'main' if p.get('categorie', 'principal') == 'principal' else 'option',
+                    'license_to_accept': bool(p.get('licence_a_accepter')),
                     'speed': p['vitesse']['en'], 'models': [m['fichier'] for m in p['modeles']]}
                    for p in infos.get('profils', [])]
         return {'suggested_profile': infos.get('suggestion'), 'default_profile': infos.get('conseille'),
@@ -193,8 +195,8 @@ class Prisme:
         self.verifier_pret(etat)
         self.verifier_libre(etat)
         if not self.modeles()['can_edit_images']:
-            raise PrismeErreur('The models selected in Prisme cannot edit images (no vision file). Choose a profile with '
-                               'image editing (Qwen-Image) in Prisme\'s models window, or call list_profiles.')
+            raise PrismeErreur('The models selected in Prisme cannot edit images. Choose a profile with image editing '
+                               '(FLUX.2 klein or Qwen-Image) in Prisme\'s models window, or call list_profiles.')
         source = f'data:image/{genre};base64,' + base64.b64encode(donnees).decode('ascii')
         self.requete('/api/generer', {'prompt': instruction, 'largeur': width, 'hauteur': height, 'nombre': 1,
                                       'source_data': source}, delai=60)

@@ -46,7 +46,7 @@ class FauxPrisme:
         self.reglages = {'modele_diffusion': 'dessin.gguf', 'modele_texte': 'texte.gguf', 'modele_vision': 'vision.gguf',
                          'vae': 'vae.safetensors'}
         self.fichiers = ['dessin.gguf', 'texte.gguf', 'vision.gguf', 'vae.safetensors', 'autre.gguf']
-        self.etapes, self.lectures, self.recu, self.erreur = 2, 0, [], None
+        self.etapes, self.lectures, self.recu, self.erreur, self.edition = 2, 0, [], None, True
         self.image = png(16, 16)
         faux = self
 
@@ -72,7 +72,8 @@ class FauxPrisme:
                                              resultats=[] if faux.erreur else ['image_20261108_120000.png'])
                     return self.envoyer(200, faux.etat)
                 if self.path == '/api/reglages':
-                    return self.envoyer(200, {'reglages': faux.reglages, 'modeles': faux.fichiers, 'dossier': '/prisme/models',
+                    return self.envoyer(200, {'reglages': faux.reglages, 'edition_possible': faux.edition,
+                                              'modeles': faux.fichiers, 'dossier': '/prisme/models',
                                               'loras': [{'nom': 'style.safetensors', 'taille': 1}]})
                 if self.path == '/api/profils':
                     profil = {'id': 'gpu-8go', 'nom': {'fr': 'Carte de 8 Go', 'en': '8 GB card'},
@@ -211,6 +212,7 @@ class OutilsMcpTest(unittest.TestCase):
 
     def test_modification_sans_vision(self):
         self.faux.reglages['modele_vision'] = ''
+        self.faux.edition = False
         (self.dossier / 'depart.png').write_bytes(png())
         with self.assertRaisesRegex(PrismeErreur, 'cannot edit images'):
             self.prisme.modifier('depart.png', 'neige')

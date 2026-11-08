@@ -9,7 +9,7 @@ Lets Claude (Claude Desktop or Claude Code) create and edit images with [Prisme]
 | Tool | What it does |
 |---|---|
 | `generate_image(prompt, width, height, seed, model)` | Creates an image. Width and height: multiples of 16 between 256 and 2048 (1024 × 1024 by default). `model` is optional: a drawing model file from `list_models`, used for this image only. |
-| `edit_image(image_path, instruction)` | Edits a PNG or JPEG found in `PRISME_OUTPUT_DIR`, keeping its proportions. Needs a profile with image editing (Qwen-Image). |
+| `edit_image(image_path, instruction)` | Edits a PNG or JPEG found in `PRISME_OUTPUT_DIR`, keeping its proportions. Needs a profile with image editing (FLUX.2 klein or Qwen-Image). |
 | `list_models()` | Files in Prisme's `models` folder, the ones selected, and whether editing is possible. |
 | `list_profiles()` | Model profiles by hardware, what is downloaded, and the profile suggested for this computer. |
 | `get_status(task_id)` | Prisme's status; with a `task_id`, the finished image or its progress. |
@@ -81,7 +81,7 @@ Claude calls `generate_image`, gets the saved file (for example `~/Prisme-MCP/im
 - **"Prisme is busy"**: Prisme makes one image at a time, including the ones started from its own window. Wait, or follow it with `get_status`.
 - **A `task_id` instead of an image**: the creation took longer than `PRISME_TIMEOUT`. Ask Claude to call `get_status` with it, or raise `PRISME_TIMEOUT` (some MCP clients stop waiting after about a minute, so keep it lower than their limit).
 - **"only images inside … can be edited"**: copy the image into `PRISME_OUTPUT_DIR` first. The server reads no other file.
-- **"cannot edit images"**: the selected models have no vision file (Z-Image profiles). Choose a Qwen-Image profile.
+- **"cannot edit images"**: the selected models cannot edit (Z-Image, or Qwen-Image without its vision file). Choose a FLUX.2 klein or Qwen-Image profile.
 - **Nothing in Claude**: run `server.py --check` with the same Python as in the config, and look at Claude Desktop's MCP logs.
 
 ---
@@ -95,7 +95,7 @@ Permet à Claude (Claude Desktop ou Claude Code) de créer et de modifier des im
 | Outil | Rôle |
 |---|---|
 | `generate_image(prompt, width, height, seed, model)` | Crée une image. Largeur et hauteur : multiples de 16 entre 256 et 2048 (1024 × 1024 par défaut). `model` est facultatif : un fichier de modèle de dessin donné par `list_models`, utilisé pour cette image seulement. |
-| `edit_image(image_path, instruction)` | Modifie un PNG ou un JPEG du dossier `PRISME_OUTPUT_DIR`, en gardant ses proportions. Demande un profil qui sait modifier (Qwen-Image). |
+| `edit_image(image_path, instruction)` | Modifie un PNG ou un JPEG du dossier `PRISME_OUTPUT_DIR`, en gardant ses proportions. Demande un profil qui sait modifier (FLUX.2 klein ou Qwen-Image). |
 | `list_models()` | Les fichiers du dossier `models` de Prisme, ceux qui sont choisis, et si la modification est possible. |
 | `list_profiles()` | Les profils de modèles par machine, ce qui est téléchargé et le profil suggéré pour cet ordinateur. |
 | `get_status(task_id)` | L'état de Prisme ; avec un `task_id`, l'image terminée ou son avancement. |
@@ -148,5 +148,5 @@ Claude appelle `generate_image`, reçoit le fichier enregistré (par exemple `~/
 - **« Prisme is busy »** : Prisme fait une image à la fois, y compris celles lancées depuis sa fenêtre. Attends, ou suis-la avec `get_status`.
 - **Un `task_id` au lieu d'une image** : la création a duré plus que `PRISME_TIMEOUT`. Demande à Claude d'appeler `get_status` avec, ou augmente `PRISME_TIMEOUT` (certains clients MCP arrêtent d'attendre après environ une minute : reste en dessous de leur limite).
 - **« only images inside … can be edited »** : copie d'abord l'image dans `PRISME_OUTPUT_DIR`. Le serveur ne lit aucun autre fichier.
-- **« cannot edit images »** : les modèles choisis n'ont pas de fichier de vision (profils Z-Image). Choisis un profil Qwen-Image.
+- **« cannot edit images »** : les modèles choisis ne savent pas modifier (Z-Image, ou Qwen-Image sans son fichier de vision). Choisis un profil FLUX.2 klein ou Qwen-Image.
 - **Rien dans Claude** : lance `server.py --check` avec le même Python que dans la configuration, et regarde les journaux MCP de Claude Desktop.

@@ -71,7 +71,7 @@ def edit_image(image_path: str, instruction: str):
     """Edit an image with Prisme, following an instruction such as "add snow on the roof".
 
     image_path: a PNG or JPEG inside PRISME_OUTPUT_DIR (for example an image created by generate_image).
-    The result keeps the starting image's proportions. Needs a profile with image editing (Qwen-Image).
+    The result keeps the starting image's proportions. Needs a profile with image editing (FLUX.2 klein or Qwen-Image).
     """
     return contenu(appeler(prisme().modifier, image_path, instruction))
 

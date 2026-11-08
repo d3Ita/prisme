@@ -145,10 +145,10 @@ const EN = {
   'Modèles conseillés': 'Recommended models',
   'Des modèles tout public, téléchargés depuis Hugging Face et vérifiés par leur empreinte. Prisme les choisit tout seul dans les réglages.':
     'General-purpose models, downloaded from Hugging Face and checked against their checksum. Prisme selects them in the settings for you.',
-  'Tout télécharger': 'Download all', 'Choisis ta machine': 'Choose your machine', 'Profils de modèles': 'Model profiles',
+  'Tout télécharger': 'Download all', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Profils de modèles': 'Model profiles',
   'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
-  'Ces modèles ne savent pas modifier une image : choisis un profil avec la vision (Qwen-Image) dans la fenêtre des modèles.':
-    'These models cannot edit an image: choose a profile with vision (Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
+  'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
+    'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
   'En attente…': 'Waiting…', 'Vérification du fichier…': 'Checking the file…',
   'Arrêté : tu peux reprendre où le téléchargement s\'était arrêté.': 'Stopped: you can resume where the download left off.',
   'Léger : cartes graphiques de 8 Go': 'Light: 8 GB graphics cards', 'Meilleure qualité : cartes de 12 Go ou plus': 'Best quality: 12 GB cards or more',
@@ -653,6 +653,8 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 .resume-profil a { color: var(--accent-2); }
 .resume-profil .alerte { color: var(--danger); font-weight: 600; }
 .resume-profil .barre-installation { margin-top: 8px; }
+.resume-profil label.licence { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--bordure-forte); background: var(--surface); color: var(--texte); cursor: pointer; }
+.resume-profil label.licence input { margin-top: 2px; accent-color: var(--accent); }
 .bascule-avance { align-self: flex-start; }
 .liste-modeles h4 { margin: 0 0 8px; font: 650 14px var(--police-titre); color: var(--texte-2); }
 .modele { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--bordure); }
@@ -1067,6 +1069,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
     <div class="corps-modeles">
       <h4 class="titre-profils">Choisis ta machine</h4>
       <div class="profils" id="profils-modeles" role="radiogroup" aria-label="Profils de modèles"></div>
+      <h4 class="titre-profils">Autres choix</h4>
+      <div class="profils" id="profils-options" role="radiogroup" aria-label="Autres choix"></div>
       <div class="resume-profil" id="resume-profil"></div>
       <button type="button" class="bouton-lien bascule-avance" id="basculer-avance" aria-expanded="false">Choisir les modèles un par un (mode avancé)</button>
       <div class="liste-modeles" id="liste-modeles" hidden></div>
@@ -1699,15 +1703,22 @@ function rendreMoteurTexte(m) {
 const tx = (fr, en) => LANGUE === 'en' ? en : fr;
 const enLangue = o => o ? (LANGUE === 'en' ? o.en : o.fr) : '';
 let profilChoisi = null, derniersInfosModeles = null;
+// Profils dont la licence (non commerciale) a ete acceptee pendant cette visite
+const licencesAcceptees = new Set();
+const licenceManquante = profil => profil.licence_a_accepter && !licencesAcceptees.has(profil.id)
+  && profil.modeles.some(m => !m.present && !m.licence.commercial);
 
 function profilActuel(infos) {
   return infos.profils.find(p => p.id === profilChoisi) || infos.profils.find(p => p.id === infos.conseille) || infos.profils[0];
 }
 
 function rendreProfils(infos) {
-  const zone = $('#profils-modeles'), actuel = profilActuel(infos), mac = !!infos.machine?.mac;
-  zone.innerHTML = '';
-  for (const p of infos.profils.filter(p => (p.cible.type === 'mac') === mac)) {
+  const actuel = profilActuel(infos), mac = !!infos.machine?.mac;
+  $('#profils-modeles').innerHTML = '';
+  $('#profils-options').innerHTML = '';
+  // Profils de cette machine (licences permissives), puis les autres choix (autre style, licence non commerciale)
+  for (const p of infos.profils.filter(p => p.cible.type === 'tous' || (p.cible.type === 'mac') === mac)) {
+    const zone = $(p.categorie === 'option' ? '#profils-options' : '#profils-modeles');
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'carte-profil';
     b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(p.id === actuel.id));
@@ -1725,6 +1736,7 @@ function rendreProfils(infos) {
     if (p.actif) pastille(tx('Utilisé', 'In use'), 'ok');
     if (p.statut === 'experimental') pastille(tx('Expérimental', 'Experimental'), 'discrete');
     if (!p.edition) pastille(tx('Sans modification d\'image', 'No image editing'), 'discrete');
+    if (p.licence_a_accepter) pastille(tx('Non commercial', 'Non-commercial'), 'discrete');
     b.addEventListener('click', () => { profilChoisi = p.id; rendreModeles(derniersInfosModeles); });
     zone.append(b);
   }
@@ -1757,7 +1769,24 @@ function rendreProfils(infos) {
       ligne(tx(`Pas assez de place : libère au moins ${taille(restant + 200 * 2 ** 20 - infos.libre)} sur le disque.`,
                `Not enough space: free at least ${taille(restant + 200 * 2 ** 20 - infos.libre)} on the disk.`)).className = 'alerte';
     }
-  } else ligne(actuel.actif ? tx('Ce profil est utilisé dans les réglages.', 'This profile is used in the settings.')
+  }
+  // Licence non commerciale : l'utilisateur l'accepte lui-meme avant le telechargement
+  if (licenceManquante(actuel) || licencesAcceptees.has(actuel.id)) {
+    const licence = actuel.modeles.find(m => !m.licence.commercial).licence;
+    const etiquette = document.createElement('label'), coche = document.createElement('input'), lien = document.createElement('a');
+    etiquette.className = 'licence';
+    coche.type = 'checkbox'; coche.checked = licencesAcceptees.has(actuel.id);
+    coche.addEventListener('change', () => {
+      if (coche.checked) licencesAcceptees.add(actuel.id); else licencesAcceptees.delete(actuel.id);
+      rendreModeles(derniersInfosModeles);
+    });
+    lien.href = licence.url; lien.target = '_blank'; lien.rel = 'noopener'; lien.textContent = licence.nom;
+    const texte = document.createElement('span');
+    texte.append(tx('J\'accepte la ', 'I accept the '), lien, ` : ${enLangue(licence.resume)}`.replace(' :', LANGUE === 'en' ? ':' : ' :'));
+    etiquette.append(coche, texte);
+    resume.append(etiquette);
+  }
+  if (!restant) ligne(actuel.actif ? tx('Ce profil est utilisé dans les réglages.', 'This profile is used in the settings.')
     : tx('Tout est téléchargé : « Utiliser ce profil » le choisit dans les réglages.', 'Everything is downloaded: "Use this profile" selects it in the settings.'));
   // Progression de l'ensemble du profil
   const suivis = actuel.modeles.map(m => ({ m, t: infos.modeles.find(x => x.id === m.id)?.telechargement }));
@@ -1807,7 +1836,13 @@ function rendreModeles(infos) {
         const b = document.createElement('button');
         b.type = 'button'; b.className = conseille ? 'bouton-primaire' : 'bouton-secondaire';
         b.textContent = m.reprise ? 'Reprendre' : 'Télécharger';
-        b.addEventListener('click', () => telechargerModeles([m.id]));
+        b.addEventListener('click', () => {
+          // Licence non commerciale : confirmation avant ce fichier seul
+          const accepte = m.licence?.commercial !== false || confirm(tx(
+            `${m.titre} est sous ${m.licence.nom} : ${m.licence.resume.fr}\n\nAccepter cette licence et télécharger ?`,
+            `${m.titre} is under the ${m.licence.nom}: ${m.licence.resume.en}\n\nAccept this license and download?`));
+          if (accepte) telechargerModeles([m.id], m.licence?.commercial === false);
+        });
         action.append(b);
       }
       if (actif || (t && ['erreur', 'annule'].includes(t.phase) && !m.present)) {
@@ -1854,7 +1889,7 @@ function rendreModeles(infos) {
   bouton.hidden = !restant && profil.actif;
   bouton.textContent = restant ? tx(`Télécharger ce profil · ${taille(restant)}`, `Download this profile · ${taille(restant)}`)
     : tx('Utiliser ce profil', 'Use this profile');
-  bouton.disabled = !!restant && (infos.libre < restant + 200 * 2 ** 20 || (tousActifs && !moteurTexte));
+  bouton.disabled = !!restant && (infos.libre < restant + 200 * 2 ** 20 || (tousActifs && !moteurTexte) || licenceManquante(profil));
   $('#place-disque').textContent = `${taille(infos.libre)} libres sur le disque`;
 }
 
@@ -1876,9 +1911,9 @@ async function majModeles() {
   if (enCours) minuteurModeles = setTimeout(majModeles, 1000);
 }
 
-async function telechargerModeles(ids) {
+async function telechargerModeles(ids, licenceAcceptee = false) {
   try {
-    for (const id of ids) await api('/api/telecharger-modele', { id });
+    for (const id of ids) await api('/api/telecharger-modele', { id, licence_acceptee: licenceAcceptee });
     majModeles();
   } catch (err) { note(err.message, 'erreur'); }
 }
@@ -1894,7 +1929,9 @@ $('#tout-telecharger').addEventListener('click', async () => {
   const infos = await api('/api/modeles-conseilles').catch(() => null);
   if (!infos) return;
   if (moteurTexteAInstaller(infos.moteurs)) await installerMoteur('texte');
-  telechargerModeles(profilActuel(infos).modeles.map(m => m.id));
+  const profil = profilActuel(infos);
+  if (licenceManquante(profil)) return;
+  telechargerModeles(profil.modeles.map(m => m.id), licencesAcceptees.has(profil.id));
 });
 $('#basculer-avance').addEventListener('click', () => {
   const ouvert = $('#liste-modeles').hidden;

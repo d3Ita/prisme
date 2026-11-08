@@ -720,6 +720,13 @@ class ServeurMcp:
             self.repondre(ident, {})
         elif methode == 'tools/list':
             self.repondre(ident, {'tools': OUTILS})
+        # Claude Desktop demande aussi ces listes a chaque serveur : Prisme n'en a pas, il le dit sans erreur
+        elif methode == 'prompts/list':
+            self.repondre(ident, {'prompts': []})
+        elif methode == 'resources/list':
+            self.repondre(ident, {'resources': []})
+        elif methode == 'resources/templates/list':
+            self.repondre(ident, {'resourceTemplates': []})
         elif methode == 'tools/call':
             nom = params.get('name')
             if nom not in {o['name'] for o in OUTILS}:

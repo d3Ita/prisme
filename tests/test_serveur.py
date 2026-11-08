@@ -497,6 +497,26 @@ class ConnexionClaudeTest(unittest.TestCase):
             serveur.connecter_claude_desktop(self.dossier)
         self.assertEqual(self.fichier.read_text(encoding='utf-8'), '{pas du json')
 
+    def test_configuration_de_claude_recent_sous_windows(self):
+        from unittest import mock
+        base = self.dossier.parent
+        roaming, local = base / 'Roaming', base / 'Local'
+        (roaming / 'Claude').mkdir(parents=True)
+        env = {'APPDATA': str(roaming), 'LOCALAPPDATA': str(local)}
+        with mock.patch.object(serveur, 'WINDOWS', True), mock.patch.object(serveur, 'MAC', False), \
+                mock.patch.dict(os.environ, env):
+            # Ancienne version : AppData\\Roaming\\Claude
+            self.assertEqual(serveur.dossiers_claude_desktop(), [roaming / 'Claude'])
+            # Version recente : sa configuration est dans Claude-Data\\claude_<paquet>, l'ancien dossier n'est plus lu
+            recent = local / 'Claude-Data' / 'claude_pzs8sxrjxfjjc'
+            recent.mkdir(parents=True)
+            (recent / 'claude_desktop_config.json').write_text(json.dumps({'preferences': {'x': 1}}), encoding='utf-8')
+            self.assertEqual(serveur.dossiers_claude_desktop(), [recent])
+            serveur.connecter_claude_desktop(recent)
+        apres = json.loads((recent / 'claude_desktop_config.json').read_text(encoding='utf-8'))
+        self.assertEqual(apres['preferences'], {'x': 1})
+        self.assertIn('prisme', apres['mcpServers'])
+
     def test_programme_deplace(self):
         from unittest import mock
         self.fichier.write_text(json.dumps({'mcpServers': {'prisme': {'command': 'C:/ancien/Prisme.exe', 'args': ['--mcp']}}}),

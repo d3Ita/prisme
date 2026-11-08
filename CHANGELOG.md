@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-08
+
 ### Added
 
 - **Model profiles by hardware**: the models window offers eight profiles (CPU only, 4 to 6 GB, 8 GB, 12 GB and 16 GB cards, 8 GB, 16 GB and 32 GB Macs), each with its size, indicative speed, licenses and a **Recommended for your machine** badge. **Download this profile** fetches the whole set; files already present are only selected, not downloaded again. The catalog lives in `app/modeles.json`.
@@ -25,6 +27,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 ### Fixed
 
 - Editing an image with models that cannot edit now explains what to do instead of naming a missing setting.
+- **Connect to Claude** with the Microsoft Store version of Claude Desktop: Prisme now writes to the configuration that recent versions read (`AppData\Local\Claude-Data`), instead of the older `AppData\Roaming\Claude`.
+- The MCP server answers Claude Desktop's `prompts/list` and `resources/list` requests (empty lists) instead of an error.
 
 ## [1.8.5] - 2026-11-08
 
@@ -186,7 +190,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.8.5...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/d3Ita/prisme/releases/tag/v1.9.0
 [1.8.5]: https://github.com/d3Ita/prisme/releases/tag/v1.8.5
 [1.8.4]: https://github.com/d3Ita/prisme/releases/tag/v1.8.4
 [1.8.3]: https://github.com/d3Ita/prisme/releases/tag/v1.8.3

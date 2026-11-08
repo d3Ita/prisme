@@ -311,8 +311,8 @@ The tests cover settings validation, image metadata, engine installation, archiv
 
 Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
 
-- ~~**Model profiles by hardware**~~: done, in the next version (see [Choosing models for your machine](#choosing-models-for-your-machine)).
-- ~~**MCP server for Claude**~~: done, in the next version (see [Using Prisme with Claude via MCP](#using-prisme-with-claude-via-mcp)).
+- ~~**Model profiles by hardware**~~: done in 1.9.0 (see [Choosing models for your machine](#choosing-models-for-your-machine)).
+- ~~**MCP server for Claude**~~: done in 1.9.0 (see [Using Prisme with Claude via MCP](#using-prisme-with-claude-via-mcp)).
 - **Faster successive images**: keep the models loaded between two creations instead of loading them each time.
 - **Remove models from the app**: free disk space without opening the `models` folder.
 - **Upscaling**: enlarge a finished image.

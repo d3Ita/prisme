@@ -335,8 +335,8 @@ Pour contribuer, lis [CONTRIBUTING.md](CONTRIBUTING.md). L'historique des versio
 
 Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/ideas).
 
-- ~~**Profils de modèles par config**~~ : fait, dans la prochaine version (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
-- ~~**Serveur MCP pour Claude**~~ : fait, dans la prochaine version (voir [Utiliser Prisme avec Claude via MCP](#utiliser-prisme-avec-claude-via-mcp)).
+- ~~**Profils de modèles par config**~~ : fait dans la 1.9.0 (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
+- ~~**Serveur MCP pour Claude**~~ : fait dans la 1.9.0 (voir [Utiliser Prisme avec Claude via MCP](#utiliser-prisme-avec-claude-via-mcp)).
 - **Images à la suite plus rapides** : garder les modèles chargés entre deux créations au lieu de les recharger à chaque fois.
 - **Supprimer des modèles depuis l'appli** : libérer de la place sans ouvrir le dossier `models`.
 - **Agrandissement** : agrandir une image terminée.

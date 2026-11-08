@@ -379,7 +379,11 @@ class OutilsMcpTest(unittest.TestCase):
             {'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {'name': 'get_status', 'arguments': {}}},
             {'jsonrpc': '2.0', 'id': 5, 'method': 'tools/call', 'params': {'name': 'generate_image', 'arguments': {'prompt': ''}}},
             {'jsonrpc': '2.0', 'id': 6, 'method': 'tools/call', 'params': {'name': 'inconnu'}},
-            {'jsonrpc': '2.0', 'id': 7, 'method': 'resources/list'},
+            {'jsonrpc': '2.0', 'id': 7, 'method': 'sampling/inconnu'},
+            # Claude Desktop les demande a chaque serveur
+            {'jsonrpc': '2.0', 'id': 8, 'method': 'prompts/list'},
+            {'jsonrpc': '2.0', 'id': 9, 'method': 'resources/list'},
+            {'jsonrpc': '2.0', 'id': 10, 'method': 'resources/templates/list'},
         ]
         entree = io.BytesIO(b''.join(json.dumps(m).encode() + b'\n' for m in messages) + b'pas du json\n')
         sortie = io.BytesIO()
@@ -388,7 +392,7 @@ class OutilsMcpTest(unittest.TestCase):
         # Les outils tournent a part : on attend leurs reponses
         import time
         limite = time.time() + 10
-        while time.time() < limite and sortie.getvalue().count(b'\n') < 8:
+        while time.time() < limite and sortie.getvalue().count(b'\n') < 11:
             time.sleep(0.05)
         reponses = {m.get('id'): m for m in map(json.loads, sortie.getvalue().decode().splitlines())}
         self.assertEqual(reponses[1]['result']['protocolVersion'], '2025-06-18')
@@ -405,6 +409,8 @@ class OutilsMcpTest(unittest.TestCase):
         self.assertIn('empty', reponses[5]['result']['content'][0]['text'])
         self.assertEqual(reponses[6]['error']['code'], -32602)
         self.assertEqual(reponses[7]['error']['code'], -32601)
+        self.assertEqual((reponses[8]['result'], reponses[9]['result'], reponses[10]['result']),
+                         ({'prompts': []}, {'resources': []}, {'resourceTemplates': []}))
         self.assertEqual(reponses[None]['error']['code'], -32700)
 
     def test_apercu_jpeg_pour_une_grande_image(self):

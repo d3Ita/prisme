@@ -31,7 +31,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.8.5'
+VERSION = '1.9.0'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
 PORT = int(os.environ.get('PRISME_PORT') or 7861)
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
@@ -2282,8 +2282,14 @@ def navigateur_application():
 def dossiers_claude_desktop():
     """Dossiers de configuration de Claude Desktop presents sur cette machine (version classique et Microsoft Store)."""
     if WINDOWS:
+        local = Path(os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData' / 'Local')
+        # Les versions recentes de Claude Desktop gardent leurs donnees (et leur configuration) dans
+        # Claude-Data\claude_<paquet> : l'ancien dossier AppData\Roaming\Claude n'y est alors plus lu
+        recents = sorted(d for d in local.glob('Claude-Data/claude_*') if (d / 'claude_desktop_config.json').is_file())
+        if recents:
+            return recents
         candidats = [Path(os.environ.get('APPDATA') or Path.home() / 'AppData' / 'Roaming') / 'Claude']
-        paquets = Path(os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData' / 'Local') / 'Packages'
+        paquets = local / 'Packages'
         candidats += sorted(paquets.glob('Claude_*/LocalCache/Roaming/Claude')) if paquets.is_dir() else []
     elif MAC:
         candidats = [Path.home() / 'Library' / 'Application Support' / 'Claude']

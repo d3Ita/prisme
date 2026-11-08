@@ -408,6 +408,37 @@ class TelechargementsTest(unittest.TestCase):
         self.assertEqual((serveur.MODELES / m['fichier']).read_bytes(), contenu)
         self.assertEqual(compteur['requetes'], 3)
 
+    def test_chaque_moteur_a_son_lien_de_secours(self):
+        import re
+        for systeme, moteurs in serveur.MOTEURS_PAR_SYSTEME.items():
+            for moteur in moteurs.values():
+                for archive in moteur['archives']:
+                    self.assertRegex(archive['secours'] or '',
+                                     r'^https://api\.github\.com/repos/(leejet/stable-diffusion\.cpp|ggml-org/llama\.cpp)/releases/assets/\d+$',
+                                     (systeme, archive['url']))
+
+    def test_lien_de_secours_utilise_apres_deux_echecs(self):
+        import hashlib
+        contenu = os.urandom(150_000)
+        direct, compteur_direct = self.servir(b'', echecs=99)
+        secours, compteur_secours = self.servir(contenu)
+        total = []
+        serveur.telecharger({'url': direct, 'secours': secours, 'taille': len(contenu),
+                             'sha256': hashlib.sha256(contenu).hexdigest()}, self.dossier / 'moteur.zip', total.append)
+        self.assertEqual((compteur_direct['requetes'], compteur_secours['requetes']), (2, 1))
+        self.assertEqual(sum(total), len(contenu))
+
+    def test_jeton_github_seulement_pour_l_api(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {'GITHUB_TOKEN': 'jeton-essai'}):
+            api = serveur.requete_github('https://api.github.com/repos/d3Ita/prisme/releases/latest')
+            autre = serveur.requete_github('https://github.com/d3Ita/prisme/releases/download/v1/Prisme.exe')
+        # Le jeton n'est pas transmis lors d'une redirection (vers le stockage des fichiers)
+        self.assertEqual(api.unredirected_hdrs.get('Authorization'), 'Bearer jeton-essai')
+        self.assertNotIn('Authorization', api.headers)
+        self.assertNotIn('Authorization', autre.unredirected_hdrs)
+        self.assertNotIn('Authorization', autre.headers)
+
     def test_lien_de_secours_github(self):
         import io
         from unittest import mock

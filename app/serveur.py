@@ -157,6 +157,22 @@ MOTEURS_PAR_SYSTEME = {
     },
   },
 }
+# Le meme fichier par l'API GitHub, quand le lien direct des releases ne repond pas (erreurs 504 de github.com)
+LIENS_SECOURS = {
+    'sd-master-290148d-bin-win-cuda12-x64.zip': 'https://api.github.com/repos/leejet/stable-diffusion.cpp/releases/assets/699547367',
+    'cudart-sd-bin-win-cu12-x64.zip': 'https://api.github.com/repos/leejet/stable-diffusion.cpp/releases/assets/699545839',
+    'sd-master-290148d-bin-win-vulkan-x64.zip': 'https://api.github.com/repos/leejet/stable-diffusion.cpp/releases/assets/699547949',
+    'sd-master-290148d-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip': 'https://api.github.com/repos/leejet/stable-diffusion.cpp/releases/assets/699547131',
+    'sd-master-290148d-bin-Darwin-macOS-26.6.2-arm64.zip': 'https://api.github.com/repos/leejet/stable-diffusion.cpp/releases/assets/699546521',
+    'llama-b12100-bin-win-cuda-12.4-x64.zip': 'https://api.github.com/repos/ggml-org/llama.cpp/releases/assets/708736623',
+    'llama-b12100-bin-win-vulkan-x64.zip': 'https://api.github.com/repos/ggml-org/llama.cpp/releases/assets/708738790',
+    'llama-b12100-bin-ubuntu-vulkan-x64.tar.gz': 'https://api.github.com/repos/ggml-org/llama.cpp/releases/assets/708736190',
+    'llama-b12100-bin-macos-arm64.tar.gz': 'https://api.github.com/repos/ggml-org/llama.cpp/releases/assets/708733521',
+}
+for _moteurs in MOTEURS_PAR_SYSTEME.values():
+    for _moteur in _moteurs.values():
+        for _archive in _moteur['archives']:
+            _archive['secours'] = LIENS_SECOURS.get(_archive['url'].rsplit('/', 1)[1])
 ACCELERATIONS = {'windows': 'CUDA', 'windows-vulkan': 'Vulkan', 'linux': 'Vulkan', 'mac': 'Metal'}
 
 
@@ -684,14 +700,24 @@ def erreur_lisible(e, url):
     return RuntimeError(f'Téléchargement impossible depuis {hote} : vérifie la connexion Internet, puis réessaie.')
 
 
+def requete_github(url, **en_tetes):
+    """Requete avec le jeton GITHUB_TOKEN s'il existe (machines de construction de GitHub, qui partagent leurs adresses
+    et atteignent vite la limite de l'API) ; le jeton ne part que vers api.github.com, jamais vers une redirection."""
+    requete = urllib.request.Request(url, headers={'User-Agent': f'Prisme/{VERSION}', **en_tetes})
+    jeton = os.environ.get('GITHUB_TOKEN')
+    if jeton and urlparse(url).hostname == 'api.github.com':
+        requete.add_unredirected_header('Authorization', f'Bearer {jeton}')
+    return requete
+
+
 def lien_api_github(url):
     """Le meme fichier par l'API GitHub, quand le lien direct d'une release ne repond pas (erreurs 504 de github.com)."""
     m = re.fullmatch(r'https://github\.com/([\w.-]+)/([\w.-]+)/releases/download/([^/]+)/([^/?#]+)', url)
     if not m:
         return None
     proprietaire, depot, tag, nom = m.groups()
-    requete = urllib.request.Request(f'https://api.github.com/repos/{proprietaire}/{depot}/releases/tags/{tag}',
-                                     headers={'User-Agent': f'Prisme/{VERSION}', 'Accept': 'application/vnd.github+json'})
+    requete = requete_github(f'https://api.github.com/repos/{proprietaire}/{depot}/releases/tags/{tag}',
+                             Accept='application/vnd.github+json')
     with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=30) as reponse:
         fichiers = json.load(reponse).get('assets') or []
     lien = next((a.get('url') for a in fichiers if a.get('name') == unquote(nom)), None)
@@ -709,19 +735,21 @@ def telecharger(archive, destination, progression):
     """Telecharge une archive en verifiant sa taille et son empreinte SHA-256. Les erreurs passageres sont reessayees ;
     apres deux echecs du lien direct d'une release GitHub, le fichier passe par l'API GitHub. L'empreinte garantit
     que c'est bien le meme fichier, quel que soit le chemin."""
-    url, en_tetes = archive['url'], {}
+    url, en_tetes, secours = archive['url'], {}, archive.get('secours')
     for essai in range(ESSAIS):
-        if essai == 2:
-            try:
-                secours = lien_api_github(archive['url'])
-            except Exception:
-                secours = None
+        # Apres deux echecs du lien direct : lien de secours connu, sinon cherche (et recherche encore s'il echoue)
+        if essai >= 2 and url == archive['url']:
+            if not secours:
+                try:
+                    secours = lien_api_github(archive['url'])
+                except Exception:
+                    secours = None
             if secours:
                 url, en_tetes = secours, {'Accept': 'application/octet-stream'}
         recu = 0
         empreinte = hashlib.sha256()
         try:
-            requete = urllib.request.Request(url, headers={'User-Agent': f'Prisme/{VERSION}', **en_tetes})
+            requete = requete_github(url, **en_tetes)
             with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=60) as reponse, open(destination, 'wb') as fichier:
                 while bloc := reponse.read(1024 * 1024):
                     fichier.write(bloc)
@@ -1057,8 +1085,7 @@ def lire_release(donnees):
 
 def verifier_mise_a_jour():
     try:
-        requete = urllib.request.Request('https://api.github.com/repos/d3Ita/prisme/releases/latest',
-                                         headers={'User-Agent': f'Prisme/{VERSION}', 'Accept': 'application/vnd.github+json'})
+        requete = requete_github('https://api.github.com/repos/d3Ita/prisme/releases/latest', Accept='application/vnd.github+json')
         with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=8) as reponse:
             version, fichier = lire_release(json.load(reponse))
         if numero_version(version) > numero_version(VERSION):

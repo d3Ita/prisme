@@ -37,6 +37,7 @@ jobs:
       - name: Essai du programme
         env:
           PRISME_RACINE: ${{ runner.temp }}/prisme-essai
+          GITHUB_TOKEN: ${{ github.token }}
         run: python .github/scripts/essai_programme.py ${{ matrix.programme }}
       - uses: actions/upload-artifact@v4
         with:
@@ -59,6 +60,7 @@ jobs:
       - name: Essai du programme
         env:
           PRISME_RACINE: ${{ runner.temp }}/prisme-essai
+          GITHUB_TOKEN: ${{ github.token }}
         run: python .github/scripts/essai_programme.py .construction/dist/Prisme.app/Contents/MacOS/Prisme
       - uses: actions/upload-artifact@v4
         with:

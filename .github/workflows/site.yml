@@ -21,7 +21,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Une release tourne sur son tag, que l'environnement github-pages refuse : on relance le site depuis main
+  relancer:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main
+
   publier:
+    if: github.event_name != 'release'
     runs-on: ubuntu-24.04
     environment:
       name: github-pages

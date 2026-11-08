@@ -242,15 +242,17 @@ To stop Prisme, click **Quit** (Quitter) or close its window: the server shuts d
 
 ## Using Prisme with Claude via MCP
 
-The [`mcp/`](mcp/README.md) folder holds an MCP server: Claude Desktop or Claude Code can then create and edit images with Prisme, on your computer. It offers `generate_image`, `edit_image`, `list_models`, `list_profiles` and `get_status`, talks only to Prisme on `127.0.0.1`, copies the images to a folder of your choice, and can only edit images found in that folder.
+If Claude Desktop or Claude Code is installed on your computer, Prisme offers **Connect to Claude** (Connecter à Claude) in a banner and in **Settings → Application**. One click adds Prisme to Claude's configuration (a copy of the original is kept); restart Claude, then just ask: *"Create an image of a fox in the snow with Prisme"*. Nothing else to install: the MCP server is built into the program (`Prisme.exe --mcp`), and Claude starts Prisme by itself if it isn't open.
 
-```bash
-python3 -m venv mcp/.venv
-mcp/.venv/bin/pip install -r mcp/requirements.txt
-claude mcp add prisme -- "$PWD/mcp/.venv/bin/python" "$PWD/mcp/server.py"
-```
+Claude can then:
 
-Prisme must be running with a model profile downloaded. The [MCP README](mcp/README.md) covers Windows, the Claude Desktop configuration, the settings (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) and troubleshooting. The MCP server needs the official `mcp` Python package and Pillow; Prisme itself still needs nothing.
+- **create and edit images** (`generate_image`, `edit_image`), and follow long ones (`get_status`);
+- **set Prisme up**: see the profile recommended for your machine (`list_profiles`), install the engines (`install_engine`) and download a profile (`download_profile`);
+- **download another model** that you name (`download_model`, a `.gguf` or `.safetensors` link).
+
+**You stay in control of licenses.** Profiles under an open license (Apache-2.0) are downloaded directly. For a non-commercial license (Qwen-Image) or a model outside Prisme's catalog, Prisme opens a request in its own window, with the license or a warning (license and content not checked); only your click there starts the download. Claude cannot answer for you.
+
+The server only talks to Prisme on `127.0.0.1`, copies the images to `~/Prisme-MCP`, and only edits images found there. Manual setup, settings and troubleshooting: [MCP README](mcp/README.md).
 
 ## Security
 
@@ -295,11 +297,13 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | `app/index.html` | The whole interface: HTML, CSS and JavaScript with no dependency |
 | `app/modeles.json` | Catalog of downloadable models and profiles by hardware |
 | `app/icone.py` | Program icon and splash screen, made from the logo |
-| `mcp/` | MCP server for Claude, and its README |
+| `app/mcp_prisme.py` | MCP server built into Prisme (`--mcp`), standard library only |
+| `mcp/` | MCP README, and a launcher for developers |
 | `construire.py` | Builds Prisme for the current system |
 | `construire.ps1` | Prepares a Python environment on Windows, then runs `construire.py` |
 | `tests/test_serveur.py` | Server tests |
 | `tests/test_mcp.py` | MCP server tests, against a fake Prisme |
+| `tests/test_protocole_mcp.py` | The MCP server with the official MCP client (run when the `mcp` package is installed) |
 | `docs/architecture.md` | Architecture diagram and explanation |
 
 ## Roadmap

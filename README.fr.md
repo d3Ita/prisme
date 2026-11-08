@@ -256,15 +256,17 @@ Le téléphone doit être sur le même réseau que le PC. Le lien du QR code con
 
 ## Utiliser Prisme avec Claude via MCP
 
-Le dossier [`mcp/`](mcp/README.md#français) contient un serveur MCP : Claude Desktop ou Claude Code peut alors créer et modifier des images avec Prisme, sur ton ordinateur. Il propose `generate_image`, `edit_image`, `list_models`, `list_profiles` et `get_status`, ne parle qu'à Prisme sur `127.0.0.1`, copie les images dans le dossier de ton choix, et ne peut modifier que les images de ce dossier.
+Si Claude Desktop ou Claude Code est installé sur ton ordinateur, Prisme propose **Connecter à Claude** dans un bandeau et dans **Réglages → Application**. Un clic ajoute Prisme à la configuration de Claude (une copie de l'original est gardée) ; relance Claude, puis demande-lui simplement : *« Crée avec Prisme l'image d'un renard dans la neige »*. Rien d'autre à installer : le serveur MCP est intégré au programme (`Prisme.exe --mcp`), et Claude lance Prisme tout seul s'il n'est pas ouvert.
 
-```bash
-python3 -m venv mcp/.venv
-mcp/.venv/bin/pip install -r mcp/requirements.txt
-claude mcp add prisme -- "$PWD/mcp/.venv/bin/python" "$PWD/mcp/server.py"
-```
+Claude peut alors :
 
-Prisme doit être lancé, avec un profil de modèles téléchargé. Le [README du serveur MCP](mcp/README.md#français) explique l'installation sous Windows, la configuration de Claude Desktop, les réglages (`PRISME_URL`, `PRISME_TIMEOUT`, `PRISME_OUTPUT_DIR`) et le dépannage. Le serveur MCP a besoin du paquet Python officiel `mcp` et de Pillow ; Prisme lui-même n'a toujours besoin de rien.
+- **créer et modifier des images** (`generate_image`, `edit_image`), et suivre les plus longues (`get_status`) ;
+- **installer Prisme** : voir le profil conseillé pour ta machine (`list_profiles`), installer les moteurs (`install_engine`) et télécharger un profil (`download_profile`) ;
+- **télécharger un autre modèle** que tu lui indiques (`download_model`, un lien `.gguf` ou `.safetensors`).
+
+**Les licences restent ta décision.** Les profils sous licence ouverte (Apache-2.0) se téléchargent directement. Pour une licence non commerciale (Qwen-Image) ou un modèle hors du catalogue de Prisme, Prisme ouvre une demande dans sa propre fenêtre, avec la licence ou un avertissement (licence et contenu non vérifiés) ; seul ton clic à cet endroit lance le téléchargement. Claude ne peut pas répondre à ta place.
+
+Le serveur ne parle qu'à Prisme sur `127.0.0.1`, copie les images dans `~/Prisme-MCP`, et ne modifie que les images de ce dossier. Installation à la main, réglages et dépannage : [README du serveur MCP](mcp/README.md#français).
 
 ## Sécurité
 
@@ -318,7 +320,9 @@ python3 app/serveur.py
 | `construire.ps1` | Préparation de Python sous Windows, puis `construire.py` |
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
 | `tests/test_mcp.py` | Tests du serveur MCP, avec un faux Prisme |
-| `mcp/` | Serveur MCP pour Claude, et son README |
+| `tests/test_protocole_mcp.py` | Le serveur MCP avec le client MCP officiel (lancé si le paquet `mcp` est installé) |
+| `app/mcp_prisme.py` | Serveur MCP intégré à Prisme (`--mcp`), bibliothèque standard seulement |
+| `mcp/` | README du serveur MCP, et lanceur pour développer |
 | `docs/architecture.md` | Schéma et explication de l'architecture |
 | `.github/workflows/` | Tests et construction sur GitHub |
 

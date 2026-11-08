@@ -284,6 +284,15 @@ cache_infos = {}
 echecs = {}
 demandes = {}
 verrou_demandes = threading.Lock()
+# Demandes de Claude (serveur MCP) qui attendent l'accord de l'utilisateur dans la fenetre de Prisme :
+# licence non commerciale a accepter, ou modele hors du catalogue de Prisme
+consentements = {}
+verrou_consentements = threading.Lock()
+DUREE_CONSENTEMENT, CONSENTEMENTS_MAX = 600, 5
+# Derniere requete de la fenetre de Prisme, et du serveur MCP (en-tete X-Prisme-Client: mcp)
+dernier_contact_fenetre = 0.0
+dernier_contact_mcp = 0.0
+DELAI_MCP = 600
 verrou_echecs = threading.Lock()
 # Acces reseau du serveur en cours : un changement de reglage s'applique au prochain lancement
 SERVEUR_RESEAU = True
@@ -1042,7 +1051,7 @@ def telecharger_modele(modele):
     final = MODELES / modele['fichier']
     partiel = MODELES / (modele['fichier'] + '.partiel')
     try:
-        MODELES.mkdir(parents=True, exist_ok=True)
+        final.parent.mkdir(parents=True, exist_ok=True)
         deja = partiel.stat().st_size if partiel.exists() else 0
         if deja > modele['taille']:
             partiel.unlink()
@@ -1086,7 +1095,8 @@ def telecharger_modele(modele):
                 time.sleep(min(PAUSE_ESSAI * 2 ** essai, 20))
         with verrou_modeles:
             suivi['phase'] = 'verification'
-        if partiel.stat().st_size != modele['taille'] or empreinte_fichier(partiel) != modele['sha256']:
+        # Un modele hors catalogue n'a pas toujours d'empreinte connue : sa taille est alors seule verifiee
+        if partiel.stat().st_size != modele['taille'] or (modele['sha256'] and empreinte_fichier(partiel) != modele['sha256']):
             partiel.unlink(missing_ok=True)
             raise RuntimeError('Le fichier reçu ne correspond pas au modèle attendu (empreinte différente). Réessaie.')
         partiel.replace(final)
@@ -1100,6 +1110,107 @@ def telecharger_modele(modele):
     except Exception as e:
         with verrou_modeles:
             suivi.update(phase='erreur', erreur=str(e) if isinstance(e, RuntimeError) else f'Téléchargement impossible : {e}')
+
+
+MODELES_EXTERNES = {}
+EXTENSIONS_MODELES = ('.gguf', '.safetensors')
+ROLES_EXTERNES = {'image': ['modele_diffusion'], 'texte': ['modele_texte'], 'edition': ['modele_vision'], 'vae': ['vae'],
+                  'lora': [], None: []}
+
+
+def trouver_modele(ident):
+    return MODELES_PAR_ID.get(ident) or MODELES_EXTERNES.get(ident)
+
+
+def infos_fichier_distant(url):
+    """Taille et empreinte SHA-256 d'un fichier, lues dans les en-tetes sans le telecharger. Hugging Face donne
+    l'empreinte des gros fichiers (X-Linked-Etag) ; ailleurs, seule la taille est connue."""
+    class SansRedirection(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+
+    ouvreur = urllib.request.build_opener(urllib.request.HTTPSHandler(context=contexte_ssl()), SansRedirection)
+    requete = urllib.request.Request(url, method='HEAD', headers={'User-Agent': f'Prisme/{VERSION}'})
+    redirection = False
+    try:
+        with ouvreur.open(requete, timeout=20) as reponse:
+            en_tetes = reponse.headers
+    except urllib.error.HTTPError as e:
+        if e.code not in (301, 302, 303, 307, 308):
+            raise erreur_lisible(e, url) from None
+        en_tetes, redirection = e.headers, True
+    except (urllib.error.URLError, OSError) as e:
+        raise erreur_lisible(e, url) from None
+    taille = en_tetes.get('X-Linked-Size') or ('' if redirection else en_tetes.get('Content-Length'))
+    if not taille and redirection:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, method='HEAD', headers={'User-Agent': f'Prisme/{VERSION}'}),
+                                        context=contexte_ssl(), timeout=20) as reponse:
+                taille = reponse.headers.get('Content-Length')
+        except (urllib.error.URLError, OSError) as e:
+            raise erreur_lisible(e, url) from None
+    empreinte = (en_tetes.get('X-Linked-Etag') or '').strip('"').lower()
+    return int(taille or 0), empreinte if re.fullmatch(r'[0-9a-f]{64}', empreinte) else None
+
+
+def preparer_externe(url, role):
+    """Verifie une demande de modele hors catalogue : https, fichier .gguf ou .safetensors, pas deja present."""
+    adresse = urlparse(str(url or ''))
+    if adresse.scheme != 'https' or not adresse.hostname:
+        raise ValueError('Adresse invalide : il faut un lien https vers le fichier.')
+    if role not in ROLES_EXTERNES:
+        raise ValueError('Rôle inconnu : image, texte, edition, vae ou lora.')
+    nom = unquote(adresse.path.rsplit('/', 1)[-1])
+    if not re.fullmatch(r'[\w.+-]+', nom) or not nom.lower().endswith(EXTENSIONS_MODELES):
+        raise ValueError('Seuls les fichiers .gguf et .safetensors peuvent être téléchargés.')
+    fichier = ('loras/' if role == 'lora' else '') + nom
+    if (MODELES / fichier).exists():
+        raise ValueError(f'{nom} est déjà dans le dossier des modèles.')
+    taille, empreinte = infos_fichier_distant(url)
+    if taille <= 0:
+        raise ValueError('La taille du fichier est inconnue : téléchargement refusé.')
+    return {'url': url, 'hote': adresse.hostname, 'fichier': fichier, 'taille': taille, 'sha256': empreinte, 'role': role}
+
+
+def creer_consentement(genre, details):
+    with verrou_consentements:
+        maintenant = time.time()
+        for cle in [c for c, d in consentements.items() if maintenant - d['cree'] > DUREE_CONSENTEMENT]:
+            consentements[cle]['etat'] = 'expiree' if consentements[cle]['etat'] == 'attente' else consentements[cle]['etat']
+        if sum(d['etat'] == 'attente' for d in consentements.values()) >= CONSENTEMENTS_MAX:
+            raise OverflowError
+        ident = secrets.token_urlsafe(9)
+        consentements[ident] = {'genre': genre, 'details': details, 'etat': 'attente', 'cree': maintenant, 'telechargements': []}
+    # La demande doit etre vue : si aucune fenetre de Prisme n'est ouverte, on en ouvre une
+    if time.time() - dernier_contact_fenetre > 8:
+        threading.Thread(target=ouvrir_fenetre, daemon=True).start()
+    return ident
+
+
+def executer_consentement(demande):
+    """L'utilisateur a accepte dans la fenetre : les telechargements commencent."""
+    if demande['genre'] == 'profil':
+        profil = next(p for p in PROFILS if p['id'] == demande['details']['profil'])
+        idents = list(profil['modeles'])
+    else:
+        d = demande['details']
+        ident = 'externe-' + hashlib.sha256(d['url'].encode()).hexdigest()[:12]
+        MODELES_EXTERNES[ident] = {'id': ident, 'role': ROLES_MODELES.get(d['role'], 'Autre'), 'role_id': d['role'],
+                                   'titre': Path(d['fichier']).name, 'fichier': d['fichier'], 'url': d['url'],
+                                   'taille': d['taille'], 'sha256': d['sha256'], 'remplit': ROLES_EXTERNES[d['role']],
+                                   'vide': [], 'reglages': None, 'licence': {'nom': None, 'commercial': None}}
+        idents = [ident]
+    for ident in idents:
+        demander_modele(ident)
+    demande['telechargements'] = idents
+
+
+def resume_telechargements():
+    """Telechargements de modeles en cours ou recents, pour la fenetre et pour Claude."""
+    with verrou_modeles:
+        return [{'id': ident, 'fichier': trouver_modele(ident)['fichier'], 'phase': t['phase'], 'fait': t.get('fait', 0),
+                 'total': t.get('total', 0), 'erreur': t.get('erreur')}
+                for ident, t in telechargements_modeles.items() if trouver_modele(ident)]
 
 
 def traiter_file_modeles():
@@ -1116,12 +1227,12 @@ def traiter_file_modeles():
                 suivi['phase'] = 'annule'
                 continue
             suivi['phase'] = 'telechargement'
-        telecharger_modele(MODELES_PAR_ID[ident])
+        telecharger_modele(trouver_modele(ident))
 
 
 def demander_modele(ident):
     global travailleur_modeles
-    modele = MODELES_PAR_ID[ident]
+    modele = trouver_modele(ident)
     with verrou_modeles:
         if telechargements_modeles.get(ident, {}).get('phase') in ('attente', 'telechargement', 'verification'):
             return
@@ -1679,11 +1790,18 @@ class Gestionnaire(BaseHTTPRequestHandler):
         preferee = self.headers.get('Accept-Language', 'fr').split(',')[0].strip().lower()
         return not preferee or preferee.startswith('fr')
 
+    def vient_du_mcp(self):
+        return self.headers.get('X-Prisme-Client') == 'mcp'
+
     def noter_contact_local(self):
-        global dernier_contact_local, fermeture_demandee
-        if self.est_local():
-            dernier_contact_local = time.time()
-            fermeture_demandee = None
+        global dernier_contact_local, fermeture_demandee, dernier_contact_fenetre, dernier_contact_mcp
+        if not self.est_local():
+            return
+        if self.vient_du_mcp():
+            dernier_contact_mcp = time.time()
+            return
+        dernier_contact_local = dernier_contact_fenetre = time.time()
+        fermeture_demandee = None
 
     def deposer_cookie(self):
         self.send_header('Set-Cookie', f'prisme_acces={CODE}; Max-Age=31536000; Path=/; HttpOnly; SameSite=Lax')
@@ -1793,6 +1911,20 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             self.envoyer(200, etat_modeles_conseilles())
+        elif chemin == '/api/consentement':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            with verrou_consentements:
+                demande = consentements.get(parse_qs(url.query).get('id', [''])[0])
+                if demande and demande['etat'] == 'attente' and time.time() - demande['cree'] > DUREE_CONSENTEMENT:
+                    demande['etat'] = 'expiree'
+            if not demande:
+                return self.envoyer(404, {'erreur': 'Demande inconnue.'})
+            self.envoyer(200, {'etat': demande['etat'], 'telechargements': demande['telechargements']})
+        elif chemin == '/api/claude':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            self.envoyer(200, etat_claude())
         elif chemin == '/api/profils':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -1816,6 +1948,11 @@ class Gestionnaire(BaseHTTPRequestHandler):
                                          for i, d in demandes.items()
                                          if d['etat'] == 'attente' and time.time() - d['cree'] <= DUREE_DEMANDE]
                 copie['mise_a_jour'] = etat_mise_a_jour()
+                with verrou_consentements:
+                    copie['consentements'] = [{'id': i, 'genre': d['genre'], 'details': d['details']}
+                                              for i, d in consentements.items()
+                                              if d['etat'] == 'attente' and time.time() - d['cree'] <= DUREE_CONSENTEMENT]
+                copie['telechargements'] = resume_telechargements()
             copie['loras_actifs'] = [{'nom': Path(l['nom']).stem, 'force': l['force']} for l in loras_actifs(r)]
             self.envoyer(200, copie)
         elif chemin == '/api/ollama-modeles':
@@ -1988,6 +2125,70 @@ class Gestionnaire(BaseHTTPRequestHandler):
                         telechargements_modeles[ident]['annule'] = True
             self.envoyer(200, {})
 
+        elif chemin == '/api/demander-telechargement':
+            # Claude demande un telechargement qui demande l'accord de l'utilisateur dans la fenetre de Prisme
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            donnees = self.lire_json()
+            if donnees.get('profil'):
+                profil = next((x for x in PROFILS if x['id'] == donnees['profil']), None)
+                if not profil:
+                    return self.envoyer(400, {'erreur': 'Profil inconnu.'})
+                if not profil['licence_a_accepter']:
+                    return self.envoyer(400, {'erreur': 'Ce profil n\'a pas de licence à accepter : télécharge ses fichiers directement.'})
+                licence = next(MODELES_PAR_ID[i]['licence'] for i in profil['modeles'] if not MODELES_PAR_ID[i]['licence']['commercial'])
+                details = {'profil': profil['id'], 'nom': profil['nom'], 'licence': licence,
+                           'taille': sum(MODELES_PAR_ID[i]['taille'] for i in profil['modeles']
+                                         if not (MODELES / MODELES_PAR_ID[i]['fichier']).is_file())}
+                genre = 'profil'
+            else:
+                try:
+                    details = preparer_externe(donnees.get('url'), donnees.get('role') or None)
+                except (ValueError, RuntimeError) as e:
+                    return self.envoyer(400, {'erreur': str(e)})
+                genre = 'externe'
+            try:
+                ident = creer_consentement(genre, details)
+            except OverflowError:
+                return self.envoyer(429, {'erreur': 'Trop de demandes en attente dans la fenêtre de Prisme.'})
+            self.envoyer(200, {'id': ident, 'details': details, 'expire': DUREE_CONSENTEMENT})
+
+        elif chemin == '/api/repondre-consentement':
+            # Seule la fenetre de Prisme repond : le serveur MCP ne peut pas accepter a la place de l'utilisateur
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme.'})
+            donnees = self.lire_json()
+            with verrou_consentements:
+                demande = consentements.get(str(donnees.get('id') or ''))
+                if not demande or demande['etat'] != 'attente' or time.time() - demande['cree'] > DUREE_CONSENTEMENT:
+                    return self.envoyer(404, {'erreur': 'Cette demande a expiré.'})
+                demande['etat'] = 'acceptee' if donnees.get('accepter') is True else 'refusee'
+            if demande['etat'] == 'acceptee':
+                executer_consentement(demande)
+            self.envoyer(200, {'etat': demande['etat']})
+
+        elif chemin == '/api/connecter-claude':
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme.'})
+            donnees = self.lire_json()
+            retirer = donnees.get('retirer') is True
+            faits, erreurs = [], []
+            for dossier in dossiers_claude_desktop():
+                try:
+                    connecter_claude_desktop(dossier, retirer)
+                    faits.append('desktop')
+                except (OSError, RuntimeError) as e:
+                    erreurs.append(str(e))
+            if shutil.which('claude'):
+                try:
+                    connecter_claude_code(retirer)
+                    faits.append('code')
+                except (OSError, RuntimeError, subprocess.SubprocessError) as e:
+                    erreurs.append(str(e))
+            if not faits and not erreurs:
+                return self.envoyer(404, {'erreur': 'Claude n\'est pas installé sur cet ordinateur.'})
+            self.envoyer(200 if faits else 500, {'faits': faits, 'erreurs': erreurs, 'claude': etat_claude()})
+
         elif chemin == '/api/installer-moteur':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -2078,6 +2279,107 @@ def navigateur_application():
     return next((c for c in candidats if c.is_file()), None)
 
 
+def dossiers_claude_desktop():
+    """Dossiers de configuration de Claude Desktop presents sur cette machine (version classique et Microsoft Store)."""
+    if WINDOWS:
+        candidats = [Path(os.environ.get('APPDATA') or Path.home() / 'AppData' / 'Roaming') / 'Claude']
+        paquets = Path(os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData' / 'Local') / 'Packages'
+        candidats += sorted(paquets.glob('Claude_*/LocalCache/Roaming/Claude')) if paquets.is_dir() else []
+    elif MAC:
+        candidats = [Path.home() / 'Library' / 'Application Support' / 'Claude']
+    else:
+        candidats = [Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') / 'Claude']
+    return [d for d in candidats if d.is_dir()]
+
+
+def commande_mcp():
+    """Comment Claude lance le serveur MCP de Prisme : ce programme lui-meme, avec --mcp."""
+    if EXE:
+        # L'ecran de demarrage de l'exe ne doit pas s'afficher a chaque lancement de Claude
+        entree = {'command': sys.executable, 'args': ['--mcp'], 'env': {'PYINSTALLER_SUPPRESS_SPLASH_SCREEN': '1'}}
+    else:
+        entree = {'command': sys.executable, 'args': [str(Path(__file__).resolve()), '--mcp'], 'env': {}}
+    if PORT != 7861:
+        entree['env']['PRISME_URL'] = f'http://127.0.0.1:{PORT}'
+    if os.environ.get('PRISME_RACINE'):
+        entree['env']['PRISME_RACINE'] = str(RACINE)
+    if not entree['env']:
+        del entree['env']
+    return entree
+
+
+def lire_json_claude(fichier):
+    if not fichier.exists():
+        return {}
+    donnees = json.loads(fichier.read_text(encoding='utf-8-sig') or '{}')
+    if not isinstance(donnees, dict):
+        raise ValueError
+    return donnees
+
+
+def etat_claude():
+    """Claude Desktop et Claude Code sont-ils sur cette machine, et Prisme y est-il deja branche ?"""
+    attendu = commande_mcp()
+    desktop = []
+    for dossier in dossiers_claude_desktop():
+        try:
+            entree = lire_json_claude(dossier / 'claude_desktop_config.json').get('mcpServers', {}).get('prisme')
+        except (OSError, ValueError):
+            entree = None
+        desktop.append('connecte' if entree == attendu else 'ancien' if entree else 'absent')
+    code_cli = shutil.which('claude')
+    try:
+        entree_code = lire_json_claude(Path.home() / '.claude.json').get('mcpServers', {}).get('prisme')
+    except (OSError, ValueError):
+        entree_code = None
+    return {'desktop': bool(desktop), 'desktop_connecte': bool(desktop) and all(e == 'connecte' for e in desktop),
+            'desktop_a_mettre_a_jour': 'ancien' in desktop,
+            'code': bool(code_cli or entree_code), 'code_connecte': bool(entree_code)
+            and entree_code.get('command') == attendu['command'] and entree_code.get('args') == attendu['args'],
+            'commande': attendu}
+
+
+def connecter_claude_desktop(dossier, retirer=False):
+    """Ajoute (ou retire) Prisme dans la configuration de Claude Desktop, en gardant une copie de l'original."""
+    fichier = dossier / 'claude_desktop_config.json'
+    try:
+        donnees = lire_json_claude(fichier)
+    except ValueError:
+        raise RuntimeError(f'La configuration de Claude est illisible, Prisme n\'y touche pas : {fichier}') from None
+    serveurs = donnees.setdefault('mcpServers', {})
+    if not isinstance(serveurs, dict):
+        raise RuntimeError(f'La configuration de Claude est inattendue, Prisme n\'y touche pas : {fichier}')
+    if retirer:
+        if 'prisme' not in serveurs:
+            return
+        del serveurs['prisme']
+    else:
+        serveurs['prisme'] = commande_mcp()
+    sauvegarde = fichier.with_name('claude_desktop_config.avant-prisme.json')
+    if fichier.exists() and not sauvegarde.exists():
+        shutil.copy2(fichier, sauvegarde)
+    provisoire = fichier.with_name(fichier.name + '.prisme')
+    provisoire.write_text(json.dumps(donnees, indent=2, ensure_ascii=False), encoding='utf-8')
+    provisoire.replace(fichier)
+
+
+def connecter_claude_code(retirer=False):
+    """Branche Prisme dans Claude Code (portee utilisateur) avec sa propre commande `claude mcp`."""
+    claude = shutil.which('claude')
+    if not claude:
+        raise RuntimeError('Claude Code est introuvable (commande claude).')
+    subprocess.run([claude, 'mcp', 'remove', '--scope', 'user', 'prisme'], capture_output=True, timeout=60,
+                   creationflags=SANS_CONSOLE)
+    if retirer:
+        return
+    c = commande_mcp()
+    options = [x for cle, valeur in c.get('env', {}).items() for x in ('-e', f'{cle}={valeur}')]
+    fin = subprocess.run([claude, 'mcp', 'add', '--scope', 'user', *options, 'prisme', '--', c['command'], *c['args']],
+                         capture_output=True, text=True, timeout=60, creationflags=SANS_CONSOLE)
+    if fin.returncode != 0:
+        raise RuntimeError('Claude Code a refusé la connexion : ' + (fin.stderr or fin.stdout).strip()[:300])
+
+
 def ouvrir_fenetre():
     adresse = f'http://127.0.0.1:{PORT}/'
     navigateur = navigateur_application()
@@ -2105,9 +2407,11 @@ def doit_s_arreter(maintenant, reglages):
         return False
     if maintenant - dernier_contact > reglages['arret_auto_minutes'] * 60:
         return True
+    # Fenetre fermee : arret, sauf si Claude se sert de Prisme en ce moment
     return bool(reglages['arret_fermeture'] and fermeture_demandee
                 and dernier_contact_local <= fermeture_demandee
-                and maintenant - fermeture_demandee > DELAI_FERMETURE)
+                and maintenant - fermeture_demandee > DELAI_FERMETURE
+                and maintenant - dernier_contact_mcp > DELAI_MCP)
 
 
 def surveiller():
@@ -2126,7 +2430,18 @@ def fermer_demarrage(delai=0.0):
     threading.Timer(delai, pyi_splash.close).start()
 
 
+def commande_demarrage():
+    """Commande qui lance Prisme normalement (sans --mcp), pour le serveur MCP quand Prisme n'est pas ouvert."""
+    return [sys.executable] if EXE else [sys.executable, str(Path(__file__).resolve())]
+
+
 def main():
+    if '--mcp' in sys.argv:
+        # Serveur MCP sur l'entree et la sortie standard : rien d'autre ne doit y ecrire
+        fermer_demarrage(0)
+        import mcp_prisme
+        mcp_prisme.principal(version=VERSION, demarrage=commande_demarrage(), racine=RACINE)
+        return
     # Relance avec python.exe : le pare-feu l'autorise deja, pythonw.exe non
     executable = Path(sys.executable)
     if not EXE and executable.name.lower() == 'pythonw.exe' and (executable.parent / 'python.exe').exists():

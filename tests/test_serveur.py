@@ -461,6 +461,52 @@ class ModelesConseillesTest(unittest.TestCase):
             self.assertIn('installe', texte)
 
 
+class ConnexionClaudeTest(unittest.TestCase):
+    """Branchement de Prisme dans Claude Desktop, sur une configuration temporaire."""
+
+    def setUp(self):
+        self.dossier = Path(tempfile.mkdtemp(dir=DOSSIER_TEST.name)) / 'Claude'
+        self.dossier.mkdir()
+        self.fichier = self.dossier / 'claude_desktop_config.json'
+
+    def test_ajout_garde_le_reste_et_une_copie(self):
+        from unittest import mock
+        origine = {'mcpServers': {'autre': {'command': 'x'}}, 'preferences': {'theme': 'dark'}}
+        self.fichier.write_text('\ufeff' + json.dumps(origine), encoding='utf-8')
+        serveur.connecter_claude_desktop(self.dossier)
+        apres = json.loads(self.fichier.read_text(encoding='utf-8'))
+        self.assertEqual(apres['mcpServers']['autre'], {'command': 'x'})
+        self.assertEqual(apres['preferences'], {'theme': 'dark'})
+        self.assertEqual(apres['mcpServers']['prisme'], serveur.commande_mcp())
+        self.assertIn('--mcp', apres['mcpServers']['prisme']['args'])
+        sauvegarde = self.dossier / 'claude_desktop_config.avant-prisme.json'
+        self.assertEqual(json.loads(sauvegarde.read_text(encoding='utf-8-sig')), origine)
+        with mock.patch.object(serveur, 'dossiers_claude_desktop', return_value=[self.dossier]), \
+                mock.patch.object(serveur.shutil, 'which', return_value=None), \
+                mock.patch.object(serveur.Path, 'home', return_value=self.dossier):
+            etat = serveur.etat_claude()
+        self.assertEqual((etat['desktop'], etat['desktop_connecte'], etat['code']), (True, True, False))
+        serveur.connecter_claude_desktop(self.dossier, retirer=True)
+        self.assertNotIn('prisme', json.loads(self.fichier.read_text(encoding='utf-8'))['mcpServers'])
+
+    def test_configuration_absente_puis_illisible(self):
+        serveur.connecter_claude_desktop(self.dossier)
+        self.assertIn('prisme', json.loads(self.fichier.read_text(encoding='utf-8'))['mcpServers'])
+        self.fichier.write_text('{pas du json', encoding='utf-8')
+        with self.assertRaisesRegex(RuntimeError, 'illisible'):
+            serveur.connecter_claude_desktop(self.dossier)
+        self.assertEqual(self.fichier.read_text(encoding='utf-8'), '{pas du json')
+
+    def test_programme_deplace(self):
+        from unittest import mock
+        self.fichier.write_text(json.dumps({'mcpServers': {'prisme': {'command': 'C:/ancien/Prisme.exe', 'args': ['--mcp']}}}),
+                                encoding='utf-8')
+        with mock.patch.object(serveur, 'dossiers_claude_desktop', return_value=[self.dossier]), \
+                mock.patch.object(serveur.shutil, 'which', return_value=None):
+            etat = serveur.etat_claude()
+        self.assertEqual((etat['desktop_connecte'], etat['desktop_a_mettre_a_jour']), (False, True))
+
+
 class ChoixMoteursTest(unittest.TestCase):
     def test_windows_sans_nvidia_passe_par_vulkan(self):
         from unittest import mock
@@ -699,6 +745,13 @@ class ArretAutomatiqueTest(unittest.TestCase):
     def test_fenetre_rouverte_apres_la_fermeture(self):
         self.assertFalse(self.situation(fermeture_il_y_a=serveur.DELAI_FERMETURE + 5, contact_local_il_y_a=2))
 
+    def test_claude_garde_prisme_ouvert(self):
+        from unittest import mock
+        with mock.patch.object(serveur, 'dernier_contact_mcp', 10_000 - 30):
+            self.assertFalse(self.situation(fermeture_il_y_a=serveur.DELAI_FERMETURE + 1))
+        with mock.patch.object(serveur, 'dernier_contact_mcp', 10_000 - serveur.DELAI_MCP - 1):
+            self.assertTrue(self.situation(fermeture_il_y_a=serveur.DELAI_FERMETURE + 1))
+
     def test_reglage_desactive(self):
         self.reglages['arret_fermeture'] = False
         self.assertFalse(self.situation(fermeture_il_y_a=60))
@@ -876,6 +929,67 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertIn(f'prisme_acces={serveur.CODE}', cookie)
         self.assertIn('HttpOnly', cookie)
         self.assertEqual(self.requete('GET', '/?code=faux', entetes={'X-Test-Distant': '1'})[0], 401)
+
+    def test_demande_de_claude_acceptee_dans_la_fenetre(self):
+        from unittest import mock
+        mcp = {'X-Prisme-Client': 'mcp'}
+        with mock.patch.object(serveur, 'ouvrir_fenetre'), mock.patch.object(serveur, 'demander_modele') as demander:
+            statut, _, corps = self.poster('/api/demander-telechargement', json.dumps({'profil': 'qwen-12go'}), mcp)
+            self.assertEqual(statut, 200)
+            demande = json.loads(corps)
+            self.assertEqual(demande['details']['licence']['nom'], 'Qwen Research License')
+            # Un profil sous licence permissive n'a rien a accepter
+            self.assertEqual(self.poster('/api/demander-telechargement', json.dumps({'profil': 'gpu-8go'}), mcp)[0], 400)
+            # La fenetre voit la demande ; le serveur MCP ne peut pas y repondre lui-meme
+            etat = json.loads(self.requete('GET', '/api/etat')[2])
+            self.assertEqual([c['id'] for c in etat['consentements']], [demande['id']])
+            corps_reponse = json.dumps({'id': demande['id'], 'accepter': True})
+            self.assertEqual(self.poster('/api/repondre-consentement', corps_reponse, mcp)[0], 403)
+            demander.assert_not_called()
+            self.assertEqual(json.loads(self.requete('GET', f'/api/consentement?id={demande["id"]}', entetes=mcp)[2])['etat'], 'attente')
+            self.assertEqual(self.poster('/api/repondre-consentement', corps_reponse)[0], 200)
+            self.assertEqual(json.loads(self.requete('GET', f'/api/consentement?id={demande["id"]}')[2])['etat'], 'acceptee')
+            self.assertEqual([c.args[0] for c in demander.call_args_list], ['dessin-q4', 'texte-q8', 'vision-f16', 'vae'])
+            # Deja traitee, et rien depuis un autre appareil
+            self.assertEqual(self.poster('/api/repondre-consentement', corps_reponse)[0], 404)
+            self.assertEqual(self.distant('/api/consentement?id=x', serveur.CODE)[0], 403)
+
+    def test_modele_hors_catalogue(self):
+        from unittest import mock
+        url = 'https://huggingface.co/organisation/modele/resolve/main/mien-Q4.gguf'
+        with mock.patch.object(serveur, 'ouvrir_fenetre'), mock.patch.object(serveur, 'demander_modele') as demander, \
+                mock.patch.object(serveur, 'infos_fichier_distant', return_value=(3 * 10 ** 9, 'a' * 64)):
+            for mauvais, motif in (({'url': 'http://exemple.com/x.gguf'}, 'https'), ({'url': 'https://exemple.com/x.exe'}, '.gguf'),
+                                   ({'url': url, 'role': 'musique'}, 'Rôle')):
+                statut, _, corps = self.poster('/api/demander-telechargement', json.dumps(mauvais))
+                self.assertEqual(statut, 400, mauvais)
+                self.assertIn(motif, json.loads(corps)['erreur'])
+            statut, _, corps = self.poster('/api/demander-telechargement', json.dumps({'url': url, 'role': 'texte'}))
+            self.assertEqual(statut, 200)
+            demande = json.loads(corps)
+            self.assertEqual(demande['details'], {'url': url, 'hote': 'huggingface.co', 'fichier': 'mien-Q4.gguf',
+                                                  'taille': 3 * 10 ** 9, 'sha256': 'a' * 64, 'role': 'texte'})
+            self.assertEqual(self.poster('/api/repondre-consentement', json.dumps({'id': demande['id'], 'accepter': True}))[0], 200)
+            ident = demander.call_args.args[0]
+            modele = serveur.trouver_modele(ident)
+            self.assertEqual((modele['fichier'], modele['remplit'], modele['sha256']), ('mien-Q4.gguf', ['modele_texte'], 'a' * 64))
+            # Un LoRA va dans models/loras
+            statut, _, corps = self.poster('/api/demander-telechargement', json.dumps({'url': url.replace('mien-Q4.gguf', 'style.safetensors'), 'role': 'lora'}))
+            self.assertEqual(json.loads(corps)['details']['fichier'], 'loras/style.safetensors')
+            # Refus : rien n'est telecharge
+            demander.reset_mock()
+            self.assertEqual(self.poster('/api/repondre-consentement', json.dumps({'id': json.loads(corps)['id'], 'accepter': False}))[0], 200)
+            demander.assert_not_called()
+
+    def test_connexion_a_claude_seulement_depuis_la_fenetre(self):
+        from unittest import mock
+        self.assertEqual(self.poster('/api/connecter-claude', '{}', {'X-Prisme-Client': 'mcp'})[0], 403)
+        self.assertEqual(self.distant('/api/claude', serveur.CODE)[0], 403)
+        with mock.patch.object(serveur, 'dossiers_claude_desktop', return_value=[]), mock.patch.object(serveur.shutil, 'which', return_value=None):
+            self.assertEqual(self.poster('/api/connecter-claude', '{}')[0], 404)
+            statut, _, corps = self.requete('GET', '/api/claude')
+        self.assertEqual(statut, 200)
+        self.assertEqual(json.loads(corps)['desktop'], False)
 
     def test_licence_non_commerciale_a_accepter(self):
         from unittest import mock

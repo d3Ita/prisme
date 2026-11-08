@@ -24,8 +24,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Tests du serveur et du serveur MCP
         run: python -m unittest discover -s tests -v
-      # Le serveur MCP se charge avec le SDK officiel et declare ses cinq outils
-      - name: Serveur MCP avec le SDK officiel
+      # Le serveur MCP integre (bibliotheque standard) avec le client MCP officiel, comme Claude
+      - name: Serveur MCP avec le client MCP officiel
         run: |
-          python -m pip install -r mcp/requirements.txt
-          python mcp/server.py --check
+          python -m pip install mcp
+          python -m unittest tests.test_protocole_mcp -v

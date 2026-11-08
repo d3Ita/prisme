@@ -34,7 +34,8 @@ def main():
     demarrage = TRAVAIL / 'demarrage.png'
     lancer(sys.executable, RACINE / 'app' / 'icone.py', RACINE / 'docs' / 'logo.png', icone, demarrage)
 
-    options = ['--noconfirm', '--clean', '--name', 'Prisme', '--windowed', '--icon', icone,
+    # Pillow sert a la construction (icone) mais pas au programme : l'apercu MCP s'en passe
+    options = ['--noconfirm', '--clean', '--name', 'Prisme', '--windowed', '--exclude-module', 'PIL', '--icon', icone,
                '--add-data', f'{RACINE / "app" / "index.html"}{os.pathsep}.',
                '--add-data', f'{RACINE / "app" / "logo.png"}{os.pathsep}.',
                '--add-data', f'{RACINE / "app" / "modeles.json"}{os.pathsep}.',

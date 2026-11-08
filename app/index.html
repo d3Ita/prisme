@@ -145,7 +145,11 @@ const EN = {
   'Modèles conseillés': 'Recommended models',
   'Des modèles tout public, téléchargés depuis Hugging Face et vérifiés par leur empreinte. Prisme les choisit tout seul dans les réglages.':
     'General-purpose models, downloaded from Hugging Face and checked against their checksum. Prisme selects them in the settings for you.',
-  'Tout télécharger': 'Download all', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Profils de modèles': 'Model profiles',
+  'Tout télécharger': 'Download all', 'Claude demande un téléchargement': 'Claude is asking to download',
+  'Accepter et télécharger': 'Accept and download', 'Refuser': 'Refuse',
+  'Claude est installé : il peut créer des images avec Prisme.': 'Claude is installed: it can create images with Prisme.',
+  'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
+  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Profils de modèles': 'Model profiles',
   'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
     'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
@@ -627,6 +631,12 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 .code-demande { font: 600 40px ui-monospace, Consolas, monospace; letter-spacing: 10px; color: var(--accent-2); margin: 6px 0 4px; }
 .carte-modale.demande .petit { font-size: 13px; color: var(--texte-3); margin-bottom: 20px; }
 .boutons-demande { display: flex; gap: 10px; justify-content: center; }
+.carte-modale.consentement { width: min(460px, 100%); }
+.carte-modale.consentement p { color: var(--texte-2); font-size: 14px; }
+.carte-modale.consentement .quoi { color: var(--texte); font-weight: 600; font-size: 15px; word-break: break-word; }
+.carte-modale.consentement .avertissement { margin: 12px 0; padding: 10px 12px; border-radius: 10px; text-align: left; background: var(--surface-2); border: 1px solid var(--bordure-forte); color: var(--texte); font-size: 13.5px; }
+.carte-modale.consentement .avertissement a { color: var(--accent-2); }
+.bandeau-maj.claude { top: 112px; }
 
 /* Modeles conseilles */
 .carte-modeles { width: min(620px, 100%); max-height: calc(100vh - 32px); padding: 0; display: flex; flex-direction: column; }
@@ -1045,6 +1055,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
           <button type="button" data-theme="clair">Clair</button><button type="button" data-theme="sombre">Sombre</button><button type="button" data-theme="auto">Automatique</button></div></div></div>
         <div class="reglage"><label for="r-reseau">Accès depuis le téléphone<small>Pris en compte au prochain lancement</small></label><label class="interrupteur"><input type="checkbox" id="r-reseau" data-cle="acces_reseau"><span></span></label></div>
         <div class="reglage"><label for="r-maj">Chercher les nouvelles versions<small>Une fois au lancement, sur GitHub</small></label><label class="interrupteur"><input type="checkbox" id="r-maj" data-cle="verifier_mises_a_jour"><span></span></label></div>
+        <div class="reglage"><label>Claude<small id="claude-etat">Créer des images en le demandant à Claude</small></label><div>
+          <button type="button" class="bouton-secondaire" id="reglage-claude">Connecter</button></div></div>
         <div class="reglage"><label for="r-arret-fermeture">Arrêter à la fermeture<small>Quand la fenêtre de Prisme se ferme sur le PC</small></label><label class="interrupteur"><input type="checkbox" id="r-arret-fermeture" data-cle="arret_fermeture"><span></span></label></div>
         <div class="reglage"><label for="r-arret">Arrêt automatique<small>Minutes sans fenêtre ouverte</small></label><input class="champ court" id="r-arret" data-cle="arret_auto_minutes" type="number" min="1" max="1440"></div>
       </section>
@@ -1082,6 +1094,24 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       <button type="button" class="bouton-primaire" id="tout-telecharger">Tout télécharger</button>
     </footer>
   </div>
+</div>
+<div class="modale" id="modale-consentement">
+  <div class="carte-modale demande consentement">
+    <img src="/logo.png" alt="" class="logo-demande">
+    <h3>Claude demande un téléchargement</h3>
+    <p class="quoi" id="consentement-quoi" translate="no"></p>
+    <div class="avertissement" id="consentement-avertissement"></div>
+    <p class="petit" id="consentement-details"></p>
+    <div class="boutons-demande">
+      <button class="bouton-secondaire" id="consentement-refuser">Refuser</button>
+      <button class="bouton-primaire" id="consentement-accepter">Accepter et télécharger</button>
+    </div>
+  </div>
+</div>
+<div class="bandeau-maj claude" id="bandeau-claude" hidden>
+  <span>Claude est installé : il peut créer des images avec Prisme.</span>
+  <button type="button" class="bouton-primaire petit-bouton" id="connecter-claude">Connecter à Claude</button>
+  <button type="button" class="bouton-icone" id="fermer-claude" title="Masquer"><svg class="i"><use href="#i-x"/></svg></button>
 </div>
 <div class="bandeau-maj" id="bandeau-maj" hidden>
   <span id="texte-maj"></span><a id="lien-maj" href="https://github.com/d3Ita/prisme/releases/latest" target="_blank" rel="noopener">Télécharger</a>
@@ -1376,6 +1406,7 @@ function suivre() {
     let e;
     try { e = await api('/api/etat'); } catch { suivre(); return; }
     majDemandes(e.demandes);
+    majConsentements(e.consentements);
     if (e.occupe) { majCalcul(e); suivre(); return; }
     etat.occupe = false;
     majInterfaceOccupee(false);
@@ -1400,11 +1431,91 @@ function battement() {
     try {
       const e = await api('/api/etat');
       majDemandes(e.demandes);
+      majConsentements(e.consentements);
       if (e.occupe) { etat.occupe = true; majCalcul(e); suivre(); return; }
     } catch {}
     battement();
   }, 2500);
 }
+
+// ---------- Demandes de Claude : licence a accepter, ou modele hors du catalogue ----------
+let consentementAffiche = null;
+function majConsentements(liste) {
+  if (!liste) return;
+  const demande = liste.find(d => d.id === consentementAffiche) || liste[0];
+  if (!demande) {
+    consentementAffiche = null;
+    $('#modale-consentement').classList.remove('ouverte');
+    return;
+  }
+  if (demande.id === consentementAffiche) return;
+  consentementAffiche = demande.id;
+  const d = demande.details, avertissement = $('#consentement-avertissement');
+  avertissement.innerHTML = '';
+  const lien = (url, texte) => { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = texte; return a; };
+  if (demande.genre === 'profil') {
+    $('#consentement-quoi').textContent = `${enLangue(d.nom)} · ${taille(d.taille)}`;
+    avertissement.append(tx('Ces modèles sont sous ', 'These models are under the '), lien(d.licence.url, d.licence.nom),
+      ` : ${enLangue(d.licence.resume)}`.replace(' :', LANGUE === 'en' ? ':' : ' :'),
+      tx(' En acceptant, c\'est toi qui acceptes cette licence.', ' By accepting, you accept this license yourself.'));
+    $('#consentement-details').textContent = tx('Téléchargés depuis Hugging Face et vérifiés par leur empreinte.',
+      'Downloaded from Hugging Face and checked against their checksum.');
+  } else {
+    $('#consentement-quoi').textContent = `${d.fichier.split('/').pop()} · ${taille(d.taille)}`;
+    avertissement.append(tx('Attention : ce modèle ne fait pas partie de ceux proposés par Prisme. Ni sa licence ni son contenu ne sont vérifiés : vérifie sa page avant d\'accepter, ',
+      'Warning: this model is not one of those offered by Prisme. Neither its license nor its content is checked: check its page before accepting, '),
+      lien(d.url, d.hote), '.');
+    $('#consentement-details').textContent = d.sha256
+      ? tx('Le fichier sera vérifié par l\'empreinte annoncée par le site.', 'The file will be checked against the checksum given by the site.')
+      : tx('Le site ne donne pas d\'empreinte : seule la taille du fichier sera vérifiée.', 'The site gives no checksum: only the file size will be checked.');
+  }
+  $('#modale-consentement').classList.add('ouverte');
+}
+async function repondreConsentement(accepter) {
+  if (!consentementAffiche) return;
+  try {
+    await api('/api/repondre-consentement', { id: consentementAffiche, accepter });
+    note(accepter ? tx('Téléchargement accepté', 'Download accepted') : tx('Demande refusée', 'Request refused'));
+    if (accepter) majModeles();
+  } catch (err) { note(err.message, 'erreur'); }
+  consentementAffiche = null;
+  $('#modale-consentement').classList.remove('ouverte');
+}
+$('#consentement-accepter').addEventListener('click', () => repondreConsentement(true));
+$('#consentement-refuser').addEventListener('click', () => repondreConsentement(false));
+
+// ---------- Connexion a Claude Desktop et Claude Code ----------
+function majClaude(c) {
+  if (!c) return;
+  const present = c.desktop || c.code, connecte = (!c.desktop || c.desktop_connecte) && (!c.code || c.code_connecte);
+  let masque = null;
+  try { masque = localStorage.getItem('prisme-claude-masque'); } catch {}
+  $('#bandeau-claude').hidden = !present || (connecte && !c.desktop_a_mettre_a_jour) || masque === '1' || !$('#bandeau-maj').hidden;
+  $('#claude-etat').textContent = !present ? tx('Claude n\'est pas installé sur cet ordinateur', 'Claude is not installed on this computer')
+    : connecte ? tx('Connecté : demande à Claude de créer une image', 'Connected: ask Claude to create an image')
+    : c.desktop_a_mettre_a_jour ? tx('Prisme a changé de place : reconnecte-le', 'Prisme has moved: connect it again')
+    : tx('Créer des images en le demandant à Claude', 'Create images by asking Claude');
+  $('#reglage-claude').hidden = !present;
+  $('#reglage-claude').textContent = connecte ? tx('Déconnecter', 'Disconnect') : tx('Connecter', 'Connect');
+  $('#reglage-claude').dataset.retirer = connecte ? '1' : '';
+}
+async function connecterClaude(retirer = false) {
+  try {
+    const r = await api('/api/connecter-claude', { retirer });
+    majClaude(r.claude);
+    const noms = r.faits.map(f => f === 'desktop' ? 'Claude Desktop' : 'Claude Code').join(tx(' et ', ' and '));
+    if (retirer) note(tx(`Prisme est déconnecté de ${noms}.`, `Prisme is disconnected from ${noms}.`));
+    else note(tx(`Prisme est connecté à ${noms}. Relance Claude, puis demande-lui de créer une image.`,
+                 `Prisme is connected to ${noms}. Restart Claude, then ask it to create an image.`));
+    r.erreurs.forEach(e => note(e, 'erreur'));
+  } catch (err) { note(err.message, 'erreur'); }
+}
+$('#connecter-claude').addEventListener('click', () => connecterClaude(false));
+$('#reglage-claude').addEventListener('click', e => connecterClaude(e.currentTarget.dataset.retirer === '1'));
+$('#fermer-claude').addEventListener('click', () => {
+  try { localStorage.setItem('prisme-claude-masque', '1'); } catch {}
+  $('#bandeau-claude').hidden = true;
+});
 
 // ---------- Demandes d'acces d'un appareil ----------
 let demandeAffichee = null;
@@ -2430,7 +2541,12 @@ function finChargement() {
     majMoteurs(e.moteurs);
     majAmelioration(e.amelioration);
     majVersion(e.mise_a_jour);
-    if (e.local) { majModeles(); setTimeout(() => api('/api/etat').then(x => majVersion(x.mise_a_jour)).catch(() => {}), 10000); }
+    if (e.local) {
+      majModeles();
+      majConsentements(e.consentements);
+      setTimeout(() => api('/api/etat').then(x => majVersion(x.mise_a_jour)).catch(() => {}), 10000);
+      api('/api/claude').then(majClaude).catch(() => {});
+    }
     $('#version').textContent = 'Prisme v' + e.version;
     // Les actions propres au PC (dossier) n'apparaissent qu'une fois l'appareil connu
     rendreFil();

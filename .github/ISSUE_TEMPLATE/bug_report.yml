@@ -14,7 +14,7 @@ body:
     attributes:
       label: Prisme version
       description: Shown at the bottom of the Réglages window.
-      placeholder: "1.8.3"
+      placeholder: "1.8.4"
     validations:
       required: true
   - type: dropdown

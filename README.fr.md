@@ -110,6 +110,7 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 |---|---|---|---|
 | NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | Ensemble conseillé : modèle de dessin Q4_K, modèle de texte Q8_0, vision F16 | Création 25 à 50 s, modification 45 à 90 s, chargement des modèles compris |
 | La même carte avec le moteur Vulkan | 32 Go | Mêmes modèles | Environ 50 s pour une création, chargement compris |
+| NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | FLUX.2 klein 4B Q8_0, Qwen3 4B Q8_0 (profil Carte de 12 Go) | Création 8 à 10 s, modification 10 à 12 s en 1024 × 768 |
 | Apple M3, 18 Go de mémoire unifiée (Metal, macOS) | 18 Go (partagés) | Ensemble complet (avant les versions légères conseillées sur Mac) | Environ 5 minutes pour une création, chargement compris |
 
 Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et le modèle de texte Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
@@ -187,7 +188,7 @@ Les profils de ta machine n'utilisent que des modèles sous licence **Apache-2.0
 | Mac 16 Go | Puce Apple, 16 à 24 Go de mémoire unifiée | Q8_0 | Q4_K_M | 7,0 Go |
 | Mac 32 Go ou plus | Puce Apple, 32 Go de mémoire unifiée ou plus | Q8_0 | Q8_0 | 8,8 Go |
 
-Ces profils FLUX.2 klein suivent la [documentation de stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/flux2.md) mais n'ont pas encore été testés avec Prisme : ils restent marqués **Expérimental** d'ici là. Le profil « Processeur seul » dépend aussi du fonctionnement du moteur sans carte graphique, pas encore testé non plus.
+Le profil **Carte de 12 Go** est testé : création en 8 à 10 s et modification en 10 à 12 s en 1024 × 768 sur une RTX 4070 SUPER, téléchargement compris dans l'appli. Les autres profils FLUX.2 klein utilisent le même modèle dans d'autres tailles, selon la [documentation de stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/flux2.md) ; ils restent marqués **Expérimental** tant qu'ils n'ont pas été testés sur ce matériel. Le profil « Processeur seul » dépend aussi du fonctionnement du moteur sans carte graphique, pas encore testé.
 
 **Autres choix**, jamais proposés automatiquement :
 

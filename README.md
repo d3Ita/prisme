@@ -119,6 +119,7 @@ Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), 
 |---|---|---|---|
 | NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | Recommended set: drawing model Q4_K, text model Q8_0, vision F16 | Creation 25 to 50 s, edit 45 to 90 s, model loading included |
 | Same card with the Vulkan engine | 32 GB | Same models | About 50 s for a creation, model loading included |
+| NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | FLUX.2 klein 4B Q8_0, Qwen3 4B Q8_0 (12 GB card profile) | Creation 8 to 10 s, edit 10 to 12 s at 1024 × 768 |
 | Apple M3, 18 GB of unified memory (Metal, macOS) | 18 GB (shared) | Full set (before light versions were recommended on Mac) | About 5 minutes for a creation, model loading included |
 
 Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text model and keep **Offload to the CPU** (Décharger sur le processeur) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
@@ -189,7 +190,7 @@ The profiles for your machine use only **Apache-2.0** models, which allow commer
 | 16 GB Mac | Apple Silicon, 16 to 24 GB of unified memory | Q8_0 | Q4_K_M | 7.0 GB |
 | 32 GB Mac or more | Apple Silicon, 32 GB of unified memory or more | Q8_0 | Q8_0 | 8.8 GB |
 
-These FLUX.2 klein profiles follow the [stable-diffusion.cpp documentation](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/flux2.md) but have not been tested with Prisme yet: they are marked **Experimental** until they are. The CPU-only profile also depends on the engine running without a graphics card, which has not been tested either.
+The **12 GB card** profile is tested: creation in 8 to 10 s and edit in 10 to 12 s at 1024 × 768 on an RTX 4070 SUPER, download included in the app. The other FLUX.2 klein profiles use the same model in other sizes, following the [stable-diffusion.cpp documentation](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/flux2.md); they stay marked **Experimental** until they are tested on that hardware. The CPU-only profile also depends on the engine running without a graphics card, which has not been tested yet.
 
 **Other choices**, never suggested automatically:
 

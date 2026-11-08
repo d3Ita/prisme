@@ -639,11 +639,11 @@
       ],
       "taille_totale": 8830553236,
       "vitesse": {
-        "fr": "Non mesurée",
-        "en": "Not measured",
-        "mesuree": false
+        "fr": "Création 8 à 10 s, modification 10 à 12 s en 1024 × 768 (RTX 4070 SUPER)",
+        "en": "Creation 8 to 10 s, edit 10 to 12 s at 1024 × 768 (RTX 4070 SUPER)",
+        "mesuree": true
       },
-      "statut": "experimental",
+      "statut": "recommande",
       "edition": true,
       "licence_a_accepter": false
     },

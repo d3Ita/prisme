@@ -277,6 +277,8 @@ class OutilsMcpTest(unittest.TestCase):
     def test_configuration(self):
         c = prisme_client.configuration({'PRISME_TIMEOUT': '30', 'PRISME_OUTPUT_DIR': str(self.dossier)})
         self.assertEqual((c['url'], c['delai'], c['dossier']), ('http://127.0.0.1:7861', 30.0, self.dossier))
+        # Par défaut, répondre avant les 60 s après lesquelles Claude abandonne
+        self.assertLess(prisme_client.configuration({})['delai'], 60)
         for environ, motif in (({'PRISME_URL': 'http://exemple.com:7861'}, 'this computer'),
                                ({'PRISME_URL': 'ftp://127.0.0.1'}, 'not a valid'),
                                ({'PRISME_TIMEOUT': 'longtemps'}, 'number'), ({'PRISME_TIMEOUT': '0'}, 'between')):

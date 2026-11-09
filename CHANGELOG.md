@@ -4,6 +4,12 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-11-09
+
+### Fixed
+
+- **Long creations from Claude**: `PRISME_TIMEOUT` now defaults to 50 s instead of 120 s. Claude stops waiting for a tool after 60 s, so a creation longer than that ended in "Request timed out" with no image and no task id; Prisme now answers in time with a `task_id` that `get_status` turns into the image.
+
 ## [1.9.0] - 2026-11-08
 
 ### Added
@@ -190,7 +196,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/d3Ita/prisme/releases/tag/v1.9.1
 [1.9.0]: https://github.com/d3Ita/prisme/releases/tag/v1.9.0
 [1.8.5]: https://github.com/d3Ita/prisme/releases/tag/v1.8.5
 [1.8.4]: https://github.com/d3Ita/prisme/releases/tag/v1.8.4

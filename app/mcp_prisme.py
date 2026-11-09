@@ -59,7 +59,8 @@ def configuration(environ=None):
     if adresse.hostname not in HOTES_LOCAUX:
         raise PrismeErreur(f'PRISME_URL must point to this computer (127.0.0.1 or localhost), not {adresse.hostname}.')
     try:
-        delai = float(environ.get('PRISME_TIMEOUT') or 120)
+        # Claude abandonne un appel d'outil après 60 s : rendre la main avant, avec un task_id
+        delai = float(environ.get('PRISME_TIMEOUT') or 50)
     except ValueError:
         raise PrismeErreur('PRISME_TIMEOUT must be a number of seconds.') from None
     if not 1 <= delai <= 3600:
@@ -69,7 +70,7 @@ def configuration(environ=None):
 
 
 class Prisme:
-    def __init__(self, url, delai=120, dossier=None, pause=1.0, demarrage=None):
+    def __init__(self, url, delai=50, dossier=None, pause=1.0, demarrage=None):
         self.url, self.delai, self.pause = url.rstrip('/'), delai, pause
         self.dossier = Path(dossier or Path.home() / 'Prisme-MCP').expanduser()
         # Commande qui lance Prisme s'il n'est pas ouvert (programme integre) ; None : ne rien lancer

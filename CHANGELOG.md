@@ -4,6 +4,13 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-11-09
+
+### Added
+
+- **Check for updates now**: Settings → Application has a **Check** button that asks GitHub right away. A new version brings back the update notice, even if you had dismissed it; otherwise Prisme says it is up to date, or that GitHub is not answering.
+- `POST /api/verifier-mise-a-jour` (PC only): the same check, with an error when GitHub cannot be reached instead of silence.
+
 ## [1.9.1] - 2026-11-09
 
 ### Fixed
@@ -196,7 +203,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.2...HEAD
+[1.9.2]: https://github.com/d3Ita/prisme/releases/tag/v1.9.2
 [1.9.1]: https://github.com/d3Ita/prisme/releases/tag/v1.9.1
 [1.9.0]: https://github.com/d3Ita/prisme/releases/tag/v1.9.0
 [1.8.5]: https://github.com/d3Ita/prisme/releases/tag/v1.8.5

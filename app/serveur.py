@@ -31,7 +31,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.9.1'
+VERSION = '1.9.2'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
 PORT = int(os.environ.get('PRISME_PORT') or 7861)
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
@@ -1314,7 +1314,8 @@ def lire_release(donnees):
     return version, fichier
 
 
-def verifier_mise_a_jour():
+def verifier_mise_a_jour(discret=True):
+    """Au lancement, en silence ; depuis le bouton des reglages (discret=False), l'erreur remonte."""
     try:
         requete = requete_github('https://api.github.com/repos/d3Ita/prisme/releases/latest', Accept='application/vnd.github+json')
         with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=8) as reponse:
@@ -1323,7 +1324,8 @@ def verifier_mise_a_jour():
             # La mise a jour en un clic ne vaut que pour le programme construit, pas pour le script Python
             mise_a_jour.update(version=version, url=PAGE_VERSIONS, fichier=fichier, auto=bool(EXE and fichier))
     except Exception:
-        pass
+        if not discret:
+            raise
 
 
 def etat_mise_a_jour():
@@ -2087,6 +2089,15 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 with verrou_echecs:
                     echecs.setdefault(demande['ip'], []).append(time.time())
             self.envoyer(200, {'etat': demande['etat']})
+
+        elif chemin == '/api/verifier-mise-a-jour':
+            if not self.est_local():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            try:
+                verifier_mise_a_jour(discret=False)
+            except Exception:
+                return self.envoyer(502, {'erreur': 'GitHub ne répond pas. Vérifie ta connexion, puis réessaie.'})
+            self.envoyer(200, {'version': VERSION, 'mise_a_jour': etat_mise_a_jour()})
 
         elif chemin == '/api/mettre-a-jour':
             if not self.est_local():

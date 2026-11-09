@@ -138,6 +138,8 @@ const EN = {
   'Langue': 'Language', 'Pour cet appareil · Language': 'For this device',
   'Accès depuis le téléphone': 'Phone access', 'Pris en compte au prochain lancement': 'Applied at next launch',
   'Chercher les nouvelles versions': 'Check for new versions', 'Une fois au lancement, sur GitHub': 'Once at launch, on GitHub',
+  'Mise à jour': 'Update', 'Chercher une nouvelle version tout de suite': 'Look for a new version right now', 'Vérifier': 'Check',
+  'Vérification…': 'Checking…', 'GitHub ne répond pas. Vérifie ta connexion, puis réessaie.': 'GitHub is not answering. Check your connection, then try again.',
   'Arrêter à la fermeture': 'Stop when closed', 'Quand la fenêtre de Prisme se ferme sur le PC': 'When the Prisme window closes on the PC',
   'Arrêt automatique': 'Automatic stop', 'Minutes sans fenêtre ouverte': 'Minutes without an open window',
   'Valeurs par défaut': 'Default values', 'Annuler': 'Cancel', 'Fermer': 'Close',
@@ -204,7 +206,7 @@ const EN = {
 const MOTIFS_EN = [
   [/^Étape (\d+) sur (\d+)$/, 'Step $1 of $2'], [/^image (\d+) sur (\d+)$/, 'image $1 of $2'],
   [/^Créer (\d+) images$/, 'Create $1 images'], [/^(\d+) images créées en (\d+) s$/, '$1 images created in $2 s'],
-  [/^Image créée en (\d+) s$/, 'Image created in $1 s'], [/^Prisme (.+) est disponible\.$/, 'Prisme $1 is available.'],
+  [/^Image créée en (\d+) s$/, 'Image created in $1 s'], [/^Prisme (.+) est disponible\.$/, 'Prisme $1 is available.'], [/^Prisme est à jour \(v(.+)\)\.$/, 'Prisme is up to date (v$1).'],
   [/^(.+) libres sur le disque$/, '$1 free on disk'],
   [/^Installer le moteur \((.+)\)$/, 'Install the engine ($1)'], [/^Installation de (.+)…$/, 'Installing $1…'],
   [/^Téléchargement de (.+) : (.+) sur (.+)$/, 'Downloading $1: $2 of $3'],
@@ -1055,6 +1057,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
           <button type="button" data-theme="clair">Clair</button><button type="button" data-theme="sombre">Sombre</button><button type="button" data-theme="auto">Automatique</button></div></div></div>
         <div class="reglage"><label for="r-reseau">Accès depuis le téléphone<small>Pris en compte au prochain lancement</small></label><label class="interrupteur"><input type="checkbox" id="r-reseau" data-cle="acces_reseau"><span></span></label></div>
         <div class="reglage"><label for="r-maj">Chercher les nouvelles versions<small>Une fois au lancement, sur GitHub</small></label><label class="interrupteur"><input type="checkbox" id="r-maj" data-cle="verifier_mises_a_jour"><span></span></label></div>
+        <div class="reglage"><label>Mise à jour<small id="etat-maj">Chercher une nouvelle version tout de suite</small></label><div>
+          <button type="button" class="bouton-secondaire" id="verifier-maj">Vérifier</button></div></div>
         <div class="reglage"><label>Claude<small id="claude-etat">Créer des images en le demandant à Claude</small></label><div>
           <button type="button" class="bouton-secondaire" id="reglage-claude">Connecter</button></div></div>
         <div class="reglage"><label for="r-arret-fermeture">Arrêter à la fermeture<small>Quand la fenêtre de Prisme se ferme sur le PC</small></label><label class="interrupteur"><input type="checkbox" id="r-arret-fermeture" data-cle="arret_fermeture"><span></span></label></div>
@@ -2112,6 +2116,20 @@ function attendreRedemarrage(version) {
   setTimeout(essayer, 2500);
 }
 $('#bouton-maj').addEventListener('click', mettreAJour);
+// Verification a la demande : l'avis s'affiche meme si l'utilisateur l'avait masque
+$('#verifier-maj').addEventListener('click', async () => {
+  $('#verifier-maj').disabled = true;
+  $('#etat-maj').textContent = 'Vérification…';
+  try {
+    const r = await api('/api/verifier-mise-a-jour', {});
+    if (r.mise_a_jour) {
+      try { localStorage.removeItem('prisme-maj-masquee'); } catch {}
+      majVersion(r.mise_a_jour);
+      $('#etat-maj').textContent = `Prisme ${r.mise_a_jour.version} est disponible.`;
+    } else $('#etat-maj').textContent = `Prisme est à jour (v${r.version}).`;
+  } catch (err) { $('#etat-maj').textContent = err.message; }
+  $('#verifier-maj').disabled = false;
+});
 $('#fermer-maj').addEventListener('click', () => {
   try { localStorage.setItem('prisme-maj-masquee', etat.miseAJour?.version || ''); } catch {}
   $('#bandeau-maj').hidden = true;

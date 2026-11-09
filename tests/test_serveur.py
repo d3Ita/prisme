@@ -1051,10 +1051,30 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertEqual(self.distant('/api/installer-moteur', serveur.CODE, 'POST')[0], 403)
         # La mise a jour ne se lance que depuis le PC, et seulement quand une version automatique existe
         self.assertEqual(self.distant('/api/mettre-a-jour', serveur.CODE, 'POST')[0], 403)
+        self.assertEqual(self.distant('/api/verifier-mise-a-jour', serveur.CODE, 'POST')[0], 403)
         serveur.mise_a_jour.clear()
         self.assertEqual(self.poster('/api/mettre-a-jour')[0], 400)
         etat = json.loads(self.requete('GET', '/api/etat')[2])
         self.assertEqual(set(etat['moteurs']), {'image', 'texte'})
+
+    def test_verifier_mise_a_jour_a_la_demande(self):
+        from unittest import mock
+        import io
+        serveur.mise_a_jour.clear()
+        self.addCleanup(serveur.mise_a_jour.clear)
+        # GitHub ne repond pas : une erreur claire au lieu du silence du lancement
+        with mock.patch.object(serveur.urllib.request, 'urlopen', side_effect=OSError('hors ligne')):
+            code, _, corps = self.poster('/api/verifier-mise-a-jour')
+        self.assertEqual(code, 502)
+        self.assertIn('GitHub', json.loads(corps)['erreur'])
+        # Deja a jour, puis nouvelle version
+        for tag, attendu in ((f'v{serveur.VERSION}', None), ('v99.0.0', '99.0.0')):
+            reponse = io.BytesIO(json.dumps({'tag_name': tag, 'assets': []}).encode())
+            with mock.patch.object(serveur.urllib.request, 'urlopen', return_value=reponse):
+                code, _, corps = self.poster('/api/verifier-mise-a-jour')
+            self.assertEqual(code, 200)
+            r = json.loads(corps)
+            self.assertEqual((r['version'], (r['mise_a_jour'] or {}).get('version')), (serveur.VERSION, attendu))
 
     # --- connexion en tapant seulement l'adresse : demande acceptee sur le PC
     def demander(self):

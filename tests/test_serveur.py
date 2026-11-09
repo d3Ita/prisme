@@ -928,6 +928,27 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertEqual(self.poster('/api/supprimer', json.dumps({'nom': '../app/code-acces.txt'}))[0], 404)
         self.assertTrue(serveur.FICHIER_CODE.exists())
 
+    def test_images_de_claude_a_part(self):
+        mcp = {'X-Prisme-Client': 'mcp'}
+        for dossier in (serveur.IMAGES, serveur.IMAGES_CLAUDE):
+            dossier.mkdir(exist_ok=True)
+            (dossier / 'image_20990101_000000.png').write_bytes(b'png')
+            self.addCleanup((dossier / 'image_20990101_000000.png').unlink)
+        nom = '/image_20990101_000000.png'
+        # Claude ne lit que son dossier ; la fenetre de Prisme que le sien
+        self.assertEqual(self.requete('GET', '/images' + nom, entetes=mcp)[0], 403)
+        self.assertEqual(self.requete('GET', '/images-claude' + nom, entetes=mcp)[0], 200)
+        self.assertEqual(self.requete('GET', '/images-claude' + nom)[0], 403)
+        self.assertEqual(self.requete('GET', '/images' + nom)[0], 200)
+        sauvegarde = dict(serveur.etat)
+        self.addCleanup(lambda: (serveur.etat.clear(), serveur.etat.update(sauvegarde)))
+        for claude, voit_mcp, voit_fenetre in ((False, [], ['a.png']), (True, ['a.png'], [])):
+            serveur.etat.update(occupe=False, resultats=['a.png'], prompt='secret', claude=claude)
+            pour_mcp = json.loads(self.requete('GET', '/api/etat', entetes=mcp)[2])
+            pour_fenetre = json.loads(self.requete('GET', '/api/etat')[2])
+            self.assertEqual((pour_mcp['resultats'], pour_fenetre['resultats']), (voit_mcp, voit_fenetre))
+            self.assertEqual('prompt' in pour_mcp, claude)
+
     # --- autres appareils du reseau
     def test_appareil_sans_code_refuse(self):
         self.assertEqual(self.distant('/api/etat')[0], 401)
@@ -1004,6 +1025,11 @@ class SecuriteHttpTest(unittest.TestCase):
     def test_connexion_a_claude_seulement_depuis_la_fenetre(self):
         from unittest import mock
         self.assertEqual(self.poster('/api/connecter-claude', '{}', {'X-Prisme-Client': 'mcp'})[0], 403)
+        # Mac, app lancee depuis Telechargements : pas de chemin temporaire dans la configuration de Claude
+        from unittest import mock
+        with mock.patch.object(serveur, 'TRANSLOQUE', True):
+            statut, _, corps = self.poster('/api/connecter-claude', '{}')
+        self.assertEqual((statut, json.loads(corps)['erreur']), (409, serveur.DEPLACER_MAC))
         self.assertEqual(self.distant('/api/claude', serveur.CODE)[0], 403)
         with mock.patch.object(serveur, 'dossiers_claude_desktop', return_value=[]), mock.patch.object(serveur.shutil, 'which', return_value=None):
             self.assertEqual(self.poster('/api/connecter-claude', '{}')[0], 404)

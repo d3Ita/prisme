@@ -70,7 +70,7 @@ From the source code, use `python3 app/serveur.py --mcp` (or `python3 mcp/server
 |---|---|---|
 | `PRISME_URL` | `http://127.0.0.1:7861` | Prisme's address. Only this computer is accepted. |
 | `PRISME_TIMEOUT` | `50` | Seconds to wait for an image (or an approval, up to 3 minutes) before returning. |
-| `PRISME_OUTPUT_DIR` | `~/Prisme-MCP` | Where images are copied. It is also the only folder `edit_image` can read. |
+| `PRISME_OUTPUT_DIR` | Prisme's `images-claude` folder | Where Claude's images go, apart from the ones created in Prisme's window. It is also the only folder `edit_image` can read. |
 
 ## Troubleshooting
 
@@ -126,7 +126,7 @@ Utilise le chemin complet de ton programme Prisme (voir le tableau en anglais ci
 |---|---|---|
 | `PRISME_URL` | `http://127.0.0.1:7861` | Adresse de Prisme. Seul cet ordinateur est accepté. |
 | `PRISME_TIMEOUT` | `50` | Secondes d'attente d'une image (ou d'un accord, 3 minutes au plus) avant de répondre. |
-| `PRISME_OUTPUT_DIR` | `~/Prisme-MCP` | Dossier où les images sont copiées. C'est aussi le seul dossier que `edit_image` peut lire. |
+| `PRISME_OUTPUT_DIR` | Le dossier `images-claude` de Prisme | Dossier des images de Claude, à part de celles créées dans la fenêtre de Prisme. C'est aussi le seul dossier que `edit_image` peut lire. |
 
 ### Dépannage
 

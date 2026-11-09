@@ -11,8 +11,9 @@ llama/
 .*.installation/
 zips/
 
-# Images generees
+# Images generees (dans Prisme, et demandees par Claude)
 images/
+images-claude/
 
 # Donnees de cette machine : code d'acces du telephone et reglages
 app/code-acces.txt

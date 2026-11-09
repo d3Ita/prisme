@@ -118,7 +118,7 @@ class FauxPrisme:
                 if self.path.startswith('/api/consentement?id='):
                     return self.envoyer(200, {'etat': faux.accords.pop(0) if len(faux.accords) > 1 else faux.accords[0],
                                               'telechargements': []})
-                if self.path == '/images/image_20261108_120000.png':
+                if self.path == '/images-claude/image_20261108_120000.png':
                     return self.envoyer(200, faux.image, 'image/png')
                 self.envoyer(404, {'erreur': 'Introuvable'})
 
@@ -141,7 +141,7 @@ class FauxPrisme:
                     return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
                 faux.recu.append(corps)
                 faux.lectures = 0
-                faux.etat.update(occupe=True, phase='chargement', etape=0, total=8, debut=1762600000.5, seed_base=corps.get('seed') or 7,
+                faux.etat.update(occupe=True, claude=True, phase='chargement', etape=0, total=8, debut=1762600000.5, seed_base=corps.get('seed') or 7,
                                  largeur=corps['largeur'], hauteur=corps['hauteur'], prompt=corps['prompt'], resultats=[], erreur=None)
                 self.envoyer(200, {'seed': faux.etat['seed_base']})
 
@@ -205,6 +205,11 @@ class OutilsMcpTest(unittest.TestCase):
         self.assertTrue(Path(fini['images'][0]['path']).is_file())
         with self.assertRaisesRegex(PrismeErreur, 'not Prisme\'s latest'):
             self.prisme.suivre('123')
+        # Une creation lancee dans la fenetre de Prisme n'est pas a Claude
+        self.faux.etat.update(occupe=True, claude=False)
+        self.assertNotIn('task_id', self.prisme.statut())
+        with self.assertRaisesRegex(PrismeErreur, 'not Prisme\'s latest'):
+            self.prisme.suivre(en_cours['task_id'])
 
     def test_prisme_occupe(self):
         self.faux.etat.update(occupe=True, debut=1.0)
@@ -279,6 +284,8 @@ class OutilsMcpTest(unittest.TestCase):
         self.assertEqual((c['url'], c['delai'], c['dossier']), ('http://127.0.0.1:7861', 30.0, self.dossier))
         # Par défaut, répondre avant les 60 s après lesquelles Claude abandonne
         self.assertLess(prisme_client.configuration({})['delai'], 60)
+        # Integre a Prisme : le dossier ou Prisme range les images demandees par Claude
+        self.assertEqual(prisme_client.configuration({}, racine=self.dossier)['dossier'], self.dossier / 'images-claude')
         for environ, motif in (({'PRISME_URL': 'http://exemple.com:7861'}, 'this computer'),
                                ({'PRISME_URL': 'ftp://127.0.0.1'}, 'not a valid'),
                                ({'PRISME_TIMEOUT': 'longtemps'}, 'number'), ({'PRISME_TIMEOUT': '0'}, 'between')):

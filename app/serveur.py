@@ -31,11 +31,16 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.9.2'
+VERSION = '1.9.3'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
 PORT = int(os.environ.get('PRISME_PORT') or 7861)
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
 EXE = getattr(sys, 'frozen', False)
+# macOS lance une app telechargee et pas deplacee depuis une copie temporaire en lecture seule (App Translocation) :
+# ce chemin change apres un redemarrage (Claude ne retrouverait plus Prisme) et Prisme ne peut pas s'y mettre a jour
+TRANSLOQUE = EXE and '/AppTranslocation/' in sys.executable
+DEPLACER_MAC = ('macOS fait tourner Prisme depuis une copie temporaire : quitte Prisme, glisse Prisme.app dans le '
+                'dossier Applications, puis relance-le.')
 WINDOWS = sys.platform == 'win32'
 MAC = sys.platform == 'darwin'
 SYSTEME = 'windows' if WINDOWS else 'mac' if MAC else 'linux'
@@ -86,6 +91,8 @@ DONNEES = RACINE / 'app'
 MODELES = RACINE / 'models'
 LORAS = MODELES / 'loras'
 IMAGES = RACINE / 'images'
+# Images demandees par Claude : a part des images creees dans Prisme, que Claude ne lit pas
+IMAGES_CLAUDE = RACINE / 'images-claude'
 SD_CLI = RACINE / 'sd' / f'sd-cli{SUFFIXE_EXE}'
 LLAMA_SERVEUR = RACINE / 'llama' / f'llama-server{SUFFIXE_EXE}'
 TELECHARGEMENTS = RACINE / '.telechargements'
@@ -1376,6 +1383,8 @@ def installer_mise_a_jour():
     try:
         fichier, cible = mise_a_jour['fichier'], programme_actuel()
         dossier = cible.parent
+        if TRANSLOQUE:
+            raise RuntimeError(DEPLACER_MAC)
         if not os.access(dossier, os.W_OK):
             raise RuntimeError('Prisme ne peut pas se remplacer à cet endroit : télécharge la nouvelle version à la main.')
         telechargement = dossier / f'.prisme-maj-{FICHIER_MAJ}'
@@ -1508,13 +1517,13 @@ def modeles_manquants(r, avec_vision):
     return [r[c] or c for c in cles if not r[c] or not (MODELES / r[c]).is_file()]
 
 
-def nouveau_chemin():
-    IMAGES.mkdir(exist_ok=True)
+def nouveau_chemin(dossier=IMAGES):
+    dossier.mkdir(exist_ok=True)
     base = 'image_' + datetime.now().strftime('%Y%m%d_%H%M%S')
-    chemin = IMAGES / (base + '.png')
+    chemin = dossier / (base + '.png')
     n = 2
     while chemin.exists():
-        chemin = IMAGES / f'{base}_{n}.png'
+        chemin = dossier / f'{base}_{n}.png'
         n += 1
     return chemin
 
@@ -1597,7 +1606,7 @@ def generer(params):
             if annule:
                 break
             seed = params['seed'] + i
-            sortie = nouveau_chemin()
+            sortie = nouveau_chemin(IMAGES_CLAUDE if params['claude'] else IMAGES)
             with verrou:
                 etat.update(phase='chargement', etape=0, index=i + 1, seed=seed, debut_image=time.time())
             journal = deque(maxlen=80)
@@ -1934,6 +1943,11 @@ class Gestionnaire(BaseHTTPRequestHandler):
         elif chemin == '/api/etat':
             with verrou:
                 copie = dict(etat)
+            # La fenetre ne voit pas les images de Claude (hors de sa galerie) ; Claude ne voit pas celles de Prisme
+            if bool(copie.get('claude')) != self.vient_du_mcp():
+                copie['resultats'] = []
+                if self.vient_du_mcp():
+                    copie.pop('prompt', None)
             debut = copie.get('debut')
             if debut:
                 copie['ecoule'] = round((copie.get('fin') if not copie['occupe'] else time.time()) - debut, 1)
@@ -1970,9 +1984,12 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             adresse = f'http://{adresse_reseau()}:{PORT}'
             self.envoyer(200, {'adresse': adresse, 'lien': f'{adresse}/?code={CODE}', 'code': CODE, 'reseau': SERVEUR_RESEAU})
-        elif chemin.startswith('/images/'):
-            nom = unquote(chemin[len('/images/'):])
-            fichier = IMAGES / nom
+        elif chemin.startswith(('/images/', '/images-claude/')):
+            claude = chemin.startswith('/images-claude/')
+            if claude != self.vient_du_mcp() or (claude and not self.est_local()):
+                return self.envoyer(403, {'erreur': 'Image réservée.'})
+            nom = unquote(chemin.split('/', 2)[2])
+            fichier = (IMAGES_CLAUDE if claude else IMAGES) / nom
             if NOM_IMAGE.match(nom) and fichier.exists():
                 self.envoyer(200, fichier.read_bytes(), 'image/png', cache=True)
             else:
@@ -2034,6 +2051,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 if not chemin_relatif_sur(modele) or not (MODELES / modele).is_file():
                     return self.envoyer(400, {'erreur': 'Modèle introuvable dans le dossier models.'})
                 r = {**r, 'modele_diffusion': modele}
+            claude = self.vient_du_mcp()
             with verrou:
                 if etat['occupe']:
                     return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
@@ -2043,9 +2061,11 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 etat.clear()
                 etat.update(occupe=True, phase='chargement', etape=0, total=r['etapes'], index=1, nombre=nombre,
                             seed=seed, seed_base=seed, debut=time.time(), resultats=[], erreur=None,
-                            largeur=largeur, hauteur=hauteur, prompt=prompt)
+                            largeur=largeur, hauteur=hauteur, prompt=prompt, claude=claude)
+            # Claude n'envoie que ses propres images (source_data), jamais un nom d'image de Prisme
             params = dict(prompt=prompt, largeur=largeur, hauteur=hauteur, nombre=nombre, seed=seed, reglages=r,
-                          source_nom=p.get('source_nom'), source_data=p.get('source_data'))
+                          source_nom=None if claude else p.get('source_nom'), source_data=p.get('source_data'),
+                          claude=claude)
             threading.Thread(target=generer, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
 
@@ -2183,6 +2203,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme.'})
             donnees = self.lire_json()
             retirer = donnees.get('retirer') is True
+            if TRANSLOQUE and not retirer:
+                return self.envoyer(409, {'erreur': DEPLACER_MAC})
             faits, erreurs = [], []
             for dossier in dossiers_claude_desktop():
                 try:

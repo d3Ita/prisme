@@ -4,6 +4,20 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-11-09
+
+### Added
+
+- **Mac disk image**: `Prisme-macOS-arm64.dmg` opens with Prisme next to a shortcut to Applications: drag one onto the other, like other Mac apps. The `.zip` stays for the one-click update.
+
+### Changed
+
+- **Claude's images apart**: images Claude asks for go to the `images-claude` folder (next to `images`) and no longer appear in Prisme's gallery. Claude can no longer read the images created in Prisme's window, follow a creation started there, or see its description. The MCP server's default `PRISME_OUTPUT_DIR` is now that folder instead of `~/Prisme-MCP`.
+
+### Fixed
+
+- **Mac, Prisme opened from Downloads**: macOS then runs it from a temporary read-only copy (App Translocation), whose path changes after a restart. Prisme no longer writes that path into Claude's configuration and no longer tries to update itself there; it asks you to move Prisme.app to Applications instead.
+
 ## [1.9.2] - 2026-11-09
 
 ### Added
@@ -203,7 +217,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.2...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.3...HEAD
+[1.9.3]: https://github.com/d3Ita/prisme/releases/tag/v1.9.3
 [1.9.2]: https://github.com/d3Ita/prisme/releases/tag/v1.9.2
 [1.9.1]: https://github.com/d3Ita/prisme/releases/tag/v1.9.1
 [1.9.0]: https://github.com/d3Ita/prisme/releases/tag/v1.9.0

@@ -1,7 +1,8 @@
 """Construit Prisme pour le systeme en cours, apres avoir lance les tests.
 
 Windows : Prisme.exe a la racine du projet
-Mac     : dist/Prisme-macOS-arm64.zip (application Prisme.app)
+Mac     : dist/Prisme-macOS-arm64.dmg (a ouvrir, puis glisser Prisme.app dans Applications)
+          et dist/Prisme-macOS-arm64.zip (pour la mise a jour en un clic)
 Linux   : dist/Prisme-Linux-x64.tar.gz (programme prisme)
 
 Prerequis : pip install pyinstaller pillow
@@ -58,6 +59,17 @@ def main():
         archive = DIST / 'Prisme-macOS-arm64.zip'
         archive.unlink(missing_ok=True)
         lancer('ditto', '-c', '-k', '--keepParent', TRAVAIL / 'dist' / 'Prisme.app', archive)
+        # Image disque comme les autres apps Mac : Prisme.app a cote d'un raccourci vers Applications. Glissee depuis
+        # le Finder, l'app n'est plus lancee depuis une copie temporaire de macOS (App Translocation)
+        contenu = TRAVAIL / 'dmg'
+        shutil.rmtree(contenu, ignore_errors=True)
+        contenu.mkdir()
+        lancer('ditto', TRAVAIL / 'dist' / 'Prisme.app', contenu / 'Prisme.app')
+        (contenu / 'Applications').symlink_to('/Applications')
+        image = DIST / 'Prisme-macOS-arm64.dmg'
+        image.unlink(missing_ok=True)
+        lancer('hdiutil', 'create', '-volname', 'Prisme', '-srcfolder', contenu, '-fs', 'HFS+', '-format', 'UDZO', image)
+        print(f'Image disque creee : {image}')
     else:
         programme = TRAVAIL / 'dist' / 'prisme'
         shutil.move(TRAVAIL / 'dist' / 'Prisme', programme)

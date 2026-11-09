@@ -65,5 +65,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Prisme-macOS
-          path: dist/Prisme-macOS-arm64.zip
+          path: |
+            dist/Prisme-macOS-arm64.dmg
+            dist/Prisme-macOS-arm64.zip
           if-no-files-found: error

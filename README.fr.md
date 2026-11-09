@@ -99,7 +99,7 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 | Système | Fichier | Carte graphique | État |
 |---|---|---|---|
 | Windows 10 ou 11 | `Prisme.exe` | NVIDIA (CUDA), ou AMD et Intel (Vulkan) ; 8 Go de mémoire vidéo ou plus conseillés | Testé |
-| macOS 13 ou plus récent | `Prisme-macOS-arm64.zip` | Puce Apple (M1 ou plus récente, Metal), 16 Go de mémoire ou plus conseillés | Testé sur M3 |
+| macOS 13 ou plus récent | `Prisme-macOS-arm64.dmg` | Puce Apple (M1 ou plus récente, Metal), 16 Go de mémoire ou plus conseillés | Testé sur M3 |
 | Linux x64 (Ubuntu 24.04 ou équivalent) | `Prisme-Linux-x64.tar.gz` | Toute carte avec un pilote Vulkan | Expérimental |
 
 Il faut aussi des modèles compatibles avec stable-diffusion.cpp (GGUF ou safetensors, voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)) et une connexion Internet au premier lancement, pour l'installation des moteurs.
@@ -154,7 +154,7 @@ Get-FileHash .\Prisme.exe -Algorithm SHA256
 
 ### macOS
 
-Décompresse `Prisme-macOS-arm64.zip` et place **Prisme.app** dans Applications. L'application n'est pas notariée par Apple, donc macOS la bloque au premier lancement : ouvre **Réglages Système → Confidentialité et sécurité** et clique sur **Ouvrir quand même**, ou lance une fois :
+Ouvre `Prisme-macOS-arm64.dmg` et glisse **Prisme** sur le dossier **Applications** à côté. Lancé depuis Téléchargements, macOS le ferait tourner depuis une copie temporaire : Prisme ne pourrait ni se mettre à jour ni rester connecté à Claude. L'application n'est pas notariée par Apple, donc macOS la bloque au premier lancement : ouvre **Réglages Système → Confidentialité et sécurité** et clique sur **Ouvrir quand même**, ou lance une fois :
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Prisme.app
@@ -273,7 +273,7 @@ Claude peut alors :
 
 **Les licences restent ta décision.** Les profils sous licence ouverte (Apache-2.0) se téléchargent directement. Pour une licence non commerciale (Qwen-Image) ou un modèle hors du catalogue de Prisme, Prisme ouvre une demande dans sa propre fenêtre, avec la licence ou un avertissement (licence et contenu non vérifiés) ; seul ton clic à cet endroit lance le téléchargement. Claude ne peut pas répondre à ta place.
 
-Le serveur ne parle qu'à Prisme sur `127.0.0.1`, copie les images dans `~/Prisme-MCP`, et ne modifie que les images de ce dossier. Installation à la main, réglages et dépannage : [README du serveur MCP](mcp/README.md#français).
+Le serveur ne parle qu'à Prisme sur `127.0.0.1`. Les images demandées par Claude vont dans le dossier `images-claude`, à côté du dossier `images` de Prisme (`~/Prisme/images-claude` sur Mac) ; Claude ne lit ni ne modifie les images créées dans la fenêtre de Prisme. Installation à la main, réglages et dépannage : [README du serveur MCP](mcp/README.md#français).
 
 ## Sécurité
 
@@ -292,7 +292,7 @@ Sur le système visé, avec Python 3.12 ou plus récent, PyInstaller et Pillow i
 python3 construire.py
 ```
 
-Sous Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` crée d'abord cet environnement dans `.construction/`. La construction lance les tests, puis produit `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.zip` (macOS) ou `dist/Prisme-Linux-x64.tar.gz` (Linux). Si un test échoue, rien n'est construit.
+Sous Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` crée d'abord cet environnement dans `.construction/`. La construction lance les tests, puis produit `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.dmg` et `.zip` (macOS) ou `dist/Prisme-Linux-x64.tar.gz` (Linux). Si un test échoue, rien n'est construit.
 
 ### Tests
 

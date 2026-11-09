@@ -48,7 +48,7 @@ class PrismeErreur(Exception):
     """Erreur expliquee a l'utilisateur ; le message suffit, sans trace."""
 
 
-def configuration(environ=None):
+def configuration(environ=None, racine=None):
     """PRISME_URL, PRISME_TIMEOUT et PRISME_OUTPUT_DIR, verifies."""
     environ = os.environ if environ is None else environ
     url = (environ.get('PRISME_URL') or f'http://127.0.0.1:{PORT_PAR_DEFAUT}').rstrip('/')
@@ -65,7 +65,9 @@ def configuration(environ=None):
         raise PrismeErreur('PRISME_TIMEOUT must be a number of seconds.') from None
     if not 1 <= delai <= 3600:
         raise PrismeErreur('PRISME_TIMEOUT must be between 1 and 3600 seconds.')
-    dossier = Path(environ.get('PRISME_OUTPUT_DIR') or Path.home() / 'Prisme-MCP').expanduser()
+    # Par defaut, le dossier ou Prisme range les images demandees par Claude
+    defaut = Path(racine) / 'images-claude' if racine else Path.home() / 'Prisme-MCP'
+    dossier = Path(environ.get('PRISME_OUTPUT_DIR') or defaut).expanduser()
     return {'url': url, 'delai': delai, 'dossier': dossier}
 
 
@@ -77,8 +79,8 @@ class Prisme:
         self.demarrage, self.verrou_demarrage = demarrage, threading.Lock()
 
     @classmethod
-    def depuis_environnement(cls, environ=None, demarrage=None):
-        c = configuration(environ)
+    def depuis_environnement(cls, environ=None, demarrage=None, racine=None):
+        c = configuration(environ, racine)
         return cls(c['url'], c['delai'], c['dossier'], demarrage=demarrage)
 
     def demarrer_prisme(self):
@@ -171,7 +173,8 @@ class Prisme:
         e = self.etat()
         statut = {'version': e.get('version'), 'busy': bool(e.get('occupe')), 'phase': e.get('phase'),
                   'drawing_model': e.get('modele') or None, 'problems': e.get('problemes') or []}
-        if e.get('occupe'):
+        # Une creation lancee dans la fenetre de Prisme n'est pas a Claude : pas d'identifiant pour la recuperer
+        if e.get('occupe') and e.get('claude'):
             statut.update(task_id=identifiant_tache(e), step=e.get('etape'), steps=e.get('total'),
                           image=e.get('index'), images=e.get('nombre'), elapsed_seconds=e.get('ecoule'))
         if e.get('erreur'):
@@ -385,9 +388,10 @@ class Prisme:
         self.dossier.mkdir(parents=True, exist_ok=True)
         images = []
         for nom in noms:
-            contenu = self.requete('/images/' + quote(nom), brut=True, delai=60)
+            contenu = self.requete('/images-claude/' + quote(nom), brut=True, delai=60)
             chemin = self.dossier / nom
-            chemin.write_bytes(contenu)
+            if not chemin.is_file():  # deja la quand PRISME_OUTPUT_DIR est le dossier de Prisme pour Claude
+                chemin.write_bytes(contenu)
             images.append({'path': str(chemin), 'png': contenu})
         return {'status': 'done', 'task_id': identifiant_tache(etat), 'seed': etat.get('seed_base'),
                 'width': etat.get('largeur'), 'height': etat.get('hauteur'), 'prompt': etat.get('prompt'),
@@ -398,9 +402,9 @@ class Prisme:
         if not task_id:
             return self.statut()
         etat = self.etat()
-        if identifiant_tache(etat) != str(task_id):
+        if not etat.get('claude') or identifiant_tache(etat) != str(task_id):
             raise PrismeErreur(f'Task {task_id} is not Prisme\'s latest creation anymore. Its images are in Prisme\'s '
-                               'image list.')
+                               '"images-claude" folder.')
         if etat.get('occupe'):
             return {'status': 'running', 'task_id': str(task_id), 'step': etat.get('etape'), 'steps': etat.get('total'),
                     'elapsed_seconds': etat.get('ecoule')}
@@ -768,7 +772,7 @@ def principal(version='?', demarrage=None, racine=None):
     # Le protocole occupe la sortie standard : tout autre affichage part vers la sortie d'erreur
     sys.stdout = sys.stderr
     try:
-        prisme = Prisme.depuis_environnement(demarrage=demarrage)
+        prisme = Prisme.depuis_environnement(demarrage=demarrage, racine=racine)
     except PrismeErreur as e:
         print(f'Prisme MCP: configuration error: {e}', file=sys.stderr)
         sys.exit(1)

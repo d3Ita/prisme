@@ -108,7 +108,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 | System | Download | GPU | Status |
 |---|---|---|---|
 | Windows 10 or 11 | `Prisme.exe` | NVIDIA (CUDA), or AMD and Intel (Vulkan); 8 GB of VRAM or more recommended | Tested |
-| macOS 13 or later | `Prisme-macOS-arm64.zip` | Apple Silicon (M1 or later, Metal), 16 GB of memory or more recommended | Tested on M3 |
+| macOS 13 or later | `Prisme-macOS-arm64.dmg` | Apple Silicon (M1 or later, Metal), 16 GB of memory or more recommended | Tested on M3 |
 | Linux x64 (Ubuntu 24.04 or similar) | `Prisme-Linux-x64.tar.gz` | Any GPU with a Vulkan driver | Experimental |
 
 You also need models compatible with stable-diffusion.cpp (GGUF or safetensors, see [Choosing models for your machine](#choosing-models-for-your-machine)) and an internet connection on first launch, to install the engines.
@@ -156,7 +156,7 @@ Get-FileHash .\Prisme.exe -Algorithm SHA256
 
 ### macOS
 
-Unzip `Prisme-macOS-arm64.zip` and move **Prisme.app** to Applications. The app is not notarized, so macOS blocks it on first launch: open **System Settings → Privacy & Security** and click **Open Anyway**, or run once:
+Open `Prisme-macOS-arm64.dmg` and drag **Prisme** onto the **Applications** folder next to it. Launched from Downloads, macOS would run it from a temporary copy and Prisme could neither update itself nor stay connected to Claude. The app is not notarized, so macOS blocks it on first launch: open **System Settings → Privacy & Security** and click **Open Anyway**, or run once:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Prisme.app
@@ -259,7 +259,7 @@ Claude can then:
 
 **You stay in control of licenses.** Profiles under an open license (Apache-2.0) are downloaded directly. For a non-commercial license (Qwen-Image) or a model outside Prisme's catalog, Prisme opens a request in its own window, with the license or a warning (license and content not checked); only your click there starts the download. Claude cannot answer for you.
 
-The server only talks to Prisme on `127.0.0.1`, copies the images to `~/Prisme-MCP`, and only edits images found there. Manual setup, settings and troubleshooting: [MCP README](mcp/README.md).
+The server only talks to Prisme on `127.0.0.1`. Images Claude asks for go to the `images-claude` folder, next to Prisme's `images` folder (`~/Prisme/images-claude` on a Mac); Claude neither reads nor edits the images created in Prisme's window. Manual setup, settings and troubleshooting: [MCP README](mcp/README.md).
 
 ## Security
 
@@ -278,7 +278,7 @@ On the system you build for, with Python 3.12 or later, PyInstaller and Pillow i
 python3 construire.py
 ```
 
-On Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` first creates that environment in `.construction/`. The build runs the tests, then makes `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.zip` (macOS) or `dist/Prisme-Linux-x64.tar.gz` (Linux). If a test fails, nothing is built. To run without building: `python3 app/serveur.py`.
+On Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` first creates that environment in `.construction/`. The build runs the tests, then makes `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.dmg` and `.zip` (macOS) or `dist/Prisme-Linux-x64.tar.gz` (Linux). If a test fails, nothing is built. To run without building: `python3 app/serveur.py`.
 
 How the pieces fit together (interface, server, engines, models and images) is described with a diagram in [docs/architecture.md](docs/architecture.md).
 

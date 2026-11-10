@@ -6,6 +6,7 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- **The PC no longer freezes during a creation or Improve.** The image engine and the text engine now leave 1.5 GB of the graphics card to the display, which they used to fill up to 0.5 GB. It costs a few seconds (a 720p video: 243 s instead of 235 s). **Settings → Performance → Keep the PC usable** turns it off.
 - The **Connect to Claude** and update banners no longer cover the first message of the feed.
 
 ## [1.9.5] - 2026-11-10

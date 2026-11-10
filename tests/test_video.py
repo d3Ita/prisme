@@ -311,6 +311,9 @@ class RoutesVideoTest(unittest.TestCase):
         commande = self.moteurs[0].commande
         self.assertEqual(commande[0], str(serveur.SD_CLI))
         self.assertIn('vid_gen', commande)
+        # Memoire gardee pour l'affichage, comme pour les images (sauf sur Mac, ou elle est partagee)
+        if not serveur.MAC:
+            self.assertEqual(commande[commande.index('--max-vram') + 1], '-1.5')
         nom = serveur.etat['resultats'][0]
         self.assertTrue(video.NOM_VIDEO.match(nom))
         # La progression est passee par l'etat de Prisme, comme pour les images

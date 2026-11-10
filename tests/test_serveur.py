@@ -686,6 +686,53 @@ class ChoixMoteursTest(unittest.TestCase):
         self.assertNotIn('requiert', serveur.MOTEURS_PAR_SYSTEME['windows-vulkan']['texte'])
 
 
+class MemoireEcranTest(unittest.TestCase):
+    """Les moteurs laissent de la memoire de carte graphique a l'affichage : sinon l'ecran du PC gele."""
+
+    def reglages(self, **changements):
+        return dict(serveur.REGLAGES_DEFAUT, modele_diffusion='d.gguf', modele_texte='t.gguf', vae='v.safetensors',
+                    amelioration_modele_local='texte.gguf', **changements)
+
+    def test_reserve_pour_les_images(self):
+        from unittest import mock
+        self.assertTrue(serveur.REGLAGES_DEFAUT['memoire_ecran'])
+        with mock.patch.object(serveur, 'MAC', False):
+            args = serveur.arguments(self.reglages(), 'neige', 512, 512, 1, None, Path('s.png'))
+            self.assertEqual(args[args.index('--max-vram') + 1], '-1.5')
+            sans = serveur.arguments(self.reglages(memoire_ecran=False), 'neige', 512, 512, 1, None, Path('s.png'))
+            self.assertNotIn('--max-vram', sans)
+        # Sur Mac, la memoire est partagee : rien a reserver
+        with mock.patch.object(serveur, 'MAC', True):
+            self.assertNotIn('--max-vram', serveur.arguments(self.reglages(), 'neige', 512, 512, 1, None, Path('s.png')))
+
+    def test_moteur_de_texte_garde_une_marge(self):
+        from unittest import mock
+        commandes = []
+
+        class Arrete:
+            def poll(self):
+                return 1
+
+        def lancer(commande, **_options):
+            commandes.append(commande)
+            return Arrete()
+
+        with tempfile.TemporaryDirectory() as d:
+            moteur, modele = Path(d) / 'llama-server.exe', Path(d) / 'texte.gguf'
+            moteur.write_bytes(b''), modele.write_bytes(b'')
+            with mock.patch.object(serveur, 'LLAMA_SERVEUR', moteur), mock.patch.object(serveur, 'MODELES', Path(d)), \
+                    mock.patch.object(serveur, 'lancer_moteur', lancer), mock.patch.object(serveur, 'MAC', False):
+                for memoire_ecran in (True, False):
+                    with self.assertRaises(RuntimeError):
+                        with serveur.MoteurTexte(self.reglages(memoire_ecran=memoire_ecran)):
+                            pass
+        avec, sans = commandes
+        # llama.cpp choisit les couches qui tiennent en gardant 1,5 Go ; -ngl 99 annulerait ce calcul
+        self.assertNotIn('-ngl', avec)
+        self.assertEqual(avec[avec.index('--fit-target') + 1], '1536')
+        self.assertEqual(sans[sans.index('-ngl') + 1], '99')
+
+
 class TelechargementsTest(unittest.TestCase):
     """Erreurs passageres des serveurs de telechargement : nouveaux essais, reprise, message clair."""
 

@@ -170,6 +170,9 @@ const EN = {
   'Décris ce qui se passe à partir de cette image…': 'Describe what happens from this image…', 'Décris le mouvement…': 'Describe the motion…',
   'Vidéo mise à la corbeille': 'Video moved to the trash', 'Description et réglages de la vidéo repris': 'Video description and settings reused',
   'À partir d\'une image': 'From an image', 'Vidéo (bêta)': 'Video (beta)', 'Profils de modèles': 'Model profiles',
+  'Garder le PC utilisable': 'Keep the PC usable',
+  'Laisse 1,5 Go de la carte graphique à l'affichage pendant les calculs : un peu plus lent, mais l'écran ne gèle plus':
+    'Leaves 1.5 GB of the graphics card to the display during calculations: a little slower, but the screen no longer freezes',
   'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
     'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
@@ -1125,6 +1128,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <h4>Performances</h4>
         <div class="reglage"><label for="r-cpu">Décharger sur le processeur<small>Économise la mémoire de la carte graphique</small></label><label class="interrupteur"><input type="checkbox" id="r-cpu" data-cle="dechargement_cpu"><span></span></label></div>
         <div class="reglage"><label for="r-tuiles">VAE par tuiles<small>Évite les manques de mémoire</small></label><label class="interrupteur"><input type="checkbox" id="r-tuiles" data-cle="vae_tuiles"><span></span></label></div>
+        <div class="reglage"><label for="r-ecran">Garder le PC utilisable<small>Laisse 1,5 Go de la carte graphique à l'affichage pendant les calculs : un peu plus lent, mais l'écran ne gèle plus</small></label><label class="interrupteur"><input type="checkbox" id="r-ecran" data-cle="memoire_ecran"><span></span></label></div>
         <div class="reglage"><label for="r-fa">Flash attention<small>Plus rapide sur carte NVIDIA</small></label><label class="interrupteur"><input type="checkbox" id="r-fa" data-cle="flash_attention"><span></span></label></div>
       </section>
       <section class="bloc">

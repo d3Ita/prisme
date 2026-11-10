@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.9.5] - 2026-11-10
+
 ### Fixed
 
 - On a phone, the **Connect to Claude** and update banners take the full width again, instead of a narrow circle with one word per line.
@@ -240,7 +242,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.4...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.5...HEAD
+[1.9.5]: https://github.com/d3Ita/prisme/releases/tag/v1.9.5
 [1.9.4]: https://github.com/d3Ita/prisme/releases/tag/v1.9.4
 [1.9.3]: https://github.com/d3Ita/prisme/releases/tag/v1.9.3
 [1.9.2]: https://github.com/d3Ita/prisme/releases/tag/v1.9.2

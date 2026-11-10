@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- On a phone, the **Connect to Claude** and update banners take the full width again, instead of a narrow circle with one word per line.
+
 ### Changed
 
 - Version numbers with a pre-release suffix (such as `2.0.0-beta.1`) are now compared correctly: a beta comes before its final version, so a beta tester is offered the final release.

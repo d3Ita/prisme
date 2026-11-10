@@ -30,6 +30,11 @@ def tearDownModule():
 BASE = {'modele_diffusion': 'dessin.gguf', 'modele_texte': 'texte.gguf', 'vae': 'vae.safetensors'}
 
 
+def io_json(donnees):
+    import io
+    return io.BytesIO(json.dumps(donnees).encode())
+
+
 def valider(**changements):
     return serveur.valider_reglages({**BASE, **changements})
 
@@ -762,16 +767,103 @@ class VersionTest(unittest.TestCase):
         self.assertIsNone(serveur.lire_release(self.release(digest='md5:1234'))[1])
 
     def test_script_de_remplacement(self):
+        from unittest import mock
         nouveau, cible = Path(DOSSIER_TEST.name) / 'nouveau', Path(DOSSIER_TEST.name) / 'Prisme'
-        script = serveur.script_remplacement(nouveau, cible, [4242, 4343])
-        for pid in ('4242', '4343'):
-            self.assertIn(pid, script)
-        self.assertIn('--sans-fenetre', script)
-        self.assertIn(str(cible), script)
+        for windows, mac in ((True, False), (False, True), (False, False)):
+            with self.subTest(windows=windows, mac=mac), mock.patch.object(serveur, 'WINDOWS', windows), \
+                    mock.patch.object(serveur, 'MAC', mac):
+                script = serveur.script_remplacement(nouveau, cible, [4242, 4343], [nouveau], [Path('moteurs') / 'sd'])
+                for pid in ('4242', '4343'):
+                    self.assertIn(pid, script)
+                self.assertIn('--sans-fenetre', script)
+                # Cause A : plus jamais de retour silencieux a l'ancienne version apres les essais
+                self.assertNotIn('goto lancer', script)
+                self.assertIn(str(serveur.FICHIER_ECHEC_MAJ), script)
+                self.assertIn(str(serveur.FICHIER_JOURNAL_MAJ), script)
+                self.assertIn('sd', script)
+
+    def executer_script(self, verrouiller=False, delai=2):
+        """Lance pour de vrai le script de remplacement sur des fichiers temporaires ; la relance ecrit un temoin."""
+        import subprocess
+        dossier = Path(tempfile.mkdtemp(dir=DOSSIER_TEST.name))
+        cible, nouveau, temoin = dossier / 'Prisme.exe', dossier / '.prisme-maj-Prisme.exe', dossier / 'relance.txt'
+        cible.write_bytes(b'ancien')
+        nouveau.write_bytes(b'nouveau')
+        serveur.FICHIER_ECHEC_MAJ.unlink(missing_ok=True)
         if serveur.WINDOWS:
-            self.assertIn(f'move /y "{nouveau}" "{cible}"', script)
+            relance = f"Set-Content -LiteralPath '{temoin}' -Value 'relance'"
+            script = dossier / 'maj.ps1'
+            commande = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(script)]
+            encodage = 'utf-8-sig'
         else:
-            self.assertIn('kill -0 4242', script)
+            relance = f"echo relance > '{temoin}'"
+            script, commande, encodage = dossier / 'maj.sh', ['/bin/sh', str(dossier / 'maj.sh')], 'utf-8'
+        texte = serveur.script_remplacement(nouveau, cible, [99999999], [nouveau], [dossier / 'sd'], essais=2, relance=relance)
+        script.write_text(texte, encoding=encodage, newline='')
+        verrou = None
+        if verrouiller:
+            if serveur.WINDOWS:
+                verrou = open(cible, 'rb')  # ouvert sans partage de suppression : ni renommage ni remplacement
+            else:
+                dossier.chmod(0o555)  # dossier en lecture seule : mv echoue
+        try:
+            subprocess.run(commande, capture_output=True, timeout=120)
+        finally:
+            if verrou:
+                verrou.close()
+            dossier.chmod(0o755)
+        return cible, nouveau, temoin, script
+
+    def test_remplacement_reel(self):
+        cible, nouveau, temoin, script = self.executer_script()
+        self.assertEqual(cible.read_bytes(), b'nouveau')
+        self.assertFalse(nouveau.exists())
+        self.assertTrue(temoin.exists())
+        self.assertFalse(serveur.FICHIER_ECHEC_MAJ.exists())
+        self.assertFalse(script.exists())
+        self.assertFalse(list(cible.parent.glob('Prisme.exe.ancien*')))
+
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0, 'root ignore les droits du dossier')
+    def test_remplacement_impossible_signale(self):
+        cible, nouveau, temoin, script = self.executer_script(verrouiller=True)
+        # L'ancienne version reste, est relancee, et le message d'echec attend le lancement suivant
+        self.assertEqual(cible.read_bytes(), b'ancien')
+        self.assertTrue(temoin.exists())
+        self.assertIn('pas pu remplacer', serveur.FICHIER_ECHEC_MAJ.read_text(encoding='utf-8-sig'))
+        self.assertIn('echec', serveur.FICHIER_JOURNAL_MAJ.read_text(encoding='utf-8-sig'))
+        self.assertFalse(nouveau.exists())
+
+    def test_echec_montre_au_lancement_suivant(self):
+        from unittest import mock
+        serveur.DONNEES.mkdir(exist_ok=True)
+        serveur.FICHIER_ECHEC_MAJ.write_text('Le nouveau programme n\'a pas pu remplacer l\'ancien.', encoding='utf-8')
+        self.addCleanup(setattr, serveur, 'echec_maj', None)
+        dossier = Path(tempfile.mkdtemp(dir=DOSSIER_TEST.name))
+        programme = dossier / 'Prisme.exe'
+        programme.write_bytes(b'')
+        restes = [dossier / '.prisme-maj-Prisme.exe', dossier / 'Prisme.exe.ancien-20261110']
+        for reste in restes:
+            reste.write_bytes(b'')
+        with mock.patch.object(serveur, 'EXE', True), mock.patch.object(serveur, 'programme_actuel', return_value=programme):
+            serveur.reprendre_apres_maj()
+        self.assertIn('pas pu remplacer', serveur.echec_maj['message'])
+        self.assertEqual(serveur.echec_maj['url'], serveur.PAGE_VERSIONS)
+        self.assertFalse(serveur.FICHIER_ECHEC_MAJ.exists())
+        self.assertFalse(any(r.exists() for r in restes))
+        self.assertTrue(programme.exists())
+
+    def test_mac_depuis_une_copie_temporaire(self):
+        from unittest import mock
+        serveur.mise_a_jour.clear()
+        self.addCleanup(serveur.mise_a_jour.clear)
+        reponse = mock.MagicMock()
+        reponse.__enter__.return_value = io_json({'tag_name': 'v99.0.0', 'assets': [self.release()['assets'][0]]})
+        with mock.patch.object(serveur, 'EXE', True), mock.patch.object(serveur, 'TRANSLOQUE', True), \
+                mock.patch.object(serveur.urllib.request, 'urlopen', return_value=reponse):
+            serveur.verifier_mise_a_jour()
+        etat = serveur.etat_mise_a_jour()
+        # Pas de bouton qui echouerait : la raison est donnee tout de suite
+        self.assertEqual((etat['auto'], etat['raison']), (False, serveur.DEPLACER_MAC))
 
     def test_etat_sans_details_internes(self):
         serveur.mise_a_jour.clear()
@@ -779,7 +871,7 @@ class VersionTest(unittest.TestCase):
         self.assertIsNone(serveur.etat_mise_a_jour())
         version, fichier = serveur.lire_release(self.release())
         serveur.mise_a_jour.update(version=version, url=serveur.PAGE_VERSIONS, fichier=fichier, auto=True)
-        self.assertEqual(serveur.etat_mise_a_jour(), {'version': '9.9.9', 'url': serveur.PAGE_VERSIONS, 'auto': True, 'installation': None})
+        self.assertEqual(serveur.etat_mise_a_jour(), {'version': '9.9.9', 'url': serveur.PAGE_VERSIONS, 'auto': True, 'raison': None, 'installation': None})
 
 class ArretAutomatiqueTest(unittest.TestCase):
     def setUp(self):

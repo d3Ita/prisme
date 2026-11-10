@@ -1329,7 +1329,8 @@ def verifier_mise_a_jour(discret=True):
             version, fichier = lire_release(json.load(reponse))
         if numero_version(version) > numero_version(VERSION):
             # La mise a jour en un clic ne vaut que pour le programme construit, pas pour le script Python
-            mise_a_jour.update(version=version, url=PAGE_VERSIONS, fichier=fichier, auto=bool(EXE and fichier))
+            mise_a_jour.update(version=version, url=PAGE_VERSIONS, fichier=fichier, auto=bool(EXE and fichier and not TRANSLOQUE),
+                               raison=DEPLACER_MAC if TRANSLOQUE else None)
     except Exception:
         if not discret:
             raise
@@ -1339,7 +1340,7 @@ def etat_mise_a_jour():
     with verrou_maj:
         if not mise_a_jour:
             return None
-        return {k: mise_a_jour.get(k) for k in ('version', 'url', 'auto')} | \
+        return {k: mise_a_jour.get(k) for k in ('version', 'url', 'auto', 'raison')} | \
             {'installation': dict(mise_a_jour['installation']) if mise_a_jour.get('installation') else None}
 
 
@@ -1349,28 +1350,129 @@ def programme_actuel():
     return exe.parents[2] if MAC else exe
 
 
-def script_remplacement(nouveau, cible, pids):
-    """Script qui attend la fin de Prisme, met le nouveau programme a sa place et le relance sans ouvrir de fenetre
-    (la fenetre deja ouverte se recharge toute seule)."""
+# Journal des mises a jour, et message d'une mise a jour echouee, montre au lancement suivant
+FICHIER_JOURNAL_MAJ = DONNEES / 'mise-a-jour.log'
+FICHIER_ECHEC_MAJ = DONNEES / 'maj-echec.txt'
+ECHEC_ATTENTE = 'Prisme ne s\'est pas arrêté à temps pour être mis à jour.'
+ECHEC_REMPLACEMENT = ('Le nouveau programme n\'a pas pu remplacer l\'ancien : un antivirus ou un autre programme '
+                      'l\'utilise peut-être.')
+echec_maj = None
+
+
+def script_remplacement(nouveau, cible, pids, temporaires=(), moteurs=(), essais=60, attente=120, relance=None):
+    """Script qui attend la fin de Prisme et de ses moteurs, met le nouveau programme a sa place et le relance sans
+    ouvrir de fenetre (la fenetre deja ouverte se recharge toute seule). En cas d'echec, il ne relance jamais
+    l'ancienne version en silence : il ecrit l'erreur dans le journal et dans FICHIER_ECHEC_MAJ (affiche au lancement),
+    supprime les fichiers temporaires, puis relance l'ancienne version, qui montre le message."""
     if WINDOWS:
-        lignes = ['@echo off']
-        for i, pid in enumerate(pids):
-            lignes += [f':attente{i}', f'tasklist /FI "PID eq {pid}" /NH | find " {pid} " >nul && (ping -n 2 127.0.0.1 >nul & goto attente{i})']
-        lignes += ['set n=0', ':deplacer', f'move /y "{nouveau}" "{cible}" >nul 2>&1', 'if not errorlevel 1 goto lancer',
-                   'set /a n+=1', 'if %n% geq 30 goto lancer', 'ping -n 2 127.0.0.1 >nul', 'goto deplacer',
-                   ':lancer', f'start "" "{cible}" --sans-fenetre', '(goto) 2>nul & del "%~f0"']
-        return '\r\n'.join(lignes) + '\r\n'
-    n, c = shlex.quote(str(nouveau)), shlex.quote(str(cible))
-    attente = ' || '.join(f'kill -0 {pid} 2>/dev/null' for pid in pids)
-    lignes = ['#!/bin/sh', f'while {attente}; do sleep 1; done']
+        return script_powershell(nouveau, cible, pids, temporaires, moteurs, essais, attente, relance)
+    return script_sh(nouveau, cible, pids, temporaires, moteurs, essais, attente, relance)
+
+
+def script_powershell(nouveau, cible, pids, temporaires, moteurs, essais, attente, relance):
+    q = lambda texte: "'" + str(texte).replace("'", "''") + "'"
+    liste = lambda elements: '@(' + ', '.join(q(e) for e in elements) + ')'
+    return '\r\n'.join([
+        "$ErrorActionPreference = 'Stop'",
+        f'$cible = {q(cible)}', f'$nouveau = {q(nouveau)}', f'$journal = {q(FICHIER_JOURNAL_MAJ)}', f'$echec = {q(FICHIER_ECHEC_MAJ)}',
+        f'$temporaires = {liste(temporaires)}', f'$moteurs = {liste(str(d) + os.sep for d in moteurs)}',
+        f'$pids = @({", ".join(str(p) for p in pids)})',
+        "$ancien = $cible + '.ancien-' + (Get-Date -Format 'yyyyMMddHHmmss')",
+        "function Noter($texte) { Add-Content -LiteralPath $journal -Value ((Get-Date -Format s) + ' ' + $texte) -Encoding UTF8 }",
+        'function Lancer { ' + (relance or "Start-Process -FilePath $cible -ArgumentList '--sans-fenetre'") + ' }',
+        'function Echouer($raison) {',
+        "  Noter ('echec : ' + $raison)",
+        '  Set-Content -LiteralPath $echec -Value $raison -Encoding UTF8',
+        '  foreach ($t in $temporaires) { Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction SilentlyContinue }',
+        '  if (-not (Test-Path -LiteralPath $cible) -and (Test-Path -LiteralPath $ancien)) { Move-Item -LiteralPath $ancien -Destination $cible -Force }',
+        "  # L'ancienne version redemarre et montre l'echec : jamais de retour en silence",
+        '  if (Test-Path -LiteralPath $cible) { Lancer }',
+        '  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue',
+        '  exit 1',
+        '}',
+        "Noter ('mise a jour de ' + $cible)",
+        '# Attend la fin de Prisme (lanceur et Python) et des moteurs lances depuis son dossier',
+        f'$limite = (Get-Date).AddSeconds({attente})',
+        'while ($true) {',
+        '  $restants = @($pids | Where-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue })',
+        '  if ($moteurs.Count) { $restants += @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {',
+        '    $chemin = $_.ExecutablePath; $chemin -and @($moteurs | Where-Object { $chemin.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }).Count }) }',
+        '  if ($restants.Count -eq 0) { break }',
+        f'  if ((Get-Date) -gt $limite) {{ Echouer {q(ECHEC_ATTENTE)} }}',
+        '  Start-Sleep -Milliseconds 500',
+        '}',
+        "$erreur = ''",
+        f'for ($i = 1; $i -le {essais}; $i++) {{',
+        '  try {',
+        "    # Renommer l'exe actuel est permis meme s'il tourne encore (serveur MCP de Claude, antivirus)",
+        '    Move-Item -LiteralPath $cible -Destination $ancien -Force',
+        '    try { Move-Item -LiteralPath $nouveau -Destination $cible -Force } catch { Move-Item -LiteralPath $ancien -Destination $cible -Force; throw }',
+        "    $erreur = ''; break",
+        '  } catch { $erreur = $_.Exception.Message; Start-Sleep -Seconds 2 }',
+        '}',
+        f"if ($erreur) {{ Noter $erreur; Echouer {q(ECHEC_REMPLACEMENT)} }}",
+        "# L'ancien exe encore utilise (serveur MCP) sera supprime au prochain lancement",
+        'Remove-Item -LiteralPath $ancien -Force -ErrorAction SilentlyContinue',
+        "Noter 'remplacement fait'",
+        'Lancer',
+        'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue',
+    ]) + '\r\n'
+
+
+def script_sh(nouveau, cible, pids, temporaires, moteurs, essais, attente, relance):
+    q = lambda texte: shlex.quote(str(texte))
     if MAC:
-        ancien = shlex.quote(str(cible) + '.ancien')
-        lignes += [f'rm -rf {ancien}', f'if mv {c} {ancien} && mv {n} {c}; then rm -rf {ancien}; else mv {ancien} {c} 2>/dev/null; fi',
-                   f'rm -rf {shlex.quote(str(Path(nouveau).parent))}', f'open {c} --args --sans-fenetre']
+        lancer = f'open {q(cible)} --args --sans-fenetre'
+        remplacer = (f'rm -rf {q(str(cible) + ".ancien")}; mv {q(cible)} {q(str(cible) + ".ancien")} && '
+                     f'{{ mv {q(nouveau)} {q(cible)} || {{ mv {q(str(cible) + ".ancien")} {q(cible)}; false; }}; }}')
     else:
-        lignes += [f'mv -f {n} {c}', f'chmod 755 {c}', f'nohup {c} --sans-fenetre >/dev/null 2>&1 &']
-    lignes.append('rm -f "$0"')
-    return '\n'.join(lignes) + '\n'
+        lancer = f'nohup {q(cible)} --sans-fenetre >/dev/null 2>&1 &'
+        remplacer = f'mv -f {q(nouveau)} {q(cible)} && chmod 755 {q(cible)}'
+    vivants = ' || '.join([f'kill -0 {pid} 2>/dev/null' for pid in pids]
+                          + [f'pgrep -f -- {q(str(d) + "/")} >/dev/null 2>&1' for d in moteurs]) or 'false'
+    temporaires = ' '.join(q(t) for t in temporaires)
+    return '\n'.join([
+        '#!/bin/sh',
+        f'journal={q(FICHIER_JOURNAL_MAJ)}',
+        'noter() { printf \'%s %s\\n\' "$(date \'+%Y-%m-%dT%H:%M:%S\')" "$1" >> "$journal"; }',
+        f'lancer() {{ {relance or lancer}; }}',
+        'echouer() {',
+        '  noter "echec : $1"',
+        f'  printf \'%s\\n\' "$1" > {q(FICHIER_ECHEC_MAJ)}',
+        f'  rm -rf -- {temporaires}' if temporaires else '  :',
+        f'  [ -e {q(cible)} ] || mv {q(str(cible) + ".ancien")} {q(cible)} 2>/dev/null',
+        '  # L\'ancienne version redemarre et montre l\'echec : jamais de retour en silence',
+        f'  [ -e {q(cible)} ] && lancer',
+        '  rm -f -- "$0"; exit 1',
+        '}',
+        f'noter {q("mise a jour de " + str(cible))}',
+        '# Attend la fin de Prisme et des moteurs lances depuis son dossier',
+        'n=0',
+        f'while {vivants}; do n=$((n + 1)); [ "$n" -ge {attente * 2} ] && echouer {q(ECHEC_ATTENTE)}; sleep 0.5; done',
+        'n=0',
+        f'until {{ {remplacer}; }} 2>/dev/null; do n=$((n + 1)); [ "$n" -ge {essais} ] && echouer {q(ECHEC_REMPLACEMENT)}; sleep 2; done',
+        f'rm -rf -- {q(str(cible) + ".ancien")} {temporaires}',
+        'noter "remplacement fait"',
+        'lancer',
+        'rm -f -- "$0"',
+    ]) + '\n'
+
+
+def reprendre_apres_maj():
+    """Au lancement : garde le message d'une mise a jour echouee (pour l'interface) et supprime les fichiers laisses
+    par une mise a jour (telechargement, ancien programme encore utilise lors du remplacement)."""
+    global echec_maj
+    if FICHIER_ECHEC_MAJ.exists():
+        message = FICHIER_ECHEC_MAJ.read_text(encoding='utf-8-sig', errors='replace').strip()
+        echec_maj = {'message': message or 'La mise à jour a échoué.', 'url': PAGE_VERSIONS, 'journal': str(FICHIER_JOURNAL_MAJ)}
+        FICHIER_ECHEC_MAJ.unlink(missing_ok=True)
+    if EXE:
+        programme = programme_actuel()
+        for reste in [*programme.parent.glob('.prisme-maj-*'), *programme.parent.glob(programme.name + '.ancien*')]:
+            try:
+                shutil.rmtree(reste) if reste.is_dir() else reste.unlink()
+            except OSError:
+                pass  # encore utilise (serveur MCP de Claude) : ce sera pour le lancement suivant
 
 
 def installer_mise_a_jour():
@@ -1408,21 +1510,24 @@ def installer_mise_a_jour():
                 nouveau.write_bytes(archive.extractfile(archive.getmember('prisme')).read())
             nouveau.chmod(0o755)
             telechargement.unlink()
-        # Sous Windows et Linux, l'exe tourne dans deux processus (lanceur et Python) : on attend les deux
+        # Sous Windows et Linux, l'exe tourne dans deux processus (lanceur et Python) : on attend les deux, et les moteurs
         pids = [os.getpid()] + ([] if MAC else [os.getppid()])
-        script = Path(tempfile.gettempdir()) / f'prisme-maj-{os.getpid()}.{"cmd" if WINDOWS else "sh"}'
-        script.write_text(script_remplacement(nouveau, cible, pids), encoding='utf-8', newline='')
+        temporaires = [telechargement] + ([extrait] if MAC else [] if WINDOWS else [nouveau])
+        texte = script_remplacement(nouveau, cible, pids, temporaires, [RACINE / 'sd', RACINE / 'llama'])
+        script = Path(tempfile.gettempdir()) / f'prisme-maj-{os.getpid()}.{"ps1" if WINDOWS else "sh"}'
+        # PowerShell 5 ne lit l'UTF-8 (chemins avec accents) qu'avec la marque d'ordre des octets
+        script.write_text(texte, encoding='utf-8-sig' if WINDOWS else 'utf-8', newline='')
         # Sans cela, le nouveau Prisme heriterait des variables internes de l'exe actuel et se croirait son sous-processus
         environnement = {k: v for k, v in os.environ.items() if not k.startswith(('_PYI_', '_MEIPASS'))}
         environnement['PYINSTALLER_RESET_ENVIRONMENT'] = '1'
         if WINDOWS:
             options = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+            commande = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', str(script)]
             try:
                 # Hors du groupe de processus de Prisme, pour que le script survive a sa fermeture
-                subprocess.Popen(['cmd', '/c', str(script)], env=environnement,
-                                 creationflags=options | subprocess.CREATE_BREAKAWAY_FROM_JOB)
+                subprocess.Popen(commande, env=environnement, creationflags=options | subprocess.CREATE_BREAKAWAY_FROM_JOB)
             except OSError:
-                subprocess.Popen(['cmd', '/c', str(script)], env=environnement, creationflags=options)
+                subprocess.Popen(commande, env=environnement, creationflags=options)
         else:
             subprocess.Popen(['/bin/sh', str(script)], start_new_session=True, env=environnement,
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -1964,6 +2069,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                                          for i, d in demandes.items()
                                          if d['etat'] == 'attente' and time.time() - d['cree'] <= DUREE_DEMANDE]
                 copie['mise_a_jour'] = etat_mise_a_jour()
+                copie['maj_echec'] = echec_maj
                 with verrou_consentements:
                     copie['consentements'] = [{'id': i, 'genre': d['genre'], 'details': d['details']}
                                               for i, d in consentements.items()
@@ -2548,6 +2654,7 @@ def main():
 
     if not prendre_instance():
         return deja_lance()
+    reprendre_apres_maj()
     try:
         global SERVEUR_RESEAU
         SERVEUR_RESEAU = lire_reglages()['acces_reseau']

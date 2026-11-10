@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Changed
+
+- Version numbers with a pre-release suffix (such as `2.0.0-beta.1`) are now compared correctly: a beta comes before its final version, so a beta tester is offered the final release.
+
 ## [1.9.4] - 2026-11-10
 
 ### Added

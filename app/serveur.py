@@ -1438,7 +1438,16 @@ mise_a_jour = {}
 
 
 def numero_version(texte):
-    return tuple(int(x) for x in re.findall(r'\d+', texte)[:3])
+    """Version comparable : (majeur, mineur, correctif, finale, numero de pre-version).
+    2.0 vaut 2.0.0, et une pre-version (2.0.0-beta.2) passe avant la version finale (2.0.0)."""
+    m = re.match(r'\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(.*)', str(texte))
+    if not m:
+        return (0, 0, 0, 0, 0)
+    reste = m.group(4)
+    if not re.search(r'[A-Za-z]', reste):
+        return (*(int(x or 0) for x in m.groups()[:3]), 1, 0)
+    pre = re.search(r'\d+', reste)
+    return (*(int(x or 0) for x in m.groups()[:3]), 0, int(pre.group()) if pre else 0)
 
 
 # Fichier de la release a telecharger pour ce systeme, et seule origine acceptee pour la mise a jour

@@ -839,6 +839,17 @@ class VersionTest(unittest.TestCase):
         self.assertEqual(serveur.numero_version('v1.7.0'), serveur.numero_version('1.7.0'))
         self.assertGreater(serveur.numero_version('2.0'), serveur.numero_version(serveur.VERSION))
 
+    def test_pre_versions(self):
+        v = serveur.numero_version
+        self.assertEqual(v('2.0'), v('2.0.0'))
+        # Une pre-version passe avant la version finale, et apres la version precedente
+        self.assertLess(v('v2.0.0-beta.1'), v('2.0.0'))
+        self.assertLess(v('2.0.0-beta.1'), v('2.0.0-beta.2'))
+        self.assertLess(v('2.0.0-beta.9'), v('2.0.0-beta.10'))
+        self.assertGreater(v('2.0.0-beta.1'), v('1.9.4'))
+        self.assertLess(v('2.0.0-rc'), v('2.0.0'))
+        self.assertEqual(v('pas une version'), (0, 0, 0, 0, 0))
+
     def release(self, **fichier):
         a = {'name': serveur.FICHIER_MAJ, 'size': 123, 'digest': 'sha256:' + 'a' * 64,
              'browser_download_url': f'https://github.com/d3Ita/prisme/releases/download/v9.9.9/{serveur.FICHIER_MAJ}'}

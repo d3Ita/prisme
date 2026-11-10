@@ -373,6 +373,7 @@ REGLAGES_DEFAUT = {
     'video_modele': '',
     'video_texte': '',
     'video_vae': '',
+    **video.DEFAUTS,
     'etapes': 20,
     'cfg': 4.0,
     'methode': 'euler',
@@ -500,6 +501,7 @@ def valider_reglages(donnees):
             or CONSIGNE_MODIFICATION
         r['ollama_adresse'] = str(donnees.get('ollama_adresse', r['ollama_adresse'])).strip().rstrip('/')
         r['amelioration_moteur'] = str(donnees.get('amelioration_moteur', r['amelioration_moteur']))
+        erreur_video = video.lire_reglages(donnees, r)
         [float(x) for x in r['sigmas'].split(',') if r['sigmas']]
     except (TypeError, ValueError):
         return None, 'Une valeur est invalide.'
@@ -521,6 +523,8 @@ def valider_reglages(donnees):
         return None, 'La force d\'un LoRA doit être entre -2 et 2.'
     if not 1 <= r['arret_auto_minutes'] <= 24 * 60:
         return None, 'L\'arrêt automatique doit être entre 1 et 1440 minutes.'
+    if erreur_video:
+        return None, erreur_video
     return r, None
 
 
@@ -1949,7 +1953,7 @@ def generer_video(params):
 
         debut = time.time()
         commande = [str(SD_CLI)] + video.arguments(r, MODELES, v, params['seed'], source, sortie, fils_calcul())
-        code, erreurs = video.executer(commande, lancer, rapporter, lambda: annule)
+        code, erreurs = video.executer(commande, lancer, rapporter, lambda: annule, video.etapes(r))
         if annule:
             sortie.unlink(missing_ok=True)
         elif code != 0 or not sortie.exists():
@@ -2439,7 +2443,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                     return self.envoyer(409, {'erreur': 'Attends la fin de l\'amélioration de la description.'})
                 annule = False
                 etat.clear()
-                etat.update(occupe=True, genre='video', phase='chargement', etape=0, total=video.ETAPES, total_decodage=0,
+                etat.update(occupe=True, genre='video', phase='chargement', etape=0, total=video.etapes(r), total_decodage=0,
                             index=1, nombre=1, seed=seed, seed_base=seed, debut=time.time(), resultats=[], erreur=None,
                             largeur=v['largeur'], hauteur=v['hauteur'], duree=v['duree'], prompt=v['prompt'], claude=False)
             params = dict(video=v, seed=seed, reglages=r, source_nom=p.get('source_nom'), source_data=p.get('source_data'))

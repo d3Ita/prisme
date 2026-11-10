@@ -59,7 +59,7 @@ class CommandeTest(unittest.TestCase):
                     self.assertEqual((largeur % 32, hauteur % 32), (0, 0))
 
     def test_validation(self):
-        v, erreur = video.valider({'prompt': ' un renard ', 'qualite': '704p', 'format': 'portrait', 'duree': 3, 'seed': '7'})
+        v, erreur = video.valider({'prompt': ' un renard ', 'qualite': '720p', 'format': 'portrait', 'duree': 3, 'seed': '7'})
         self.assertIsNone(erreur)
         self.assertEqual((v['prompt'], v['largeur'], v['hauteur'], v['images'], v['seed']), ('un renard', 704, 1280, 73, 7))
         self.assertIsNone(video.valider({'prompt': 'x'})[0]['seed'])
@@ -70,7 +70,7 @@ class CommandeTest(unittest.TestCase):
                 self.assertTrue(video.valider(mauvais)[1])
 
     def test_arguments(self):
-        v, _ = video.valider({'prompt': 'un renard', 'qualite': '704p', 'duree': 2})
+        v, _ = video.valider({'prompt': 'un renard', 'qualite': '720p', 'duree': 2})
         modeles = Path('models')
         args = video.arguments(REGLAGES, modeles, v, 42, None, Path('sortie.webm'))
         self.assertEqual(args[:2], ['-M', 'vid_gen'])
@@ -96,6 +96,29 @@ class CommandeTest(unittest.TestCase):
             r = video.completer({'video_modele': '', 'video_texte': 'perso.gguf'}, modeles, connus)
             # Le premier fichier present ; un choix deja fait n'est jamais remplace
             self.assertEqual((r['video_modele'], r['video_texte'], r['video_vae']), ('b.gguf', 'perso.gguf', ''))
+
+    def test_reglages_video(self):
+        r, erreur = serveur.valider_reglages({'modele_diffusion': 'd.gguf', 'modele_texte': 't.gguf', 'vae': 'v.safetensors',
+                                              'video_etapes': '30', 'video_cfg': '4.5', 'video_modele': 'perso/wan.gguf'})
+        self.assertIsNone(erreur)
+        self.assertEqual((r['video_etapes'], r['video_cfg'], r['video_modele']), (30, 4.5, 'perso/wan.gguf'))
+        base = {'modele_diffusion': 'd.gguf', 'modele_texte': 't.gguf', 'vae': 'v.safetensors'}
+        for mauvais in ({'video_etapes': 0}, {'video_etapes': 101}, {'video_cfg': -1}, {'video_cfg': 'beaucoup'},
+                        {'video_modele': '../wan.gguf'}):
+            with self.subTest(reglage=mauvais):
+                self.assertIsNotNone(serveur.valider_reglages({**base, **mauvais})[1])
+        # Par defaut : 20 etapes et CFG 5, ceux mesures sur Wan 2.2 5B
+        self.assertEqual((serveur.REGLAGES_DEFAUT['video_etapes'], serveur.REGLAGES_DEFAUT['video_cfg']), (20, 5.0))
+
+    def test_etapes_et_cfg_choisis(self):
+        v, _ = video.valider({'prompt': 'un renard'})
+        args = video.arguments({**REGLAGES, 'video_etapes': 30, 'video_cfg': 4.5}, Path('models'), v, 1, None, Path('s.webm'))
+        self.assertEqual((args[args.index('--steps') + 1], args[args.index('--cfg-scale') + 1]), ('30', '4.5'))
+        # La progression suit le nombre d'etapes choisi
+        rapports = []
+        suivi = video.Progression(lambda **champs: rapports.append(champs), etapes=30)
+        suivi.lire('  |==>   |  3/30 -   2.00s/it\n  |==>   |  3/20 -   2.00s/it\n')
+        self.assertEqual([(r['etape'], r['total']) for r in rapports], [(3, 30)])
 
     def test_fichiers_manquants(self):
         with tempfile.TemporaryDirectory() as d:
@@ -242,7 +265,7 @@ class RoutesVideoTest(unittest.TestCase):
 
     def test_video_creee_listee_et_servie(self):
         self.installer_modeles()
-        code, _, corps = self.requete('POST', '/api/video', {'prompt': 'un renard', 'qualite': '704p', 'duree': 2, 'seed': 5})
+        code, _, corps = self.requete('POST', '/api/video', {'prompt': 'un renard', 'qualite': '720p', 'duree': 2, 'seed': 5})
         self.assertEqual(code, 200)
         self.assertEqual(json.loads(corps)['seed'], 5)
         self.attendre_fin()

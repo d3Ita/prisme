@@ -11,13 +11,16 @@ from pathlib import Path
 # Wan 2.2 TI2V 5B produit 24 images par seconde ; son VAE demande un nombre d'images de la forme 4n + 1
 IMAGES_PAR_SECONDE = 24
 DUREES = (1, 2, 3, 4, 5)
-# Tailles multiples de 32 (VAE de Wan 2.2), d'environ 0,4 et 0,9 million de pixels
+# Tailles multiples de 32 (VAE de Wan 2.2), d'environ 0,4 et 0,9 million de pixels. 720p est le nom courant :
+# Wan 2.2 5B travaille en 1280 x 704, 720 n'etant pas un multiple de 32
 TAILLES = {
     '480p': {'paysage': (832, 480), 'portrait': (480, 832), 'carre': (640, 640)},
-    '704p': {'paysage': (1280, 704), 'portrait': (704, 1280), 'carre': (960, 960)},
+    '720p': {'paysage': (1280, 704), 'portrait': (704, 1280), 'carre': (960, 960)},
 }
+# Reglages par defaut de la creation video, modifiables dans les Reglages
 ETAPES = 20
 CFG = 5.0
+DEFAUTS = {'video_etapes': ETAPES, 'video_cfg': CFG}
 DECALAGE = 3.0
 # Description negative d'origine de Wan (en chinois) : ce que le modele doit eviter
 NEGATIF = ('色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，'
@@ -27,6 +30,22 @@ NOM_VIDEO = re.compile(r'^video_[\w.-]+\.webm$')
 CLES = ('video_modele', 'video_texte', 'video_vae')
 PAS = re.compile(r'(\d+)/(\d+)\s*-\s*[\d.,]+\s*(?:s/it|it/s)')
 FIN_DESSIN = 'sampling completed'
+
+
+def lire_reglages(donnees, r):
+    """Etapes et CFG de la video depuis le formulaire des Reglages, dans r. Renvoie un message d'erreur ou None ;
+    une valeur qui n'est pas un nombre leve ValueError, comme pour les autres reglages."""
+    r['video_etapes'] = int(donnees.get('video_etapes', r['video_etapes']))
+    r['video_cfg'] = round(float(donnees.get('video_cfg', r['video_cfg'])), 2)
+    if not 1 <= r['video_etapes'] <= 100:
+        return 'Les étapes de la vidéo doivent être entre 1 et 100.'
+    if not 0 <= r['video_cfg'] <= 30:
+        return 'Le CFG de la vidéo doit être entre 0 et 30.'
+    return None
+
+
+def etapes(r):
+    return int(r.get('video_etapes') or ETAPES)
 
 
 def nombre_images(duree):
@@ -86,7 +105,8 @@ def arguments(r, modeles, v, seed, source, sortie, fils=None):
         '--t5xxl', str(modeles / r['video_texte']),
         '--vae', str(modeles / r['video_vae']),
         '-p', v['prompt'], '-n', NEGATIF,
-        '--steps', str(ETAPES), '--cfg-scale', str(CFG), '--sampling-method', 'euler', '--flow-shift', str(DECALAGE),
+        '--steps', str(etapes(r)), '--cfg-scale', str(r.get('video_cfg', CFG)), '--sampling-method', 'euler',
+        '--flow-shift', str(DECALAGE),
         '-W', str(largeur), '-H', str(hauteur),
         '--video-frames', str(v['images']), '--fps', str(IMAGES_PAR_SECONDE),
         '--seed', str(seed),
@@ -107,8 +127,9 @@ def nouveau_chemin(dossier):
 class Progression:
     """Lit la sortie de sd-cli : etapes de creation (n/20), puis morceaux decodes par le VAE (n/k)."""
 
-    def __init__(self, rapporter):
+    def __init__(self, rapporter, etapes=ETAPES):
         self.rapporter = rapporter
+        self.etapes = etapes
         self.phase = 'chargement'
         self.reste = ''
         self.journal = []
@@ -127,9 +148,9 @@ class Progression:
             if not pas:
                 continue
             fait, total = map(int, pas[-1])
-            if self.phase in ('chargement', 'dessin') and total == ETAPES:
+            if self.phase in ('chargement', 'dessin') and total == self.etapes:
                 self.phase = 'dessin'
-                self.rapporter(phase='dessin', etape=fait, total=ETAPES)
+                self.rapporter(phase='dessin', etape=fait, total=self.etapes)
             elif self.phase == 'decodage':
                 self.rapporter(phase='decodage', etape=fait, total_decodage=total)
 
@@ -137,10 +158,10 @@ class Progression:
         return [l for l in self.journal if re.search(r'^\[E\]|error|out of memory', l, re.I)]
 
 
-def executer(commande, lancer, rapporter, annule):
+def executer(commande, lancer, rapporter, annule, etapes=ETAPES):
     """Lance sd-cli et suit sa progression. lancer(commande) renvoie le processus (Popen, sortie en tube) ;
     rapporter(**champs) met a jour l'etat de Prisme ; annule() dit si l'utilisateur a arrete. Renvoie (code, erreurs)."""
-    suivi = Progression(rapporter)
+    suivi = Progression(rapporter, etapes)
     processus = lancer(commande)
     while True:
         bloc = processus.stdout.read1(4096)

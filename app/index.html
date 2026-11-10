@@ -155,7 +155,13 @@ const EN = {
   'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
   'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Vidéo': 'Video', 'Durée': 'Duration', 'Qualité': 'Quality',
   'Créer une image ou une vidéo': 'Create an image or a video', 'Durée de la vidéo': 'Video duration',
-  'Qualité de la vidéo : 480p est deux fois plus rapide': 'Video quality: 480p is twice as fast', 'Créer la vidéo': 'Create the video',
+  'Qualité de la vidéo : 480p (832 × 480) est deux fois plus rapide que 720p (1280 × 704)': 'Video quality: 480p (832 × 480) is twice as fast as 720p (1280 × 704)',
+  'Vidéo (bêta) · Wan 2.2': 'Video (beta) · Wan 2.2', 'Modèle vidéo': 'Video model', 'Fait la vidéo': 'Makes the video',
+  'Texte de la vidéo': 'Video text encoder', 'Comprend la description': 'Understands the description', 'VAE vidéo': 'Video VAE',
+  'Produit les images de la vidéo': 'Produces the video frames', 'Étapes de la vidéo': 'Video steps',
+  'Plus d\'étapes : plus net, plus long (20 conseillé)': 'More steps: sharper, slower (20 recommended)', 'CFG de la vidéo': 'Video CFG',
+  'Fidélité à la description (5 conseillé)': 'Faithfulness to the description (5 recommended)',
+  'Automatique : fichiers Wan du dossier models': 'Automatic: Wan files in the models folder', 'Créer la vidéo': 'Create the video', 'Créer la vidéo (Entrée)': 'Create the video (Enter)',
   'Création de la vidéo': 'Creating the video', 'Assemblage des images': 'Assembling the frames', 'Lire la vidéo': 'Play the video',
   'Décris la vidéo à créer…': 'Describe the video to create…', 'Décris ta vidéo…': 'Describe your video…',
   'Décris ce qui se passe à partir de cette image…': 'Describe what happens from this image…', 'Décris le mouvement…': 'Describe the motion…',
@@ -513,7 +519,6 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 .barre-outils:has(#retablir:not([hidden])) .format span { display: none; }
 /* Video : duree, qualite et choix du mode prennent de la place ; les formats gardent seulement leur forme */
 .barre-outils:has(#duree:not([hidden])) .format span { display: none; }
-.groupe .unite { align-self: center; padding: 0 6px 0 2px; color: var(--texte-3); font-size: 13px; }
 .outil-compo {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 10px;
   border: 0; background: transparent; color: var(--texte-2); font-size: 14px; white-space: nowrap; list-style: none;
@@ -531,6 +536,7 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 .groupe button { min-width: 30px; height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--texte-2); font-weight: 600; font-size: 13.5px; }
 .groupe button:hover { color: var(--texte); }
 .groupe button.actif { background: var(--segment); color: var(--texte); box-shadow: var(--ombre-douce); }
+.groupe button, .envoyer { white-space: nowrap; }
 .barre-outils .espace { flex: 1; }
 .plus { position: relative; }
 .plus[open] > summary { background: var(--surface-3); color: var(--texte); }
@@ -965,10 +971,10 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
           <button type="button" class="actif" data-n="1">1</button><button type="button" data-n="2">2</button><button type="button" data-n="3">3</button><button type="button" data-n="4">4</button>
         </div>
         <div class="groupe" id="duree" hidden title="Durée de la vidéo">
-          <button type="button" data-s="1">1</button><button type="button" class="actif" data-s="2">2</button><button type="button" data-s="3">3</button><button type="button" data-s="4">4</button><button type="button" data-s="5">5</button><span class="unite">s</span>
+          <button type="button" data-s="1">1 s</button><button type="button" class="actif" data-s="2">2 s</button><button type="button" data-s="3">3 s</button><button type="button" data-s="4">4 s</button><button type="button" data-s="5">5 s</button>
         </div>
-        <div class="groupe" id="qualite" hidden title="Qualité de la vidéo : 480p est deux fois plus rapide">
-          <button type="button" class="actif" data-q="480p">480p</button><button type="button" data-q="704p">704p</button>
+        <div class="groupe" id="qualite" hidden title="Qualité de la vidéo : 480p (832 × 480) est deux fois plus rapide que 720p (1280 × 704)">
+          <button type="button" class="actif" data-q="480p">480p</button><button type="button" data-q="720p">720p</button>
         </div>
         <details class="plus" id="plus">
           <summary class="outil-compo" title="Plus d'options"><svg class="i"><use href="#i-plus"/></svg><span class="pc">Options</span></summary>
@@ -1088,6 +1094,14 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="reglage"><label for="r-sigmas">Sigmas<small>Vide = automatique</small></label><textarea class="champ sigmas" id="r-sigmas" data-cle="sigmas" spellcheck="false"></textarea>
           <p class="note-champ" id="note-sigmas"></p></div>
       </section>
+      <section class="bloc" id="bloc-video">
+        <h4>Vidéo (bêta) · Wan 2.2</h4>
+        <div class="reglage"><label for="r-video-modele">Modèle vidéo<small>Fait la vidéo</small></label><select class="champ" id="r-video-modele" data-cle="video_modele"></select></div>
+        <div class="reglage"><label for="r-video-texte">Texte de la vidéo<small>Comprend la description</small></label><select class="champ" id="r-video-texte" data-cle="video_texte"></select></div>
+        <div class="reglage"><label for="r-video-vae">VAE vidéo<small>Produit les images de la vidéo</small></label><select class="champ" id="r-video-vae" data-cle="video_vae"></select></div>
+        <div class="reglage"><label for="r-video-etapes">Étapes de la vidéo<small>Plus d'étapes : plus net, plus long (20 conseillé)</small></label><input class="champ court" id="r-video-etapes" data-cle="video_etapes" type="number" min="1" max="100"></div>
+        <div class="reglage"><label for="r-video-cfg">CFG de la vidéo<small>Fidélité à la description (5 conseillé)</small></label><input class="champ court" id="r-video-cfg" data-cle="video_cfg" type="number" min="0" max="30" step="0.1"></div>
+      </section>
       <section class="bloc">
         <h4>Performances</h4>
         <div class="reglage"><label for="r-cpu">Décharger sur le processeur<small>Économise la mémoire de la carte graphique</small></label><label class="interrupteur"><input type="checkbox" id="r-cpu" data-cle="dechargement_cpu"><span></span></label></div>
@@ -1180,7 +1194,7 @@ const PERIMETRE = 2 * Math.PI * 48;
 // Memes tailles que app/video.py (multiples de 32 pour le VAE de Wan 2.2)
 const TAILLES_VIDEO = {
   '480p': { paysage: [832, 480], portrait: [480, 832], carre: [640, 640] },
-  '704p': { paysage: [1280, 704], portrait: [704, 1280], carre: [960, 960] },
+  '720p': { paysage: [1280, 704], portrait: [704, 1280], carre: [960, 960] },
 };
 
 const etat = {
@@ -1509,9 +1523,9 @@ function majInterfaceOccupee(occupe) {
 function majBoutonCreer(occupe = etat.occupe) {
   const b = $('#generer');
   b.classList.toggle('annuler', occupe);
-  const texte = occupe ? 'Arrêter' : etat.mode === 'video' ? 'Créer la vidéo' : etat.source ? 'Modifier' : etat.nombre > 1 ? `Créer ${etat.nombre} images` : 'Créer';
+  const texte = occupe ? 'Arrêter' : etat.mode === 'video' ? 'Créer' : etat.source ? 'Modifier' : etat.nombre > 1 ? `Créer ${etat.nombre} images` : 'Créer';
   b.innerHTML = `<svg class="i"><use href="#i-${occupe ? 'carre' : 'fleche'}"/></svg><span>${texte}</span>`;
-  b.title = occupe ? 'Arrêter la création en cours' : 'Créer (Entrée)';
+  b.title = occupe ? 'Arrêter la création en cours' : etat.mode === 'video' ? 'Créer la vidéo (Entrée)' : 'Créer (Entrée)';
 }
 
 // Bulle de la demande en cours, en bas du fil
@@ -2595,6 +2609,10 @@ function remplirReglages(r) {
   remplirOllama(r.amelioration_modele);
   remplirModeles($('#r-llm-local'), r.amelioration_modele_local, true, 'Désactivée');
   remplirModeles($('#r-llm-vision'), r.amelioration_vision_locale, true, 'Aucune');
+  // Video : vide = les fichiers Wan du catalogue trouves dans le dossier models
+  remplirModeles($('#r-video-modele'), r.video_modele, true, 'Automatique : fichiers Wan du dossier models');
+  remplirModeles($('#r-video-texte'), r.video_texte, true, 'Automatique : fichiers Wan du dossier models');
+  remplirModeles($('#r-video-vae'), r.video_vae, true, 'Automatique : fichiers Wan du dossier models');
   const methode = $('#r-methode');
   methode.innerHTML = '';
   infosReglages.methodes.forEach(m => methode.append(new Option(m, m)));

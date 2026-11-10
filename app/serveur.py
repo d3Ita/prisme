@@ -52,6 +52,21 @@ SANS_CONSOLE = subprocess.CREATE_NO_WINDOW if WINDOWS else 0
 OPTIONS_MOTEUR = SANS_CONSOLE | (subprocess.BELOW_NORMAL_PRIORITY_CLASS if WINDOWS else 0)
 
 
+# Memoire de carte graphique gardee libre pour l'affichage pendant une creation ou une amelioration (reglage memoire_ecran).
+# Sans elle, sd-cli et llama-server remplissent la carte a 0,5 Go pres et l'ecran du PC gele. Sur Mac, la memoire est
+# partagee et geree par le systeme : rien a reserver.
+RESERVE_ECRAN_GO = 1.5
+
+
+def reserve_ecran(r):
+    return bool(r.get('memoire_ecran', True)) and not MAC
+
+
+def options_reserve_sd(r):
+    """Arguments de sd-cli : une valeur negative de --max-vram garde cette memoire libre."""
+    return ['--max-vram', f'-{RESERVE_ECRAN_GO}'] if reserve_ecran(r) else []
+
+
 def fils_calcul():
     logiques = os.cpu_count() or 2
     # Les puces Apple n'ont pas d'hyperthreading ; ailleurs, un coeur physique compte en general deux fils
@@ -373,6 +388,8 @@ REGLAGES_DEFAUT = {
     'dechargement_cpu': True,
     'vae_tuiles': True,
     'flash_attention': True,
+    # Laisse de la memoire de carte graphique a Windows (ou au bureau sous Linux) : sinon l'ecran gele pendant les calculs
+    'memoire_ecran': True,
     # L'acces depuis le reseau local s'active dans les Reglages
     'acces_reseau': False,
     'arret_auto_minutes': 30,
@@ -473,7 +490,7 @@ def valider_reglages(donnees):
         r['cfg'] = float(donnees.get('cfg', r['cfg']))
         r['methode'] = str(donnees.get('methode', r['methode']))
         r['sigmas'] = ','.join(x.strip() for x in str(donnees.get('sigmas', r['sigmas'])).split(',') if x.strip())
-        for cle in ('dechargement_cpu', 'vae_tuiles', 'flash_attention', 'acces_reseau', 'arret_fermeture',
+        for cle in ('dechargement_cpu', 'vae_tuiles', 'flash_attention', 'memoire_ecran', 'acces_reseau', 'arret_fermeture',
                     'verifier_mises_a_jour'):
             r[cle] = bool(donnees.get(cle, r[cle]))
         r['arret_auto_minutes'] = int(donnees.get('arret_auto_minutes', r['arret_auto_minutes']))
@@ -638,6 +655,7 @@ class MoteurTexte:
     """Lance llama-server le temps d'une amelioration, puis l'arrete pour liberer la carte graphique."""
 
     def __init__(self, r):
+        self.reserve = reserve_ecran(r)
         self.modele = MODELES / r['amelioration_modele_local']
         self.vision = MODELES / r['amelioration_vision_locale'] if r['amelioration_vision_locale'] else None
         self.processus = None
@@ -650,7 +668,10 @@ class MoteurTexte:
         with socket.socket() as s:
             s.bind(('127.0.0.1', 0))
             self.port = s.getsockname()[1]
-        commande = [str(LLAMA_SERVEUR), '-m', str(self.modele), '-ngl', '99', '-c', '8192',
+        # Avec la reserve pour l'ecran, llama.cpp choisit lui-meme combien de couches tiennent sur la carte (--fit) en
+        # gardant cette marge ; -ngl 99 forcerait tout le modele sur la carte et annulerait ce calcul
+        couches = ['--fit', 'on', '--fit-target', str(int(RESERVE_ECRAN_GO * 1024))] if self.reserve else ['-ngl', '99']
+        commande = [str(LLAMA_SERVEUR), '-m', str(self.modele), *couches, '-c', '8192',
                     '--host', '127.0.0.1', '--port', str(self.port), '--no-webui']
         if self.vision and self.vision.is_file():
             commande += ['--mmproj', str(self.vision)]
@@ -1753,7 +1774,8 @@ def arguments(r, prompt, largeur, hauteur, seed, source, sortie, vision=True):
     options = (['--sigmas', r['sigmas']] if r['sigmas'] else []) \
         + (['--diffusion-fa'] if r['flash_attention'] else []) \
         + (['--offload-to-cpu'] if r['dechargement_cpu'] else []) \
-        + (['--vae-tiling'] if r['vae_tuiles'] else [])
+        + (['--vae-tiling'] if r['vae_tuiles'] else []) \
+        + options_reserve_sd(r)
     return edition + [
         '--diffusion-model', str(MODELES / r['modele_diffusion']),
         '--llm', str(MODELES / r['modele_texte']),

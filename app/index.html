@@ -153,7 +153,9 @@ const EN = {
   'Accepter et télécharger': 'Accept and download', 'Refuser': 'Refuse',
   'Claude est installé : il peut créer des images avec Prisme.': 'Claude is installed: it can create images with Prisme.',
   'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
-  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Profils de modèles': 'Model profiles',
+  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Garder le PC utilisable': 'Keep the PC usable',
+  'Laisse 1,5 Go de la carte graphique à l\'affichage pendant les calculs : un peu plus lent, mais l\'écran ne gèle plus':
+    'Leaves 1.5 GB of the graphics card to the display during calculations: a little slower, but the screen no longer freezes', 'Profils de modèles': 'Model profiles',
   'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
     'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
@@ -1066,6 +1068,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <h4>Performances</h4>
         <div class="reglage"><label for="r-cpu">Décharger sur le processeur<small>Économise la mémoire de la carte graphique</small></label><label class="interrupteur"><input type="checkbox" id="r-cpu" data-cle="dechargement_cpu"><span></span></label></div>
         <div class="reglage"><label for="r-tuiles">VAE par tuiles<small>Évite les manques de mémoire</small></label><label class="interrupteur"><input type="checkbox" id="r-tuiles" data-cle="vae_tuiles"><span></span></label></div>
+        <div class="reglage"><label for="r-ecran">Garder le PC utilisable<small>Laisse 1,5 Go de la carte graphique à l'affichage pendant les calculs : un peu plus lent, mais l'écran ne gèle plus</small></label><label class="interrupteur"><input type="checkbox" id="r-ecran" data-cle="memoire_ecran"><span></span></label></div>
         <div class="reglage"><label for="r-fa">Flash attention<small>Plus rapide sur carte NVIDIA</small></label><label class="interrupteur"><input type="checkbox" id="r-fa" data-cle="flash_attention"><span></span></label></div>
       </section>
       <section class="bloc">

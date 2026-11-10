@@ -34,7 +34,8 @@ from http.cookies import SimpleCookie
 import video
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.9.5'
+# Branche video : numero de beta, pour la distinguer de la version stable (une beta passe avant 2.0.0)
+VERSION = '2.0.0-beta.1'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
 PORT = int(os.environ.get('PRISME_PORT') or 7861)
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe

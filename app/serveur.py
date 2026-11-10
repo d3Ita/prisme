@@ -1984,7 +1984,8 @@ def generer_video(params):
 
         debut = time.time()
         # Comme pour les images : de la memoire de carte graphique reste a l'affichage
-        commande = [str(SD_CLI)] + video.arguments(r, MODELES, v, params['seed'], source, sortie, fils_calcul()) \n            + options_reserve_sd(r)
+        commande = [str(SD_CLI)] + video.arguments(r, MODELES, v, params['seed'], source, sortie, fils_calcul()) \
+            + options_reserve_sd(r)
         code, erreurs = video.executer(commande, lancer, rapporter, lambda: annule, video.etapes(r))
         if annule:
             sortie.unlink(missing_ok=True)

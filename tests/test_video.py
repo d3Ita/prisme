@@ -88,6 +88,15 @@ class CommandeTest(unittest.TestCase):
         self.assertEqual(avec_image[avec_image.index('-i') + 1], 'depart.png')
         self.assertEqual(avec_image[avec_image.index('--threads') + 1], '6')
 
+    def test_completer_avec_le_catalogue(self):
+        connus = {'video_modele': ['a.gguf', 'b.gguf'], 'video_texte': ['t.gguf'], 'video_vae': ['v.safetensors']}
+        with tempfile.TemporaryDirectory() as d:
+            modeles = Path(d)
+            (modeles / 'b.gguf').write_bytes(b'x')
+            r = video.completer({'video_modele': '', 'video_texte': 'perso.gguf'}, modeles, connus)
+            # Le premier fichier present ; un choix deja fait n'est jamais remplace
+            self.assertEqual((r['video_modele'], r['video_texte'], r['video_vae']), ('b.gguf', 'perso.gguf', ''))
+
     def test_fichiers_manquants(self):
         with tempfile.TemporaryDirectory() as d:
             modeles = Path(d)
@@ -258,9 +267,24 @@ class RoutesVideoTest(unittest.TestCase):
         self.assertEqual(self.requete('GET', f'/images/{nom}', entetes={'X-Prisme-Client': 'mcp'})[0], 403)
 
     def test_etat_dit_si_la_video_est_prete(self):
-        self.assertEqual(json.loads(self.requete('GET', '/api/etat')[2])['video'], {'pret': False})
+        etat_video = lambda: json.loads(self.requete('GET', '/api/etat')[2])['video']
+        self.assertEqual(etat_video(), {'pret': False, 'profil': 'video-12go' if not serveur.MAC else None})
         self.installer_modeles()
-        self.assertEqual(json.loads(self.requete('GET', '/api/etat')[2])['video'], {'pret': True})
+        self.assertTrue(etat_video()['pret'])
+
+    def test_fichiers_wan_presents_sans_profil_choisi(self):
+        # Modeles copies dans models sans passer par la fenetre des modeles : la video marche quand meme
+        self.reglages = dict(serveur.REGLAGES_DEFAUT)
+        self.installer_modeles()
+        self.assertTrue(json.loads(self.requete('GET', '/api/etat')[2])['video']['pret'])
+        self.assertEqual(self.requete('POST', '/api/video', {'prompt': 'un renard'})[0], 200)
+        self.attendre_fin()
+        commande = self.moteurs[0].commande
+        self.assertEqual(commande[commande.index('--diffusion-model') + 1], str(self.modeles / REGLAGES['video_modele']))
+        # Le profil video apparait comme utilise dans la fenetre des modeles
+        with mock.patch.object(serveur, 'lire_reglages', lambda: dict(serveur.REGLAGES_DEFAUT)):
+            profil = next(p for p in serveur.etat_profils()['profils'] if p['id'] == 'video-12go')
+        self.assertTrue(profil['installe'] and profil['actif'])
 
     def test_supprimer_une_video(self):
         self.images.mkdir()

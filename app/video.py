@@ -59,6 +59,17 @@ def valider(p):
             'largeur': largeur, 'hauteur': hauteur, 'images': nombre_images(duree)}, None
 
 
+def completer(r, modeles, connus):
+    """Reglages video completes par les fichiers du catalogue deja dans le dossier models : des modeles Wan copies a la
+    main, ou telecharges sans passer par la fenetre des modeles, servent sans avoir a choisir le profil.
+    connus : {cle des reglages: [fichiers du catalogue qui la remplissent]}."""
+    r = dict(r)
+    for cle in CLES:
+        if not r.get(cle):
+            r[cle] = next((f for f in connus.get(cle, []) if (modeles / f).is_file()), '')
+    return r
+
+
 def fichiers_manquants(r, modeles):
     """Cles des reglages video sans fichier present dans le dossier models."""
     return [cle for cle in CLES if not r.get(cle) or not (modeles / r[cle]).is_file()]

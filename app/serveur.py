@@ -1405,7 +1405,7 @@ def demander_modele(ident):
 def etat_profils():
     """Profils de modeles, avec ce qui est deja telecharge et le profil suggere pour cette machine."""
     machine = profil_machine()
-    r = lire_reglages()
+    r = reglages_video(lire_reglages())
     profils = []
     for p in PROFILS:
         fichiers = [MODELES_PAR_ID[i] for i in p['modeles']]
@@ -1972,6 +1972,17 @@ def generer_video(params):
             etat['fin'] = time.time()
 
 
+def reglages_video(r):
+    """Reglages avec les modeles video du catalogue deja presents dans models, s'ils n'ont pas ete choisis."""
+    connus = {cle: [m['fichier'] for m in MODELES_CONSEILLES if cle in m['remplit']] for cle in video.CLES}
+    return video.completer(r, MODELES, connus)
+
+
+def profil_video_machine():
+    """Profil video propose a ce type de machine (PC ou Mac), ou None."""
+    return next((p['id'] for p in PROFILS if p['categorie'] == 'video' and p['cible']['type'] == ('mac' if MAC else 'pc')), None)
+
+
 def lister_videos():
     if not IMAGES.exists():
         return []
@@ -2287,8 +2298,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             copie['problemes'] = problemes_configuration(r)
             copie['amelioration'] = {'modele': amelioration_active(r), 'auto': r['amelioration_auto']}
             copie['moteurs'] = etat_moteurs()
-            # Le choix Image / Video apparait quand les fichiers du profil video sont la
-            copie['video'] = {'pret': not video.fichiers_manquants(r, MODELES)}
+            # Le choix Image / Video : pret quand les fichiers video sont la ; sinon, sur le PC, il ouvre le profil video
+            copie['video'] = {'pret': not video.fichiers_manquants(reglages_video(r), MODELES), 'profil': profil_video_machine()}
             if self.est_local():
                 with verrou_demandes:
                     copie['demandes'] = [{'id': i, 'ip': d['ip'], 'appareil': d['appareil'], 'code': d['code']}
@@ -2414,7 +2425,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             # La video se cree d'abord depuis la fenetre de Prisme ; l'outil MCP viendra ensuite
             if self.vient_du_mcp():
                 return self.envoyer(403, {'erreur': 'La vidéo se crée depuis la fenêtre de Prisme pour l\'instant.'})
-            r = lire_reglages()
+            r = reglages_video(lire_reglages())
             manquants = video.fichiers_manquants(r, MODELES)
             if manquants:
                 return self.envoyer(409, {'erreur': 'Télécharge d\'abord le profil vidéo dans la fenêtre des modèles.',

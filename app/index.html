@@ -1315,8 +1315,20 @@ $('#nombre').addEventListener('click', e => {
 // ---------- Video ----------
 function majVideo(v) {
   etat.videoPret = !!v?.pret;
-  $('#mode').hidden = $('#sep-mode').hidden = $('#section-mode').hidden = !etat.videoPret;
+  etat.videoProfil = v?.profil || null;
+  // Sur le PC, le choix apparait aussi sans les modeles video : Video ouvre alors leur profil a telecharger
+  const visible = etat.videoPret || (etat.local && !!etat.videoProfil);
+  $('#mode').hidden = $('#sep-mode').hidden = $('#section-mode').hidden = !visible;
   if (!etat.videoPret && etat.mode === 'video') choisirMode('image');
+}
+async function demanderVideo() {
+  if (etat.videoPret) return choisirMode('video');
+  profilChoisi = etat.videoProfil;
+  $('#plus').open = false;
+  await ouvrirModeles();
+  // La section video est sous les profils d'image : on la montre tout de suite, avec son resume
+  $('#titre-profils-video').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  note(tx('Télécharge le profil vidéo pour créer des vidéos.', 'Download the video profile to create videos.'));
 }
 function choisirMode(m) {
   etat.mode = m;
@@ -1346,7 +1358,11 @@ function choisirQualite(q) {
   etat.qualite = q;
   document.querySelectorAll('#qualite button').forEach(b => b.classList.toggle('actif', b.dataset.q === q));
 }
-$('#mode').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !etat.occupe) choisirMode(b.dataset.mode); });
+$('#mode').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || etat.occupe) return;
+  if (b.dataset.mode === 'video') demanderVideo(); else choisirMode('image');
+});
 $('#duree').addEventListener('click', e => { const b = e.target.closest('button'); if (b) choisirDuree(+b.dataset.s); });
 $('#qualite').addEventListener('click', e => { const b = e.target.closest('button'); if (b) choisirQualite(b.dataset.q); });
 
@@ -1948,6 +1964,9 @@ function moteurTexteAInstaller(m) {
   return !!t && !t.installe && !(t.requiert && !m[t.requiert].installe)
     && !['telechargement', 'extraction'].includes(t.installation?.phase);
 }
+// Le moteur de texte sert a Ameliorer, pour les images : un profil video n'en a pas besoin
+function moteurTexteUtile(infos, profil) { return profil?.categorie !== 'video' && moteurTexteAInstaller(infos.moteurs); }
+
 function rendreMoteurTexte(m) {
   const info = m?.texte;
   if (!info) return null;
@@ -2051,7 +2070,7 @@ function rendreProfils(infos) {
     a.href = l.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = l.nom;
     ligneLicences.append(...(i ? [', '] : []), a, l.commercial ? '' : tx(' (usage non commercial)', ' (non-commercial use)'));
   });
-  const moteur = moteurTexteAInstaller(infos.moteurs) ? infos.moteurs.texte.taille : 0;
+  const moteur = moteurTexteUtile(infos, actuel) ? infos.moteurs.texte.taille : 0;
   const restant = actuel.taille_restante + moteur;
   if (restant) {
     ligne(tx(`À télécharger : ${taille(restant)}${moteur ? ' (moteur de texte compris)' : ''} · ${taille(infos.libre)} libres sur le disque`,
@@ -2172,7 +2191,7 @@ function rendreModeles(infos) {
       : tx(`${description}. Prisme n'a pas pu tout lire : choisis le profil de ta machine.`, `${description}. Prisme couldn't read everything: choose your machine's profile.`);
   }
   // Le bouton principal telecharge (ou choisit) le profil selectionne, moteur de texte compris
-  const moteurTexte = moteurTexteAInstaller(infos.moteurs);
+  const moteurTexte = moteurTexteUtile(infos, profil);
   const restant = profil.taille_restante + (moteurTexte ? infos.moteurs.texte.taille : 0);
   const bouton = $('#tout-telecharger');
   const manquants = profil.modeles.filter(m => !m.present);
@@ -2219,8 +2238,8 @@ $('#ouvrir-modeles').addEventListener('click', ouvrirModeles);
 $('#tout-telecharger').addEventListener('click', async () => {
   const infos = await api('/api/modeles-conseilles').catch(() => null);
   if (!infos) return;
-  if (moteurTexteAInstaller(infos.moteurs)) await installerMoteur('texte');
   const profil = profilActuel(infos);
+  if (moteurTexteUtile(infos, profil)) await installerMoteur('texte');
   if (licenceManquante(profil)) return;
   telechargerModeles(profil.modeles.map(m => m.id), licencesAcceptees.has(profil.id));
 });

@@ -168,7 +168,12 @@ const EN = {
   'Mettre à jour': 'Update', 'Installation de la mise à jour…': 'Installing the update…',
   'Prisme ne redémarre pas : relance-le à la main.': 'Prisme is not restarting: start it again by hand.',
   'Attends la fin de la création en cours.': 'Wait for the current creation to finish.',
-  'Aucune mise à jour automatique disponible.': 'No automatic update available.', 'Mise à jour déjà en cours.': 'Update already running.',
+  'Aucune mise à jour automatique disponible.': 'No automatic update available.',
+  'Quitter Prisme': 'Quit Prisme', 'Arrête Prisme et ses moteurs ; le téléphone et Claude n\'y ont plus accès': 'Stops Prisme and its engines; the phone and Claude lose access',
+  'Prisme ne s\'est pas arrêté à temps pour être mis à jour.': 'Prisme did not stop in time to be updated.',
+  'Le nouveau programme n\'a pas pu remplacer l\'ancien : un antivirus ou un autre programme l\'utilise peut-être.':
+    'The new program could not replace the old one: an antivirus or another program may be using it.',
+  'La mise à jour a échoué.': 'The update failed.', 'Mise à jour déjà en cours.': 'Update already running.',
   'Prisme ne peut pas se remplacer à cet endroit : télécharge la nouvelle version à la main.': 'Prisme cannot replace itself in this location: download the new version by hand.',
   'La nouvelle version est incomplète.': 'The new version is incomplete.',
   'Produit l\'image finale': 'Produces the final image', 'Fait l\'image': 'Makes the image',
@@ -1063,6 +1068,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
           <button type="button" class="bouton-secondaire" id="verifier-maj">Vérifier</button></div></div>
         <div class="reglage"><label>Claude<small id="claude-etat">Créer des images en le demandant à Claude</small></label><div>
           <button type="button" class="bouton-secondaire" id="reglage-claude">Connecter</button></div></div>
+        <div class="reglage"><label>Quitter Prisme<small>Arrête Prisme et ses moteurs ; le téléphone et Claude n'y ont plus accès</small></label><div>
+          <button type="button" class="bouton-secondaire" id="reglage-quitter">Quitter Prisme</button></div></div>
         <div class="reglage"><label for="r-arret-fermeture">Arrêter à la fermeture<small>Quand la fenêtre de Prisme se ferme sur le PC</small></label><label class="interrupteur"><input type="checkbox" id="r-arret-fermeture" data-cle="arret_fermeture"><span></span></label></div>
         <div class="reglage"><label for="r-arret">Arrêt automatique<small>Minutes sans fenêtre ouverte</small></label><input class="champ court" id="r-arret" data-cle="arret_auto_minutes" type="number" min="1" max="1440"></div>
       </section>
@@ -2073,8 +2080,22 @@ function majVersion(maj) {
   if (inst?.phase === 'telechargement') $('#texte-maj').textContent = `Téléchargement de Prisme ${maj.version} : ${Math.floor(inst.fait / inst.total * 100)} %`;
   else if (inst?.phase === 'installation') $('#texte-maj').textContent = 'Installation de la mise à jour…';
   else $('#texte-maj').textContent = `Prisme ${maj.version} est disponible.`;
+  // Mac lance depuis une copie temporaire : la raison est donnee tout de suite, le lien remplace le bouton
+  if (maj.raison && etat.raisonMaj !== maj.raison) { etat.raisonMaj = maj.raison; note(maj.raison, 'erreur'); }
   if (inst?.phase === 'redemarrage') attendreRedemarrage(maj.version);
   if (inst?.phase === 'erreur' && etat.erreurMaj !== inst.erreur) { etat.erreurMaj = inst.erreur; note(inst.erreur, 'erreur'); }
+}
+
+// Mise a jour qui n'a pas pu se faire : le message reste en haut, avec le lien vers la page des versions
+function majEchecMaj(echec) {
+  if (!echec) return;
+  $('#bandeau-maj').hidden = false;
+  $('#texte-maj').textContent = tx(`${echec.message} Télécharge la nouvelle version à la main.`,
+                                   `${traduire(echec.message)} Download the new version by hand.`);
+  $('#lien-maj').href = echec.url;
+  $('#lien-maj').hidden = false;
+  $('#bouton-maj').hidden = true;
+  if (!etat.echecMajVu) { etat.echecMajVu = true; note(tx('La mise à jour a échoué', 'The update failed'), 'erreur'); }
 }
 
 // Mise a jour en un clic : Prisme telecharge la nouvelle version, la verifie, se remplace et redemarre
@@ -2110,7 +2131,9 @@ function attendreRedemarrage(version) {
   const essayer = async () => {
     try {
       const r = await fetch('/api/etat', { cache: 'no-store' });
-      if (r.ok && (await r.json()).version === version) { location.reload(); return; }
+      // Nouvelle version, ou ancienne version revenue avec le message d'echec : la page se recharge
+      const e = r.ok ? await r.json() : null;
+      if (e && (e.version === version || e.maj_echec)) { location.reload(); return; }
     } catch {}
     if (Date.now() < limite) setTimeout(essayer, 1000);
     else $('#texte-redemarrage').textContent = 'Prisme ne redémarre pas : relance-le à la main.';
@@ -2512,7 +2535,7 @@ $('#modale-reglages').addEventListener('mousedown', e => { if (e.target.id === '
 // ---------- Demarrage ----------
 // ---------- Arret de Prisme ----------
 let confirmationQuitter = null;
-$('#quitter').addEventListener('click', async () => {
+$('#quitter').addEventListener('click', () => {
   const bouton = $('#quitter');
   if (!bouton.classList.contains('confirmer')) {
     bouton.classList.add('confirmer');
@@ -2522,13 +2545,21 @@ $('#quitter').addEventListener('click', async () => {
     return;
   }
   clearTimeout(confirmationQuitter);
+  quitterPrisme();
+});
+$('#reglage-quitter').addEventListener('click', () => {
+  if (confirm(tx(etat.occupe ? 'Une génération est en cours. Tout arrêter et quitter Prisme ?' : 'Quitter Prisme et arrêter ses moteurs ?',
+                 etat.occupe ? 'A creation is running. Stop everything and quit Prisme?' : 'Quit Prisme and stop its engines?'))) quitterPrisme();
+});
+// Arrete Prisme et ses moteurs (serveur : /api/quitter)
+async function quitterPrisme() {
   etat.arrete = true;
   clearTimeout(etat.minuteur);
   try { await api('/api/quitter', {}); } catch {}
   $('#arrete').classList.remove('fini');
   // Une fenetre ouverte par Prisme peut se fermer seule ; sinon l'ecran ci-dessus reste affiche
   setTimeout(() => window.close(), 1200);
-});
+}
 
 // Fermer la fenetre du PC previent le serveur, qui s'arrete s'il n'est pas rouvert (rechargement)
 addEventListener('pagehide', () => {
@@ -2561,6 +2592,7 @@ function finChargement() {
     majMoteurs(e.moteurs);
     majAmelioration(e.amelioration);
     majVersion(e.mise_a_jour);
+    majEchecMaj(e.maj_echec);
     if (e.local) {
       majModeles();
       majConsentements(e.consentements);

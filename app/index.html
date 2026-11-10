@@ -658,7 +658,12 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 .carte-modale.consentement .quoi { color: var(--texte); font-weight: 600; font-size: 15px; word-break: break-word; }
 .carte-modale.consentement .avertissement { margin: 12px 0; padding: 10px 12px; border-radius: 10px; text-align: left; background: var(--surface-2); border: 1px solid var(--bordure-forte); color: var(--texte); font-size: 13.5px; }
 .carte-modale.consentement .avertissement a { color: var(--accent-2); }
-.bandeau-maj.claude { top: 112px; }
+/* Bandeau Claude sous l'en-tete, ou sous l'avis de version quand les deux sont la ; le fil laisse leur place
+   pour qu'ils ne cachent pas le premier message */
+.bandeau-maj.claude { top: 64px; }
+body:has(#bandeau-maj:not([hidden])) .bandeau-maj.claude { top: 112px; }
+body:has(.bandeau-maj:not([hidden])) .fil { padding-top: 72px; }
+body:has(#bandeau-maj:not([hidden])):has(#bandeau-claude:not([hidden])) .fil { padding-top: 120px; }
 
 /* Modeles conseilles */
 .carte-modeles { width: min(620px, 100%); max-height: calc(100vh - 32px); padding: 0; display: flex; flex-direction: column; }

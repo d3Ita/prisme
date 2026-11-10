@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- The **Connect to Claude** and update banners no longer cover the first message of the feed.
+
 ## [1.9.5] - 2026-11-10
 
 ### Fixed

@@ -2287,6 +2287,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             copie['problemes'] = problemes_configuration(r)
             copie['amelioration'] = {'modele': amelioration_active(r), 'auto': r['amelioration_auto']}
             copie['moteurs'] = etat_moteurs()
+            # Le choix Image / Video apparait quand les fichiers du profil video sont la
+            copie['video'] = {'pret': not video.fichiers_manquants(r, MODELES)}
             if self.est_local():
                 with verrou_demandes:
                     copie['demandes'] = [{'id': i, 'ip': d['ip'], 'appareil': d['appareil'], 'code': d['code']}
@@ -2601,10 +2603,14 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
         elif chemin == '/api/supprimer':
             nom = str(self.lire_json().get('nom') or '')
-            if not NOM_IMAGE.match(nom) or not (IMAGES / nom).exists():
+            est_video = bool(video.NOM_VIDEO.match(nom))
+            if not (NOM_IMAGE.match(nom) or est_video) or not (IMAGES / nom).exists():
                 return self.envoyer(404, {'erreur': 'Image introuvable.'})
             if not mettre_a_la_corbeille(IMAGES / nom):
                 return self.envoyer(500, {'erreur': 'Impossible de mettre l\'image à la corbeille.'})
+            if est_video:
+                # Les details de la video (description, variante) ne servent plus sans elle
+                video.chemin_details(IMAGES / nom).unlink(missing_ok=True)
             cache_infos.pop(nom, None)
             self.envoyer(200, {})
 
@@ -2644,7 +2650,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             nom = str(self.lire_json().get('nom') or '')
             IMAGES.mkdir(exist_ok=True)
-            ouvrir_dossier(IMAGES, IMAGES / nom if NOM_IMAGE.match(nom) and (IMAGES / nom).exists() else None)
+            connu = (NOM_IMAGE.match(nom) or video.NOM_VIDEO.match(nom)) and (IMAGES / nom).exists()
+            ouvrir_dossier(IMAGES, IMAGES / nom if connu else None)
             self.envoyer(200, {})
         else:
             self.envoyer(404, {'erreur': 'Introuvable'})

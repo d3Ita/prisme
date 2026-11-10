@@ -153,7 +153,14 @@ const EN = {
   'Accepter et télécharger': 'Accept and download', 'Refuser': 'Refuse',
   'Claude est installé : il peut créer des images avec Prisme.': 'Claude is installed: it can create images with Prisme.',
   'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
-  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Vidéo (bêta)': 'Video (beta)', 'Profils de modèles': 'Model profiles',
+  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Vidéo': 'Video', 'Durée': 'Duration', 'Qualité': 'Quality',
+  'Créer une image ou une vidéo': 'Create an image or a video', 'Durée de la vidéo': 'Video duration',
+  'Qualité de la vidéo : 480p est deux fois plus rapide': 'Video quality: 480p is twice as fast', 'Créer la vidéo': 'Create the video',
+  'Création de la vidéo': 'Creating the video', 'Assemblage des images': 'Assembling the frames', 'Lire la vidéo': 'Play the video',
+  'Décris la vidéo à créer…': 'Describe the video to create…', 'Décris ta vidéo…': 'Describe your video…',
+  'Décris ce qui se passe à partir de cette image…': 'Describe what happens from this image…', 'Décris le mouvement…': 'Describe the motion…',
+  'Vidéo mise à la corbeille': 'Video moved to the trash', 'Description et réglages de la vidéo repris': 'Video description and settings reused',
+  'À partir d\'une image': 'From an image', 'Vidéo (bêta)': 'Video (beta)', 'Profils de modèles': 'Model profiles',
   'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
     'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
@@ -423,6 +430,9 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 }
 .carte-image.eclaire { box-shadow: 0 0 0 3px var(--accent); }
 .carte-image > img { display: block; width: 100%; height: auto; cursor: zoom-in; animation: apparition .35s ease; }
+.carte-image > video { display: block; width: 100%; height: auto; background: #000; animation: apparition .35s ease; }
+.carte-image.video .actions-image { top: 8px; bottom: auto; transform: translateY(-6px); }
+.carte-image.video:hover .actions-image, .carte-image.video:focus-within .actions-image { transform: none; }
 @keyframes apparition { from { opacity: 0; } }
 .actions-image {
   position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; gap: 2px; justify-content: center; flex-wrap: wrap;
@@ -501,6 +511,9 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 #prompt.ameliore { color: var(--accent-2); }
 .barre-outils { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; margin-top: 6px; }
 .barre-outils:has(#retablir:not([hidden])) .format span { display: none; }
+/* Video : duree, qualite et choix du mode prennent de la place ; les formats gardent seulement leur forme */
+.barre-outils:has(#duree:not([hidden])) .format span { display: none; }
+.groupe .unite { align-self: center; padding: 0 6px 0 2px; color: var(--texte-3); font-size: 13px; }
 .outil-compo {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 10px;
   border: 0; background: transparent; color: var(--texte-2); font-size: 14px; white-space: nowrap; list-style: none;
@@ -923,6 +936,10 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       </div>
       <textarea id="prompt" rows="1" placeholder="Décris l'image à créer, ou le changement à faire sur ton image…" spellcheck="false" aria-label="Description de l'image"></textarea>
       <div class="barre-outils">
+        <div class="groupe" id="mode" hidden title="Créer une image ou une vidéo">
+          <button type="button" class="actif" data-mode="image">Image</button><button type="button" data-mode="video">Vidéo</button>
+        </div>
+        <span class="separateur" id="sep-mode" hidden></span>
         <button type="button" class="outil-compo" id="depot" title="Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)"><svg class="i"><use href="#i-image"/></svg><span>Image</span></button>
         <span class="separateur"></span>
         <div class="formats" id="formats">
@@ -935,11 +952,20 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="groupe" id="nombre" title="Nombre d'images à créer">
           <button type="button" class="actif" data-n="1">1</button><button type="button" data-n="2">2</button><button type="button" data-n="3">3</button><button type="button" data-n="4">4</button>
         </div>
+        <div class="groupe" id="duree" hidden title="Durée de la vidéo">
+          <button type="button" data-s="1">1</button><button type="button" class="actif" data-s="2">2</button><button type="button" data-s="3">3</button><button type="button" data-s="4">4</button><button type="button" data-s="5">5</button><span class="unite">s</span>
+        </div>
+        <div class="groupe" id="qualite" hidden title="Qualité de la vidéo : 480p est deux fois plus rapide">
+          <button type="button" class="actif" data-q="480p">480p</button><button type="button" data-q="704p">704p</button>
+        </div>
         <details class="plus" id="plus">
           <summary class="outil-compo" title="Plus d'options"><svg class="i"><use href="#i-plus"/></svg><span class="pc">Options</span></summary>
           <div class="panneau-plus">
+            <div class="section-tel" id="section-mode" hidden><p class="etiquette">Créer</p><div id="place-mode"></div></div>
             <div class="section-tel"><p class="etiquette">Format</p><div id="place-formats"></div></div>
-            <div class="section-tel"><p class="etiquette">Nombre d'images</p><div id="place-nombre"></div></div>
+            <div class="section-tel" id="section-nombre"><p class="etiquette">Nombre d'images</p><div id="place-nombre"></div></div>
+            <div class="section-tel" id="section-duree" hidden><p class="etiquette">Durée</p><div id="place-duree"></div></div>
+            <div class="section-tel" id="section-qualite" hidden><p class="etiquette">Qualité</p><div id="place-qualite"></div></div>
             <p class="etiquette">Variante <small>· vide = au hasard</small></p>
             <div class="seed">
               <input class="champ" id="seed" inputmode="numeric" placeholder="Au hasard" autocomplete="off">
@@ -1139,6 +1165,11 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
 const $ = s => document.querySelector(s);
 const FORMATS = { carre: [1024, 1024], paysage: [1280, 720], portrait: [720, 1280] };
 const PERIMETRE = 2 * Math.PI * 48;
+// Memes tailles que app/video.py (multiples de 32 pour le VAE de Wan 2.2)
+const TAILLES_VIDEO = {
+  '480p': { paysage: [832, 480], portrait: [480, 832], carre: [640, 640] },
+  '704p': { paysage: [1280, 704], portrait: [704, 1280], carre: [960, 960] },
+};
 
 const etat = {
   images: [],
@@ -1146,6 +1177,11 @@ const etat = {
   source: null,
   format: 'carre',
   nombre: 1,
+  // Video (branche video, Prisme 2.0) : visible quand le profil video est telecharge
+  mode: 'image',
+  duree: 2,
+  qualite: '480p',
+  videoPret: false,
   occupe: false,
   nouvelles: new Set(),
   minuteur: null,
@@ -1269,6 +1305,44 @@ $('#nombre').addEventListener('click', e => {
   document.querySelectorAll('#nombre button').forEach(x => x.classList.toggle('actif', x === b));
   majBoutonCreer();
 });
+// ---------- Video ----------
+function majVideo(v) {
+  etat.videoPret = !!v?.pret;
+  $('#mode').hidden = $('#sep-mode').hidden = $('#section-mode').hidden = !etat.videoPret;
+  if (!etat.videoPret && etat.mode === 'video') choisirMode('image');
+}
+function choisirMode(m) {
+  etat.mode = m;
+  const video = m === 'video';
+  document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('actif', b.dataset.mode === m));
+  $('#nombre').hidden = $('#section-nombre').hidden = video;
+  $('#duree').hidden = $('#qualite').hidden = $('#section-duree').hidden = $('#section-qualite').hidden = !video;
+  $('#depot').title = video ? tx('Ajouter une image de départ pour la vidéo', 'Add a start image for the video')
+                            : tx('Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)', 'Add an image to edit (you can also drag or paste it here)');
+  majAmelioration(etat.amelioration);
+  majPlaceholder();
+  majBoutonCreer();
+}
+// Format de la video : celui choisi, ou le plus proche de l'image de depart pour « Original »
+function formatVideo() {
+  if (etat.format === 'source' && etat.source) {
+    const rapport = etat.source.largeur / etat.source.hauteur;
+    return rapport > 1.2 ? 'paysage' : rapport < 0.83 ? 'portrait' : 'carre';
+  }
+  return TAILLES_VIDEO['480p'][etat.format] ? etat.format : 'paysage';
+}
+function choisirDuree(s) {
+  etat.duree = s;
+  document.querySelectorAll('#duree button').forEach(b => b.classList.toggle('actif', +b.dataset.s === s));
+}
+function choisirQualite(q) {
+  etat.qualite = q;
+  document.querySelectorAll('#qualite button').forEach(b => b.classList.toggle('actif', b.dataset.q === q));
+}
+$('#mode').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !etat.occupe) choisirMode(b.dataset.mode); });
+$('#duree').addEventListener('click', e => { const b = e.target.closest('button'); if (b) choisirDuree(+b.dataset.s); });
+$('#qualite').addEventListener('click', e => { const b = e.target.closest('button'); if (b) choisirQualite(b.dataset.q); });
+
 $('#hasard').addEventListener('click', () => { $('#seed').value = ''; $('#seed').focus(); });
 $('#seed').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10); });
 
@@ -1284,6 +1358,7 @@ function tailleVoulue() {
 // ---------- Generation ----------
 async function lancer() {
   if (etat.occupe || etat.ameliorant) return;
+  if (etat.mode === 'video') return lancerVideo();
   // Tant qu'il manque le moteur ou un modele, on montre ce qu'il reste a faire plutot qu'une erreur
   if (problemes.length) {
     etat.courant = null;
@@ -1308,18 +1383,41 @@ async function lancer() {
     etat.dernierTexte = texte;
     montrerDemande({ prompt: texte, largeur, hauteur, modification: !!etat.source });
     majCalcul({ phase: 'chargement', etape: 0, total: 8, index: 1, nombre: etat.nombre, ecoule: 0 });
-    prompt.value = ''; etat.texteAmeliore = null; prompt.classList.remove('ameliore'); $('#retablir').hidden = true; ajusterPrompt();
-    definirSource(null);
-    $('#plus').open = false;
-    descendre(true);
-    suivre();
+    apresLancement();
+  } catch (err) { note(err.message, 'erreur'); }
+}
+
+function apresLancement() {
+  prompt.value = ''; etat.texteAmeliore = null; prompt.classList.remove('ameliore'); $('#retablir').hidden = true; ajusterPrompt();
+  definirSource(null);
+  $('#plus').open = false;
+  descendre(true);
+  suivre();
+}
+
+// Une video : description, duree, qualite, format, et une image de depart facultative
+async function lancerVideo() {
+  const texte = prompt.value.trim();
+  if (!texte) { note(tx('Écris d\'abord ce que tu veux voir dans la vidéo.', 'First write what you want to see in the video.'), 'erreur'); prompt.focus(); return; }
+  const format = formatVideo(), [largeur, hauteur] = TAILLES_VIDEO[etat.qualite][format];
+  const corps = { prompt: texte, qualite: etat.qualite, format, duree: etat.duree, seed: $('#seed').value };
+  if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
+  else if (etat.source) corps.source_data = etat.source.data;
+  try {
+    await api('/api/video', corps);
+    etat.occupe = true;
+    etat.dernierTexte = texte;
+    montrerDemande({ prompt: texte, largeur, hauteur, modification: !!etat.source, genre: 'video', duree: etat.duree });
+    majCalcul({ genre: 'video', phase: 'chargement', etape: 0, total: 20, ecoule: 0 });
+    apresLancement();
   } catch (err) { note(err.message, 'erreur'); }
 }
 
 // ---------- Amelioration de la description ----------
 function majAmelioration(a) {
   etat.amelioration = a || { modele: '', auto: false };
-  $('#ameliorer').hidden = !etat.amelioration.modele;
+  // La consigne d'amelioration est faite pour les images : pas d'Ameliorer pour une video
+  $('#ameliorer').hidden = !etat.amelioration.modele || etat.mode === 'video';
   $('#ameliorer').title = etat.amelioration.modele
     ? `Réécrire la description en plus détaillé avec ${etat.amelioration.modele}` : '';
 }
@@ -1383,19 +1481,22 @@ function majInterfaceOccupee(occupe) {
 function majBoutonCreer(occupe = etat.occupe) {
   const b = $('#generer');
   b.classList.toggle('annuler', occupe);
-  const texte = occupe ? 'Arrêter' : etat.source ? 'Modifier' : etat.nombre > 1 ? `Créer ${etat.nombre} images` : 'Créer';
+  const texte = occupe ? 'Arrêter' : etat.mode === 'video' ? 'Créer la vidéo' : etat.source ? 'Modifier' : etat.nombre > 1 ? `Créer ${etat.nombre} images` : 'Créer';
   b.innerHTML = `<svg class="i"><use href="#i-${occupe ? 'carre' : 'fleche'}"/></svg><span>${texte}</span>`;
   b.title = occupe ? 'Arrêter la création en cours' : 'Créer (Entrée)';
 }
 
 // Bulle de la demande en cours, en bas du fil
-function montrerDemande({ prompt: texte, largeur, hauteur, modification }) {
+function montrerDemande({ prompt: texte, largeur, hauteur, modification, genre, duree }) {
+  const video = genre === 'video';
   $('#en-cours-texte').textContent = texte || traduire('Création en cours');
-  $('#en-cours-meta').textContent = [modification ? 'Modification d\'une image' : '', largeur ? `${largeur} × ${hauteur}` : ''].filter(Boolean).join(' · ');
+  $('#en-cours-meta').textContent = [video ? tx(`Vidéo de ${duree} s`, `${duree} s video`) : '',
+    modification ? (video ? 'À partir d\'une image' : 'Modification d\'une image') : '', largeur ? `${largeur} × ${hauteur}` : ''].filter(Boolean).join(' · ');
   $('#attente').style.aspectRatio = largeur ? `${largeur} / ${hauteur}` : '1';
 }
 
 function majCalcul(e) {
+  if (e.genre === 'video') return majCalculVideo(e);
   majInterfaceOccupee(true);
   const lot = e.nombre > 1 ? ` · image ${e.index} sur ${e.nombre}` : '';
   const secondes = Math.round(e.ecoule || 0) + ' s';
@@ -1415,6 +1516,29 @@ function majCalcul(e) {
   }
 }
 
+// Video : creation (20 etapes), puis assemblage des images par morceaux ; chacune compte pour moitie
+function majCalculVideo(e) {
+  majInterfaceOccupee(true);
+  const secondes = Math.round(e.ecoule || 0) + ' s', anneau = $('#anneau');
+  let part = null;
+  if (e.phase === 'dessin' && e.etape > 0) {
+    part = e.etape / e.total / 2;
+    $('#phase').textContent = 'Création de la vidéo';
+    $('#detail').textContent = tx(`Étape ${e.etape} sur ${e.total} · ${secondes}`, `Step ${e.etape} of ${e.total} · ${secondes}`);
+  } else if (e.phase === 'decodage') {
+    if (e.total_decodage) part = .5 + e.etape / e.total_decodage / 2;
+    $('#phase').textContent = 'Assemblage des images';
+    $('#detail').textContent = e.total_decodage
+      ? tx(`Morceau ${e.etape} sur ${e.total_decodage} · ${secondes}`, `Part ${e.etape} of ${e.total_decodage} · ${secondes}`) : secondes;
+  } else {
+    $('#phase').textContent = 'Préparation…';
+    $('#detail').textContent = 'Chargement des modèles · ' + secondes;
+  }
+  anneau.classList.toggle('indetermine', part === null);
+  $('#arc').style.strokeDashoffset = PERIMETRE * (part === null ? .72 : 1 - part);
+  $('#chiffre').textContent = part === null ? '' : Math.round(part * 100) + '%';
+}
+
 function suivre() {
   clearTimeout(etat.minuteur);
   etat.minuteur = setTimeout(async () => {
@@ -1432,8 +1556,10 @@ function suivre() {
     if (dernier) descendre(true);
     // En cas d'echec, la description revient dans la zone d'ecriture pour reessayer
     if (e.phase !== 'termine' && !e.resultats?.length && !prompt.value && etat.dernierTexte) { prompt.value = etat.dernierTexte; ajusterPrompt(); }
+    majVideo(e.video);
     if (e.phase === 'erreur') note('La création a échoué.\n' + (e.erreur || ''), 'erreur');
     else if (e.phase === 'annule') note('Création arrêtée');
+    else if (e.resultats?.length && e.genre === 'video') note(tx(`Vidéo créée en ${Math.round(e.ecoule)} s`, `Video created in ${Math.round(e.ecoule)} s`));
     else if (e.resultats?.length) note(`${e.resultats.length > 1 ? e.resultats.length + ' images créées' : 'Image créée'} en ${Math.round(e.ecoule)} s`);
     battement();
   }, 700);
@@ -1447,6 +1573,7 @@ function battement() {
       const e = await api('/api/etat');
       majDemandes(e.demandes);
       majConsentements(e.consentements);
+      majVideo(e.video);
       if (e.occupe) { etat.occupe = true; majCalcul(e); suivre(); return; }
     } catch {}
     battement();
@@ -1587,9 +1714,10 @@ function grouper(liste) {
   const groupes = [];
   for (const img of [...liste].reverse()) {
     const g = groupes.at(-1);
-    if (g && g.prompt === img.prompt && g.largeur === img.largeur && g.hauteur === img.hauteur && g.images.length < 4
-        && new Date(img.date) - new Date(g.images.at(-1).date) < 5 * 60e3) g.images.push(img);
-    else groupes.push({ prompt: img.prompt, largeur: img.largeur, hauteur: img.hauteur, images: [img] });
+    // Une video forme toujours un echange a elle seule
+    if (g && !g.video && !img.video && g.prompt === img.prompt && g.largeur === img.largeur && g.hauteur === img.hauteur
+        && g.images.length < 4 && new Date(img.date) - new Date(g.images.at(-1).date) < 5 * 60e3) g.images.push(img);
+    else groupes.push({ prompt: img.prompt, largeur: img.largeur, hauteur: img.hauteur, video: !!img.video, images: [img] });
   }
   return groupes;
 }
@@ -1605,16 +1733,26 @@ const ACTIONS = [
 
 function carteImage(img) {
   const carte = document.createElement('figure');
-  carte.className = 'carte-image';
+  carte.className = 'carte-image' + (img.video ? ' video' : '');
   carte.dataset.nom = img.nom;
-  const image = document.createElement('img');
-  image.loading = 'lazy'; image.decoding = 'async'; image.translate = false; image.alt = img.prompt || '';
+  let image;
+  if (img.video) {
+    // Video : lecture en boucle, sans le son (Wan ne fait pas de son), commandes du navigateur
+    image = document.createElement('video');
+    image.controls = true; image.loop = true; image.muted = true; image.playsInline = true; image.preload = 'metadata';
+    image.title = 'Lire la vidéo';
+  } else {
+    image = document.createElement('img');
+    image.loading = 'lazy'; image.decoding = 'async'; image.alt = img.prompt || '';
+  }
+  image.translate = false;
   if (img.largeur) image.style.aspectRatio = `${img.largeur} / ${img.hauteur}`;
   image.src = urlImage(img);
   const barre = document.createElement('div');
   barre.className = 'actions-image';
   for (const [action, icone, texte, titre] of ACTIONS) {
     if (action === 'copier' && !etat.peutCopier) continue;
+    if (img.video && (action === 'modifier' || action === 'copier')) continue;
     if (action === 'dossier' && !etat.local) continue;
     const b = document.createElement(action === 'enregistrer' ? 'a' : 'button');
     b.className = 'action-image' + (action === 'supprimer' ? ' danger' : '');
@@ -1658,7 +1796,9 @@ function rendreFil() {
     texte.textContent = g.prompt || traduire('Sans description');
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = [heure(premiere.date), g.largeur ? `${g.largeur} × ${g.hauteur}` : '', ...(premiere.loras || []).map(l => 'LoRA ' + l)]
+    meta.textContent = [heure(premiere.date), g.video ? tx(`Vidéo de ${premiere.duree} s`, `${premiere.duree} s video`) : '',
+                        g.video && premiere.depuis_image ? 'À partir d\'une image' : '',
+                        g.largeur ? `${g.largeur} × ${g.hauteur}` : '', ...(premiere.loras || []).map(l => 'LoRA ' + l)]
       .filter(Boolean).join(' · ');
     demande.append(texte, meta);
     const reponse = document.createElement('div');
@@ -1709,12 +1849,26 @@ function modifierImage(img) {
 }
 
 function reutiliserImage(img) {
+  if (img.video) return reutiliserVideo(img);
   prompt.value = img.prompt; ajusterPrompt();
   if (img.seed !== null) $('#seed').value = img.seed;
   const f = Object.entries(FORMATS).find(([, t]) => t[0] === img.largeur && t[1] === img.hauteur);
   if (f) choisirFormat(f[0]);
   prompt.focus();
   note(img.seed !== null ? 'Description et variante reprises' : 'Description reprise');
+}
+
+function reutiliserVideo(v) {
+  if (!etat.videoPret) { note(tx('Télécharge d\'abord le profil vidéo dans la fenêtre des modèles.', 'First download the video profile in the models window.'), 'erreur'); return; }
+  choisirMode('video');
+  prompt.value = v.prompt; ajusterPrompt();
+  if (v.seed !== null && v.seed !== undefined) $('#seed').value = v.seed;
+  for (const [qualite, formats] of Object.entries(TAILLES_VIDEO))
+    for (const [format, [l, h]] of Object.entries(formats))
+      if (l === v.largeur && h === v.hauteur) { choisirQualite(qualite); choisirFormat(format); }
+  if (v.duree) choisirDuree(v.duree);
+  prompt.focus();
+  note('Description et réglages de la vidéo repris');
 }
 
 async function copierImage(img) {
@@ -1746,7 +1900,7 @@ async function supprimerImage(img, bouton) {
     const haut = fil.scrollTop;
     rendreFil();
     fil.scrollTop = haut;
-    note('Image mise à la corbeille');
+    note(img.video ? 'Vidéo mise à la corbeille' : 'Image mise à la corbeille');
   } catch (err) { note(err.message, 'erreur'); }
 }
 
@@ -2243,7 +2397,7 @@ function ouvrirVisionneuse(img) {
 }
 // Image suivante ou precedente, dans l'ordre du fil
 function voisine(sens) {
-  const liste = [...filtrees()].reverse(), i = liste.findIndex(x => x.nom === etat.courant?.nom);
+  const liste = [...filtrees()].filter(x => !x.video).reverse(), i = liste.findIndex(x => x.nom === etat.courant?.nom);
   const img = liste[i + sens];
   if (img) ouvrirVisionneuse(img);
 }
@@ -2259,7 +2413,11 @@ function fermerVisionneuse() {
 
 // ---------- Mes images ----------
 async function chargerImages() {
-  try { etat.images = await api('/api/images'); } catch (err) { note(err.message, 'erreur'); }
+  try {
+    // Images et videos dans un seul fil, de la plus recente a la plus ancienne
+    const [images, videos] = await Promise.all([api('/api/images'), api('/api/videos').catch(() => [])]);
+    etat.images = [...images, ...videos].sort((a, b) => b.date.localeCompare(a.date) || b.version - a.version);
+  } catch (err) { note(err.message, 'erreur'); }
   $('#nb-images').textContent = etat.images.length;
 }
 
@@ -2271,15 +2429,26 @@ $('#filtre').addEventListener('input', () => { rendreFil(); descendre(); });
 
 // ---------- Telephone : format et nombre d'images dans le panneau d'options ----------
 const TELEPHONE = matchMedia('(max-width: 720px)');
-const ancreFormats = document.createComment('formats'), ancreNombre = document.createComment('nombre');
-$('#formats').before(ancreFormats);
-$('#nombre').before(ancreNombre);
+// Sur telephone, format, nombre, duree et qualite passent dans le panneau d'options
+const OUTILS_TELEPHONE = ['mode', 'formats', 'nombre', 'duree', 'qualite'].map(id => {
+  const ancre = document.createComment(id);
+  $('#' + id).before(ancre);
+  return [id, ancre];
+});
 function placerOutils() {
-  if (TELEPHONE.matches) { $('#place-formats').append($('#formats')); $('#place-nombre').append($('#nombre')); }
-  else { ancreFormats.after($('#formats')); ancreNombre.after($('#nombre')); }
+  for (const [id, ancre] of OUTILS_TELEPHONE) {
+    if (TELEPHONE.matches) $('#place-' + id).append($('#' + id));
+    else ancre.after($('#' + id));
+  }
   majPlaceholder();
 }
 function majPlaceholder() {
+  if (etat.mode === 'video') {
+    prompt.placeholder = TELEPHONE.matches
+      ? traduire(etat.source ? 'Décris le mouvement…' : 'Décris ta vidéo…')
+      : traduire(etat.source ? 'Décris ce qui se passe à partir de cette image…' : 'Décris la vidéo à créer…');
+    return;
+  }
   prompt.placeholder = TELEPHONE.matches
     ? (etat.source ? 'Décris le changement…' : 'Décris ton image…')
     : (etat.source ? 'Décris le changement à faire sur cette image…' : 'Décris l\'image à créer, ou le changement à faire sur ton image…');
@@ -2597,6 +2766,7 @@ function finChargement() {
     majProblemes(e.problemes, e.local);
     majMoteurs(e.moteurs);
     majAmelioration(e.amelioration);
+    majVideo(e.video);
     majVersion(e.mise_a_jour);
     majEchecMaj(e.maj_echec);
     if (e.local) {

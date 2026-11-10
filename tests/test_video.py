@@ -257,6 +257,22 @@ class RoutesVideoTest(unittest.TestCase):
         # Les images de Prisme ne sont jamais servies a Claude, les videos non plus
         self.assertEqual(self.requete('GET', f'/images/{nom}', entetes={'X-Prisme-Client': 'mcp'})[0], 403)
 
+    def test_etat_dit_si_la_video_est_prete(self):
+        self.assertEqual(json.loads(self.requete('GET', '/api/etat')[2])['video'], {'pret': False})
+        self.installer_modeles()
+        self.assertEqual(json.loads(self.requete('GET', '/api/etat')[2])['video'], {'pret': True})
+
+    def test_supprimer_une_video(self):
+        self.images.mkdir()
+        (self.images / 'video_1.webm').write_bytes(b'x')
+        (self.images / 'video_1.json').write_text('{}')
+        corbeille = []
+        with mock.patch.object(serveur, 'mettre_a_la_corbeille', lambda chemin: corbeille.append(chemin.name) or chemin.unlink() or True):
+            self.assertEqual(self.requete('POST', '/api/supprimer', {'nom': 'video_1.webm'})[0], 200)
+            self.assertEqual(self.requete('POST', '/api/supprimer', {'nom': 'video_1.json'})[0], 404)
+        self.assertEqual(corbeille, ['video_1.webm'])
+        self.assertEqual(list(self.images.iterdir()), [])
+
     def test_echec_du_moteur(self):
         self.installer_modeles()
         self.code_moteur = 1

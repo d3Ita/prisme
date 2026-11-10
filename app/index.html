@@ -520,6 +520,13 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 .barre-outils:has(#retablir:not([hidden])) .format span { display: none; }
 /* Video : duree, qualite et choix du mode prennent de la place ; les formats gardent seulement leur forme */
 .barre-outils:has(#duree:not([hidden])) .format span { display: none; }
+/* Avec le choix Image / Video, Options, Ameliorer et Retablir gardent seulement leur icone (le texte reste dans leur
+   bulle d'aide) : sinon le bouton Creer sort de la bulle */
+.barre-outils:has(#mode:not([hidden])) :is(#plus summary, #ameliorer, #retablir) > span { display: none; }
+#duree button, #qualite button { min-width: 0; padding: 0 7px; }
+.barre-outils:has(#mode:not([hidden])) { gap: 2px; }
+/* Fenetre etroite : plutot une deuxieme ligne dans la bulle qu'un bouton Creer qui en sort */
+@media (min-width: 721px) and (max-width: 960px) { .barre-outils { flex-wrap: wrap; row-gap: 6px; } #generer { margin-left: auto; } }
 .outil-compo {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 10px;
   border: 0; background: transparent; color: var(--texte-2); font-size: 14px; white-space: nowrap; list-style: none;

@@ -698,7 +698,14 @@ kbd { font: 11.5px var(--police); padding: 0 6px; border-radius: 5px; background
 .bandeau-maj a:hover { text-decoration: underline; }
 .petit-bouton { height: 30px; padding: 0 14px; font-size: 13.5px; border-radius: 999px; }
 .chargement .texte-redemarrage { color: var(--texte-2); }
-@media (max-width: 720px) { .bandeau-maj { top: 60px; max-width: calc(100% - 24px); white-space: normal; } .modele { grid-template-columns: 1fr; } }
+@media (max-width: 720px) {
+  /* Sur telephone, le bandeau prend toute la largeur : centre par left: 50%, il n'aurait que la moitie de l'ecran
+     et son texte passerait a la ligne a chaque mot, dans un cercle */
+  .bandeau-maj, .bandeau-maj.claude { top: 60px; left: 12px; right: 12px; transform: none; max-width: none; white-space: normal; border-radius: 16px; padding: 8px 6px 8px 14px; }
+  .bandeau-maj > span { flex: 1; min-width: 0; }
+  .bandeau-maj .petit-bouton { white-space: nowrap; }
+  .modele { grid-template-columns: 1fr; }
+}
 
 /* Reglages */
 .carte-reglages { width: min(700px, 100%); max-height: calc(100vh - 32px); padding: 0; display: flex; flex-direction: column; }

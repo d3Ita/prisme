@@ -46,11 +46,12 @@ REGLAGES = {'video_modele': 'Wan2.2-TI2V-5B-Q8_0.gguf', 'video_texte': 'umt5-xxl
 
 class CommandeTest(unittest.TestCase):
     def test_nombre_d_images_compatible_avec_le_vae(self):
-        for duree in video.DUREES:
+        for duree in (1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5):
             with self.subTest(duree=duree):
                 n = video.nombre_images(duree)
                 self.assertEqual((n - 1) % 4, 0)
-                self.assertEqual(n, 24 * duree + 1)
+                self.assertLessEqual(abs(n - 1 - 24 * duree), 2)
+        self.assertEqual([video.nombre_images(d) for d in (1, 2, 5)], [25, 49, 121])
 
     def test_tailles_multiples_de_32(self):
         for qualite, formats in video.TAILLES.items():
@@ -63,7 +64,12 @@ class CommandeTest(unittest.TestCase):
         self.assertIsNone(erreur)
         self.assertEqual((v['prompt'], v['largeur'], v['hauteur'], v['images'], v['seed']), ('un renard', 704, 1280, 73, 7))
         self.assertIsNone(video.valider({'prompt': 'x'})[0]['seed'])
+        # 2 s par defaut ; demi-secondes acceptees, virgule comprise ; un nombre entier reste entier
+        self.assertEqual(video.valider({'prompt': 'x'})[0]['duree'], 2)
+        self.assertEqual(video.valider({'prompt': 'x', 'duree': '2,5'})[0]['duree'], 2.5)
+        self.assertEqual(video.valider({'prompt': 'x', 'duree': 4.0})[0]['duree'], 4)
         for mauvais in ({'prompt': ''}, {'prompt': 'x', 'duree': 9}, {'prompt': 'x', 'qualite': '4k'},
+                        {'prompt': 'x', 'duree': 0.5}, {'prompt': 'x', 'duree': 2.3}, {'prompt': 'x', 'duree': 'nan'},
                         {'prompt': 'x', 'format': 'rond'}, {'prompt': 'x', 'duree': 'deux'}, {'prompt': 'x', 'seed': 'a'}):
             with self.subTest(demande=mauvais):
                 self.assertIsNone(video.valider(mauvais)[0])

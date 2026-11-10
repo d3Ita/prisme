@@ -155,6 +155,8 @@ const EN = {
   'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
   'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Vidéo': 'Video', 'Durée': 'Duration', 'Qualité': 'Quality',
   'Créer une image ou une vidéo': 'Create an image or a video', 'Durée de la vidéo': 'Video duration',
+  'Durée de la vidéo, en secondes : de 1 à 5, par demi-seconde': 'Video duration in seconds: 1 to 5, in half seconds',
+  'Durée de la vidéo en secondes': 'Video duration in seconds',
   'Qualité de la vidéo : 480p (832 × 480) est deux fois plus rapide que 720p (1280 × 704)': 'Video quality: 480p (832 × 480) is twice as fast as 720p (1280 × 704)',
   'Vidéo (bêta) · Wan 2.2': 'Video (beta) · Wan 2.2', 'Modèle vidéo': 'Video model', 'Fait la vidéo': 'Makes the video',
   'Texte de la vidéo': 'Video text encoder', 'Comprend la description': 'Understands the description', 'VAE vidéo': 'Video VAE',
@@ -523,7 +525,14 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 /* Avec le choix Image / Video, Options, Ameliorer et Retablir gardent seulement leur icone (le texte reste dans leur
    bulle d'aide) : sinon le bouton Creer sort de la bulle */
 .barre-outils:has(#mode:not([hidden])) :is(#plus summary, #ameliorer, #retablir) > span { display: none; }
-#duree button, #qualite button { min-width: 0; padding: 0 7px; }
+#qualite button { min-width: 0; padding: 0 7px; }
+/* Duree de la video : un champ en secondes, dans le meme style que les groupes de boutons */
+.champ-duree { align-items: center; padding: 3px 9px 3px 3px; cursor: text; }
+.champ-duree input { width: 46px; height: 28px; padding: 0 4px; border: 0; border-radius: 7px; background: var(--segment); box-shadow: var(--ombre-douce);
+  color: var(--texte); font: inherit; font-weight: 600; font-size: 13.5px; text-align: center; }
+.champ-duree input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.champ-duree span { margin-left: 5px; color: var(--texte-2); font-size: 13px; }
+.panneau-plus .champ-duree input { flex: 1; height: 36px; }
 .barre-outils:has(#mode:not([hidden])) { gap: 2px; }
 /* Fenetre etroite : plutot une deuxieme ligne dans la bulle qu'un bouton Creer qui en sort */
 @media (min-width: 721px) and (max-width: 960px) { .barre-outils { flex-wrap: wrap; row-gap: 6px; } #generer { margin-left: auto; } }
@@ -978,9 +987,9 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="groupe" id="nombre" title="Nombre d'images à créer">
           <button type="button" class="actif" data-n="1">1</button><button type="button" data-n="2">2</button><button type="button" data-n="3">3</button><button type="button" data-n="4">4</button>
         </div>
-        <div class="groupe" id="duree" hidden title="Durée de la vidéo">
-          <button type="button" data-s="1">1 s</button><button type="button" class="actif" data-s="2">2 s</button><button type="button" data-s="3">3 s</button><button type="button" data-s="4">4 s</button><button type="button" data-s="5">5 s</button>
-        </div>
+        <label class="groupe champ-duree" id="duree" hidden title="Durée de la vidéo, en secondes : de 1 à 5, par demi-seconde">
+          <input type="number" id="duree-valeur" min="1" max="5" step="0.5" value="2" inputmode="decimal" aria-label="Durée de la vidéo en secondes"><span>s</span>
+        </label>
         <div class="groupe" id="qualite" hidden title="Qualité de la vidéo : 480p (832 × 480) est deux fois plus rapide que 720p (1280 × 704)">
           <button type="button" class="actif" data-q="480p">480p</button><button type="button" data-q="720p">720p</button>
         </div>
@@ -1379,10 +1388,13 @@ function formatVideo() {
   }
   return TAILLES_VIDEO['480p'][etat.format] ? etat.format : 'paysage';
 }
+// Duree de 1 a 5 s par demi-seconde ; une valeur vide ou hors limites revient a la plus proche
 function choisirDuree(s) {
-  etat.duree = s;
-  document.querySelectorAll('#duree button').forEach(b => b.classList.toggle('actif', +b.dataset.s === s));
+  const valeur = Number.isFinite(s) ? Math.min(5, Math.max(1, Math.round(s * 2) / 2)) : 2;
+  etat.duree = valeur;
+  $('#duree-valeur').value = valeur;
 }
+const dureeLisible = s => tx(`${String(s).replace('.', ',')} s`, `${s} s`);
 function choisirQualite(q) {
   etat.qualite = q;
   document.querySelectorAll('#qualite button').forEach(b => b.classList.toggle('actif', b.dataset.q === q));
@@ -1392,7 +1404,8 @@ $('#mode').addEventListener('click', e => {
   if (!b || etat.occupe) return;
   if (b.dataset.mode === 'video') demanderVideo(); else choisirMode('image');
 });
-$('#duree').addEventListener('click', e => { const b = e.target.closest('button'); if (b) choisirDuree(+b.dataset.s); });
+$('#duree-valeur').addEventListener('change', e => choisirDuree(parseFloat(String(e.target.value).replace(',', '.'))));
+$('#duree-valeur').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
 $('#qualite').addEventListener('click', e => { const b = e.target.closest('button'); if (b) choisirQualite(b.dataset.q); });
 
 $('#hasard').addEventListener('click', () => { $('#seed').value = ''; $('#seed').focus(); });
@@ -1456,6 +1469,7 @@ async function lancerVideo() {
     else note('Génération avec ta description telle quelle.');
   }
   const format = formatVideo(), [largeur, hauteur] = TAILLES_VIDEO[etat.qualite][format];
+  choisirDuree(parseFloat(String($('#duree-valeur').value).replace(',', '.')));
   const corps = { prompt: texte, qualite: etat.qualite, format, duree: etat.duree, seed: $('#seed').value };
   if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
   else if (etat.source) corps.source_data = etat.source.data;
@@ -1546,7 +1560,7 @@ function majBoutonCreer(occupe = etat.occupe) {
 function montrerDemande({ prompt: texte, largeur, hauteur, modification, genre, duree }) {
   const video = genre === 'video';
   $('#en-cours-texte').textContent = texte || traduire('Création en cours');
-  $('#en-cours-meta').textContent = [video ? tx(`Vidéo de ${duree} s`, `${duree} s video`) : '',
+  $('#en-cours-meta').textContent = [video ? tx(`Vidéo de ${dureeLisible(duree)}`, `${dureeLisible(duree)} video`) : '',
     modification ? (video ? 'À partir d\'une image' : 'Modification d\'une image') : '', largeur ? `${largeur} × ${hauteur}` : ''].filter(Boolean).join(' · ');
   $('#attente').style.aspectRatio = largeur ? `${largeur} / ${hauteur}` : '1';
 }
@@ -1852,7 +1866,7 @@ function rendreFil() {
     texte.textContent = g.prompt || traduire('Sans description');
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = [heure(premiere.date), g.video ? tx(`Vidéo de ${premiere.duree} s`, `${premiere.duree} s video`) : '',
+    meta.textContent = [heure(premiere.date), g.video ? tx(`Vidéo de ${dureeLisible(premiere.duree)}`, `${dureeLisible(premiere.duree)} video`) : '',
                         g.video && premiere.depuis_image ? 'À partir d\'une image' : '',
                         g.largeur ? `${g.largeur} × ${g.hauteur}` : '', ...(premiere.loras || []).map(l => 'LoRA ' + l)]
       .filter(Boolean).join(' · ');

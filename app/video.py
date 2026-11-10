@@ -10,7 +10,8 @@ from pathlib import Path
 
 # Wan 2.2 TI2V 5B produit 24 images par seconde ; son VAE demande un nombre d'images de la forme 4n + 1
 IMAGES_PAR_SECONDE = 24
-DUREES = (1, 2, 3, 4, 5)
+# Duree en secondes, par demi-seconde : au-dela de 5 s (121 images), Wan 2.2 5B sort de ce pour quoi il est entraine
+DUREE_MIN, DUREE_MAX, DUREE_DEFAUT = 1, 5, 2
 # Tailles multiples de 32 (VAE de Wan 2.2), d'environ 0,4 et 0,9 million de pixels. 720p est le nom courant :
 # Wan 2.2 5B travaille en 1280 x 704, 720 n'etant pas un multiple de 32
 TAILLES = {
@@ -77,7 +78,8 @@ def etapes(r):
 
 
 def nombre_images(duree):
-    return IMAGES_PAR_SECONDE * duree + 1
+    """Nombre d'images de la forme 4n + 1 le plus proche de la duree demandee."""
+    return 4 * round(IMAGES_PAR_SECONDE * duree / 4) + 1
 
 
 def taille(qualite, format_):
@@ -90,7 +92,7 @@ def valider(p):
         prompt = str(p.get('prompt', '')).strip()
         qualite = str(p.get('qualite') or '480p')
         format_ = str(p.get('format') or 'paysage')
-        duree = int(p.get('duree') or 2)
+        duree = float(str(p.get('duree') or DUREE_DEFAUT).replace(',', '.'))
         seed = p.get('seed')
         seed = None if seed in (None, '') else int(seed)
     except (ValueError, TypeError):
@@ -99,8 +101,9 @@ def valider(p):
         return None, 'Écris d\'abord ce que tu veux voir dans la vidéo.'
     if qualite not in TAILLES or format_ not in TAILLES[qualite]:
         return None, 'Qualité ou format de vidéo inconnu.'
-    if duree not in DUREES:
-        return None, f'Durée possible : de {DUREES[0]} à {DUREES[-1]} secondes.'
+    if not DUREE_MIN <= duree <= DUREE_MAX or (duree * 2) % 1:
+        return None, f'Durée possible : de {DUREE_MIN} à {DUREE_MAX} secondes, par demi-seconde.'
+    duree = int(duree) if duree.is_integer() else duree
     largeur, hauteur = taille(qualite, format_)
     return {'prompt': prompt, 'qualite': qualite, 'format': format_, 'duree': duree, 'seed': seed,
             'largeur': largeur, 'hauteur': hauteur, 'images': nombre_images(duree)}, None

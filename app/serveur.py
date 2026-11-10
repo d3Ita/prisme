@@ -715,9 +715,18 @@ def amelioration_active(r):
     return Path(r['amelioration_modele_local']).stem if r['amelioration_modele_local'] else ''
 
 
-def ameliorer_description(r, texte, image=None):
+def demande_sans_image(texte, pour_video=False):
+    """Ce que voit le modele de langage quand il ne voit pas l'image de depart."""
+    if pour_video:
+        return f"Vidéo à partir d'une image (l'image n'est pas visible) : {texte}"
+    return f"Demande de modification (l'image n'est pas visible) : {texte}"
+
+
+def ameliorer_description(r, texte, image=None, pour_video=False):
+    if pour_video:
+        r = video.reglages_amelioration(r)
     if r['amelioration_moteur'] == 'ollama':
-        return ameliorer_avec_ollama(r, texte, image)
+        return ameliorer_avec_ollama(r, texte, image, pour_video)
     consigne = r['amelioration_consigne_modif'] if image is not None else r['amelioration_consigne']
     contenu = texte
     if image is not None:
@@ -725,7 +734,7 @@ def ameliorer_description(r, texte, image=None):
             contenu = [{'type': 'text', 'text': texte},
                        {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,' + base64.b64encode(image).decode()}}]
         else:
-            contenu = f"Demande de modification (l'image n'est pas visible) : {texte}"
+            contenu = demande_sans_image(texte, pour_video)
     messages = [{'role': 'system', 'content': consigne}, {'role': 'user', 'content': contenu}]
     resultat = ''
     with MoteurTexte(r) as moteur:
@@ -738,7 +747,7 @@ def ameliorer_description(r, texte, image=None):
     return CARACTERES_CJK.sub('', resultat).strip()
 
 
-def ameliorer_avec_ollama(r, texte, image=None):
+def ameliorer_avec_ollama(r, texte, image=None, pour_video=False):
     """Avec une image de depart, produit une consigne de modification au lieu d'une nouvelle description."""
     message = {'role': 'user', 'content': texte}
     if image is not None:
@@ -746,7 +755,7 @@ def ameliorer_avec_ollama(r, texte, image=None):
         if modele_voit_les_images(r):
             message['images'] = [base64.b64encode(image).decode()]
         else:
-            message['content'] = f"Demande de modification (l'image n'est pas visible) : {texte}"
+            message['content'] = demande_sans_image(texte, pour_video)
     else:
         consigne = r['amelioration_consigne']
     resultat = ''
@@ -2470,7 +2479,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if etat.get('occupe') or not amelioration_en_cours.acquire(blocking=False):
                 return self.envoyer(409, {'erreur': 'Attends la fin du calcul en cours.'})
             try:
-                self.envoyer(200, {'prompt': ameliorer_description(r, texte, image), 'modification': image is not None})
+                pour_video = donnees.get('genre') == 'video'
+                self.envoyer(200, {'prompt': ameliorer_description(r, texte, image, pour_video), 'modification': image is not None})
             except RuntimeError as e:
                 self.envoyer(502, {'erreur': str(e)})
             finally:

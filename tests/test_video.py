@@ -110,6 +110,38 @@ class CommandeTest(unittest.TestCase):
         # Par defaut : 20 etapes et CFG 5, ceux mesures sur Wan 2.2 5B
         self.assertEqual((serveur.REGLAGES_DEFAUT['video_etapes'], serveur.REGLAGES_DEFAUT['video_cfg']), (20, 5.0))
 
+    def test_ameliorer_une_video(self):
+        envoyes = []
+
+        class FauxMoteurTexte:
+            def __init__(self, _r):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def discuter(self, messages, _temperature):
+                envoyes.append(messages)
+                return 'A red fox trots through fresh snow, slow tracking shot.'
+
+        r = dict(serveur.REGLAGES_DEFAUT, amelioration_moteur='integre', amelioration_modele_local='texte.gguf')
+        with mock.patch.object(serveur, 'MoteurTexte', FauxMoteurTexte):
+            serveur.ameliorer_description(r, 'un renard', pour_video=True)
+            serveur.ameliorer_description(r, 'il court', image=b'png', pour_video=True)
+            serveur.ameliorer_description(r, 'un renard')
+        consignes = [m[0]['content'] for m in envoyes]
+        self.assertEqual(consignes, [video.CONSIGNE, video.CONSIGNE_IMAGE, serveur.CONSIGNE_AMELIORATION])
+        # Sans vision, le modele sait qu'il s'agit d'animer une image qu'il ne voit pas
+        self.assertIn('Vidéo à partir d\'une image', envoyes[1][1]['content'])
+        # Une consigne videe dans les Reglages revient a celle de Prisme
+        base = {'modele_diffusion': 'd.gguf', 'modele_texte': 't.gguf', 'vae': 'v.safetensors'}
+        reglages, erreur = serveur.valider_reglages({**base, 'video_consigne': '  ', 'video_consigne_image': 'Anime doucement.'})
+        self.assertIsNone(erreur)
+        self.assertEqual((reglages['video_consigne'], reglages['video_consigne_image']), (video.CONSIGNE, 'Anime doucement.'))
+
     def test_etapes_et_cfg_choisis(self):
         v, _ = video.valider({'prompt': 'un renard'})
         args = video.arguments({**REGLAGES, 'video_etapes': 30, 'video_cfg': 4.5}, Path('models'), v, 1, None, Path('s.webm'))

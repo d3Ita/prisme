@@ -20,7 +20,27 @@ TAILLES = {
 # Reglages par defaut de la creation video, modifiables dans les Reglages
 ETAPES = 20
 CFG = 5.0
-DEFAUTS = {'video_etapes': ETAPES, 'video_cfg': CFG}
+# Ameliorer, pour une video : Wan suit mieux une description qui dit le mouvement et la camera
+CONSIGNE = (
+    "Tu réécris des descriptions de vidéos courtes pour un générateur de vidéos (Wan). "
+    "Garde exactement le sujet et l'intention de l'utilisateur, sans rien ajouter qui change le sens. "
+    "Décris dans l'ordre : le sujet et son apparence, ce qu'il fait et comment il bouge, le mouvement de la caméra "
+    "(fixe, travelling, panoramique, zoom lent), le décor, la lumière, l'ambiance et le style. "
+    "Une seule scène continue de quelques secondes, sans changement de plan ni texte à l'écran. "
+    "Réponds uniquement par la description finale, en anglais, en un seul paragraphe de 50 à 80 mots. "
+    "Écris tout en anglais : aucun mot ni caractère chinois ou d'une autre langue."
+)
+# Depuis une image : l'image donne deja le sujet et le decor, il faut surtout dire ce qui bouge
+CONSIGNE_IMAGE = (
+    "Tu réécris une demande d'animation d'image pour un générateur de vidéos (Wan) qui part de l'image jointe, "
+    "si elle est fournie. Décris le mouvement à partir de cette image : ce que fait le sujet, ce qui bouge autour "
+    "(vent, eau, lumière, foule), le mouvement de la caméra, et le rythme (lent, calme, rapide). "
+    "Nomme les éléments tels qu'ils apparaissent dans l'image ; ne change ni le sujet, ni le décor, ni le style, "
+    "et n'ajoute aucun élément absent. Une seule scène continue de quelques secondes. "
+    "Réponds uniquement par la description, en anglais, en deux à quatre phrases. "
+    "Écris tout en anglais : aucun mot ni caractère chinois ou d'une autre langue."
+)
+DEFAUTS = {'video_etapes': ETAPES, 'video_cfg': CFG, 'video_consigne': CONSIGNE, 'video_consigne_image': CONSIGNE_IMAGE}
 DECALAGE = 3.0
 # Description negative d'origine de Wan (en chinois) : ce que le modele doit eviter
 NEGATIF = ('色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，'
@@ -37,11 +57,19 @@ def lire_reglages(donnees, r):
     une valeur qui n'est pas un nombre leve ValueError, comme pour les autres reglages."""
     r['video_etapes'] = int(donnees.get('video_etapes', r['video_etapes']))
     r['video_cfg'] = round(float(donnees.get('video_cfg', r['video_cfg'])), 2)
+    # Consigne videe : on revient a celle de Prisme
+    r['video_consigne'] = str(donnees.get('video_consigne', r['video_consigne'])).strip() or CONSIGNE
+    r['video_consigne_image'] = str(donnees.get('video_consigne_image', r['video_consigne_image'])).strip() or CONSIGNE_IMAGE
     if not 1 <= r['video_etapes'] <= 100:
         return 'Les étapes de la vidéo doivent être entre 1 et 100.'
     if not 0 <= r['video_cfg'] <= 30:
         return 'Le CFG de la vidéo doit être entre 0 et 30.'
     return None
+
+
+def reglages_amelioration(r):
+    """Reglages a passer a Ameliorer pour une video : ses consignes a la place de celles des images."""
+    return {**r, 'amelioration_consigne': r['video_consigne'], 'amelioration_consigne_modif': r['video_consigne_image']}
 
 
 def etapes(r):

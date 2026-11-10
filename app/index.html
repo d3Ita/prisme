@@ -161,7 +161,8 @@ const EN = {
   'Produit les images de la vidéo': 'Produces the video frames', 'Étapes de la vidéo': 'Video steps',
   'Plus d\'étapes : plus net, plus long (20 conseillé)': 'More steps: sharper, slower (20 recommended)', 'CFG de la vidéo': 'Video CFG',
   'Fidélité à la description (5 conseillé)': 'Faithfulness to the description (5 recommended)',
-  'Automatique : fichiers Wan du dossier models': 'Automatic: Wan files in the models folder', 'Créer la vidéo': 'Create the video', 'Créer la vidéo (Entrée)': 'Create the video (Enter)',
+  'Automatique : fichiers Wan du dossier models': 'Automatic: Wan files in the models folder',
+  'Améliorer : consigne vidéo': 'Improve: video instruction', 'Améliorer : vidéo depuis une image': 'Improve: video from an image', 'Créer la vidéo': 'Create the video', 'Créer la vidéo (Entrée)': 'Create the video (Enter)',
   'Création de la vidéo': 'Creating the video', 'Assemblage des images': 'Assembling the frames', 'Lire la vidéo': 'Play the video',
   'Décris la vidéo à créer…': 'Describe the video to create…', 'Décris ta vidéo…': 'Describe your video…',
   'Décris ce qui se passe à partir de cette image…': 'Describe what happens from this image…', 'Décris le mouvement…': 'Describe the motion…',
@@ -1060,6 +1061,16 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="reglage"><label for="r-vae">VAE<small>Produit l'image finale · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vae" data-cle="vae"></select></div>
         <p class="note-champ" id="dossier-chemin" style="margin:4px 0 0"></p>
       </section>
+      <section class="bloc" id="bloc-video">
+        <h4>Vidéo (bêta) · Wan 2.2</h4>
+        <div class="reglage"><label for="r-video-modele">Modèle vidéo<small>Fait la vidéo</small></label><select class="champ" id="r-video-modele" data-cle="video_modele"></select></div>
+        <div class="reglage"><label for="r-video-texte">Texte de la vidéo<small>Comprend la description</small></label><select class="champ" id="r-video-texte" data-cle="video_texte"></select></div>
+        <div class="reglage"><label for="r-video-vae">VAE vidéo<small>Produit les images de la vidéo</small></label><select class="champ" id="r-video-vae" data-cle="video_vae"></select></div>
+        <div class="reglage"><label for="r-video-etapes">Étapes de la vidéo<small>Plus d'étapes : plus net, plus long (20 conseillé)</small></label><input class="champ court" id="r-video-etapes" data-cle="video_etapes" type="number" min="1" max="100"></div>
+        <div class="reglage"><label for="r-video-cfg">CFG de la vidéo<small>Fidélité à la description (5 conseillé)</small></label><input class="champ court" id="r-video-cfg" data-cle="video_cfg" type="number" min="0" max="30" step="0.1"></div>
+        <div class="reglage"><label for="r-video-consigne">Améliorer : consigne vidéo<small>Sans image de départ</small></label><textarea class="champ consigne" id="r-video-consigne" data-cle="video_consigne"></textarea></div>
+        <div class="reglage"><label for="r-video-consigne-image">Améliorer : vidéo depuis une image<small>Avec une image de départ, envoyée au modèle s'il voit les images</small></label><textarea class="champ consigne" id="r-video-consigne-image" data-cle="video_consigne_image"></textarea></div>
+      </section>
       <section class="bloc">
         <h4>LoRA <span class="liens"><button type="button" class="bouton-lien" id="dossier-loras">Ouvrir le dossier</button></span></h4>
         <div id="liste-loras"></div>
@@ -1093,14 +1104,6 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="reglage"><label for="r-methode">Méthode<small>Échantillonneur</small></label><select class="champ" id="r-methode" data-cle="methode"></select></div>
         <div class="reglage"><label for="r-sigmas">Sigmas<small>Vide = automatique</small></label><textarea class="champ sigmas" id="r-sigmas" data-cle="sigmas" spellcheck="false"></textarea>
           <p class="note-champ" id="note-sigmas"></p></div>
-      </section>
-      <section class="bloc" id="bloc-video">
-        <h4>Vidéo (bêta) · Wan 2.2</h4>
-        <div class="reglage"><label for="r-video-modele">Modèle vidéo<small>Fait la vidéo</small></label><select class="champ" id="r-video-modele" data-cle="video_modele"></select></div>
-        <div class="reglage"><label for="r-video-texte">Texte de la vidéo<small>Comprend la description</small></label><select class="champ" id="r-video-texte" data-cle="video_texte"></select></div>
-        <div class="reglage"><label for="r-video-vae">VAE vidéo<small>Produit les images de la vidéo</small></label><select class="champ" id="r-video-vae" data-cle="video_vae"></select></div>
-        <div class="reglage"><label for="r-video-etapes">Étapes de la vidéo<small>Plus d'étapes : plus net, plus long (20 conseillé)</small></label><input class="champ court" id="r-video-etapes" data-cle="video_etapes" type="number" min="1" max="100"></div>
-        <div class="reglage"><label for="r-video-cfg">CFG de la vidéo<small>Fidélité à la description (5 conseillé)</small></label><input class="champ court" id="r-video-cfg" data-cle="video_cfg" type="number" min="0" max="30" step="0.1"></div>
       </section>
       <section class="bloc">
         <h4>Performances</h4>
@@ -1439,8 +1442,12 @@ function apresLancement() {
 
 // Une video : description, duree, qualite, format, et une image de depart facultative
 async function lancerVideo() {
-  const texte = prompt.value.trim();
+  let texte = prompt.value.trim();
   if (!texte) { note(tx('Écris d\'abord ce que tu veux voir dans la vidéo.', 'First write what you want to see in the video.'), 'erreur'); prompt.focus(); return; }
+  if (etat.amelioration?.auto && etat.amelioration.modele && texte !== etat.texteAmeliore) {
+    if (await ameliorer()) texte = prompt.value.trim();
+    else note('Génération avec ta description telle quelle.');
+  }
   const format = formatVideo(), [largeur, hauteur] = TAILLES_VIDEO[etat.qualite][format];
   const corps = { prompt: texte, qualite: etat.qualite, format, duree: etat.duree, seed: $('#seed').value };
   if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
@@ -1458,8 +1465,7 @@ async function lancerVideo() {
 // ---------- Amelioration de la description ----------
 function majAmelioration(a) {
   etat.amelioration = a || { modele: '', auto: false };
-  // La consigne d'amelioration est faite pour les images : pas d'Ameliorer pour une video
-  $('#ameliorer').hidden = !etat.amelioration.modele || etat.mode === 'video';
+  $('#ameliorer').hidden = !etat.amelioration.modele;
   $('#ameliorer').title = etat.amelioration.modele
     ? `Réécrire la description en plus détaillé avec ${etat.amelioration.modele}` : '';
 }
@@ -1473,7 +1479,8 @@ async function ameliorer() {
   bouton.querySelector('span').textContent = etat.source ? 'Analyse de l\'image…' : 'Amélioration…';
   $('#serveur').textContent = 'Amélioration de la description';
   try {
-    const corps = { prompt: texte };
+    // En video, Prisme utilise les consignes video (mouvement, camera) au lieu de celles des images
+    const corps = { prompt: texte, genre: etat.mode };
     if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
     else if (etat.source) corps.source_data = etat.source.data;
     const { prompt: nouveau } = await api('/api/ameliorer', corps);

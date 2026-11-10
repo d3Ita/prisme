@@ -235,7 +235,7 @@ Tu peux renommer le fichier du VAE (par exemple `qwen-image-vae.safetensors`) po
 | Arrêter Prisme | **Quitter** en haut à droite, ou fermer la fenêtre |
 | Revoir ses images | Faire défiler le fil, ou cliquer sur une image puis flèches ← → |
 
-Les réglages sont enregistrés dans `app/reglages.json`, les images dans `images/`. Prisme s'arrête quelques secondes après la fermeture de sa fenêtre sur le PC, et après 30 minutes sans aucune activité. Les deux se règlent dans **Réglages → Application** : désactive l'arrêt à la fermeture pour continuer à l'utiliser depuis le téléphone fenêtre fermée. Le bouton **Quitter** l'arrête immédiatement, avec les moteurs en cours.
+Les réglages sont enregistrés dans `app/reglages.json`, les images dans `images/`. Prisme s'arrête quelques secondes après la fermeture de sa fenêtre sur le PC, et après 30 minutes sans aucune activité. Les deux se règlent dans **Réglages → Application** : désactive l'arrêt à la fermeture pour continuer à l'utiliser depuis le téléphone fenêtre fermée. Le bouton **Quitter**, en haut, ou **Quitter Prisme** dans **Réglages → Application**, l'arrête immédiatement, avec les moteurs en cours. Tant que Claude Desktop est ouvert, le Gestionnaire des tâches peut aussi montrer des processus `Prisme.exe --mcp` : c'est la connexion de Claude à Prisme, lancée et arrêtée par Claude, et elle n'utilise presque rien.
 
 ### Amélioration de la description
 
@@ -282,7 +282,7 @@ Le serveur ne parle qu'à Prisme sur `127.0.0.1`. Les images demandées par Clau
 - Les sites web ouverts dans ton navigateur ne peuvent ni piloter Prisme ni lire ses données : les requêtes venant d'une autre origine ou d'un autre nom d'hôte sont refusées.
 - Les réglages, les modèles et l'ouverture des dossiers ne sont accessibles que depuis le PC.
 - Une fois par lancement, Prisme demande à GitHub le numéro de la dernière version, pour te prévenir d'une mise à jour. Rien d'autre n'est envoyé ; tu peux le désactiver dans **Réglages → Application**.
-- **Mettre à jour**, dans cet avis, télécharge la nouvelle version uniquement depuis les releases GitHub de Prisme, vérifie son empreinte SHA-256 publiée par GitHub, puis remplace le programme et le relance. Les réglages, les images, les moteurs et les modèles sont conservés.
+- **Mettre à jour**, dans cet avis, télécharge la nouvelle version uniquement depuis les releases GitHub de Prisme, vérifie son empreinte SHA-256 publiée par GitHub, puis remplace le programme et le relance. Les réglages, les images, les moteurs et les modèles sont conservés. Si le remplacement échoue (antivirus, fichier utilisé), l'ancienne version redémarre et le dit, avec un lien pour télécharger la nouvelle ; le détail est dans `app/mise-a-jour.log`.
 
 ## Construire depuis les sources
 

@@ -243,7 +243,7 @@ On the phone, open that address: it shows a 4-digit code, and Prisme asks you on
 
 The QR code link contains an access code stored in `app/code-acces.txt`: delete that file and restart Prisme to create a new code and disconnect the devices already linked.
 
-To stop Prisme, click **Quit** (Quitter) or close its window: the server shuts down a few seconds later.
+To stop Prisme, click **Quit** (Quitter) at the top of the window or **Quit Prisme** in **Settings → Application**, or close its window: the server and its engines shut down a few seconds later. While Claude Desktop is open, the Task Manager may also show `Prisme.exe --mcp` processes: they are Claude's connection to Prisme, started and stopped by Claude, and they use almost no resources.
 
 ## Using Prisme with Claude via MCP
 
@@ -268,7 +268,7 @@ The server only talks to Prisme on `127.0.0.1`. Images Claude asks for go to the
 - Websites open in your browser can neither control Prisme nor read its data: requests from another origin or host name are rejected.
 - Settings, models and folders are only reachable from the PC.
 - Once per launch, Prisme asks GitHub for the latest version number to tell you about updates. Nothing else is sent; turn it off in **Settings → Application** (Réglages → Application).
-- **Update** in that notice downloads the new version only from Prisme's GitHub releases, checks its SHA-256 published by GitHub, then replaces the program and restarts it. Settings, images, engines and models are kept.
+- **Update** in that notice downloads the new version only from Prisme's GitHub releases, checks its SHA-256 published by GitHub, then replaces the program and restarts it. Settings, images, engines and models are kept. If the replacement fails (antivirus, file in use), the old version starts again and says so, with a link to download the new one; details are in `app/mise-a-jour.log`.
 
 ## Build from source
 

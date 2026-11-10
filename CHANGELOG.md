@@ -4,6 +4,21 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.9.4] - 2026-11-10
+
+### Added
+
+- **Quit Prisme** in **Settings → Application**, next to **Quit** at the top of the window: it stops Prisme and its engines.
+- When an update could not be installed, the next launch says so at the top of the window, with a link to the releases page. The details are in `app/mise-a-jour.log`.
+
+### Fixed
+
+- **Updates never fall back silently to the old version.** Prisme waits for itself and its engines to stop (up to 2 minutes), renames the old program first (allowed even while Claude's MCP server still uses it) and retries for 2 minutes (antivirus, SmartScreen). If it still fails, the leftover `.prisme-maj-*` files are removed and the old version starts again with the error message.
+- **One Prisme at a time**: a second launch no longer opens a second window or server. It reopens the existing window, and does nothing when started by an update (`--sans-fenetre`).
+- **No more engines left running in the background**: on Windows, `sd-cli` and `llama-server` now stop with Prisme even if it crashes or is ended from the Task Manager (Job object); on Linux and macOS they get their own process group, and on Linux they also stop when Prisme dies. Engines left by a previous session are stopped at the next launch, only if they run from Prisme's own `sd/` or `llama/` folder.
+- Closing the window is noticed even when the browser could not tell Prisme (sudden close, crash): after 5 minutes without news from the window, Prisme stops as if it had been closed.
+- Mac started from a temporary copy (App Translocation): the update banner explains right away how to move Prisme to Applications, instead of failing on click. The one-click update keeps using the `.zip`.
+
 ## [1.9.3] - 2026-11-09
 
 ### Added
@@ -217,7 +232,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.3...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.4...HEAD
+[1.9.4]: https://github.com/d3Ita/prisme/releases/tag/v1.9.4
 [1.9.3]: https://github.com/d3Ita/prisme/releases/tag/v1.9.3
 [1.9.2]: https://github.com/d3Ita/prisme/releases/tag/v1.9.2
 [1.9.1]: https://github.com/d3Ita/prisme/releases/tag/v1.9.1

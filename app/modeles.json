@@ -504,6 +504,96 @@
       "vide": [],
       "reglages": null,
       "edition": null
+    },
+    {
+      "id": "wan22-5b-q8",
+      "role": "video",
+      "familles": [
+        "wan22-5b"
+      ],
+      "nom": "Wan 2.2 TI2V 5B",
+      "quantification": "Q8_0",
+      "detail": {
+        "fr": "Vidéo depuis un texte ou une image, jusqu'en 1280 × 704 : cartes de 12 Go",
+        "en": "Video from text or an image, up to 1280 × 704: 12 GB cards"
+      },
+      "page": "https://huggingface.co/QuantStack/Wan2.2-TI2V-5B-GGUF",
+      "url": "https://huggingface.co/QuantStack/Wan2.2-TI2V-5B-GGUF/resolve/main/Wan2.2-TI2V-5B-Q8_0.gguf",
+      "fichier": "Wan2.2-TI2V-5B-Q8_0.gguf",
+      "taille": 5400179040,
+      "sha256": "57bece983817ab2f957546683bb670f13be7d99022d45674840cd999a050ea8f",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "resume": null
+      },
+      "remplit": [
+        "video_modele"
+      ],
+      "vide": [],
+      "reglages": null,
+      "edition": null
+    },
+    {
+      "id": "umt5-xxl-q8",
+      "role": "video_texte",
+      "familles": [
+        "wan22-5b"
+      ],
+      "nom": "UMT5-XXL",
+      "quantification": "Q8_0",
+      "detail": {
+        "fr": "Lit la description pour les modèles vidéo Wan",
+        "en": "Reads the description for Wan video models"
+      },
+      "page": "https://huggingface.co/city96/umt5-xxl-encoder-gguf",
+      "url": "https://huggingface.co/city96/umt5-xxl-encoder-gguf/resolve/main/umt5-xxl-encoder-Q8_0.gguf",
+      "fichier": "umt5-xxl-encoder-Q8_0.gguf",
+      "taille": 6043068256,
+      "sha256": "2521d4de0bf9e1cc6549866463ceae85e4ec3239bc6063f7488810be39033bbc",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "resume": null
+      },
+      "remplit": [
+        "video_texte"
+      ],
+      "vide": [],
+      "reglages": null,
+      "edition": null
+    },
+    {
+      "id": "wan22-vae",
+      "role": "video_vae",
+      "familles": [
+        "wan22-5b"
+      ],
+      "nom": "VAE Wan 2.2",
+      "quantification": "",
+      "detail": {
+        "fr": "Transforme le résultat de Wan 2.2 5B en images de la vidéo",
+        "en": "Turns the Wan 2.2 5B result into video frames"
+      },
+      "page": "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+      "url": "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan2.2_vae.safetensors",
+      "fichier": "wan2.2_vae.safetensors",
+      "taille": 1409400960,
+      "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156",
+      "licence": {
+        "nom": "Apache-2.0",
+        "commercial": true,
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "resume": null
+      },
+      "remplit": [
+        "video_vae"
+      ],
+      "vide": [],
+      "reglages": null,
+      "edition": null
     }
   ],
   "profils": [
@@ -929,6 +1019,41 @@
       "statut": "recommande",
       "edition": true,
       "licence_a_accepter": true
+    },
+    {
+      "id": "video-12go",
+      "nom": {
+        "fr": "Vidéo, carte de 12 Go (bêta)",
+        "en": "Video, 12 GB card (beta)"
+      },
+      "description": {
+        "fr": "Wan 2.2 TI2V 5B : vidéo depuis un texte ou une image, licence Apache-2.0 (usage commercial permis).",
+        "en": "Wan 2.2 TI2V 5B: video from text or an image, Apache-2.0 license (commercial use allowed)."
+      },
+      "materiel": {
+        "fr": "Carte graphique de 12 Go et 16 Go de mémoire vive ou plus",
+        "en": "Graphics card with 12 GB and 16 GB of RAM or more"
+      },
+      "cible": {
+        "type": "pc",
+        "video_min": 11.5,
+        "memoire_min": 16
+      },
+      "categorie": "video",
+      "modeles": [
+        "wan22-5b-q8",
+        "umt5-xxl-q8",
+        "wan22-vae"
+      ],
+      "taille_totale": 12852648256,
+      "vitesse": {
+        "fr": "2 s de vidéo : environ 2 min en 832 × 480, 4 min en 1280 × 704 (RTX 4070 SUPER)",
+        "en": "2 s of video: about 2 min at 832 × 480, 4 min at 1280 × 704 (RTX 4070 SUPER)",
+        "mesuree": true
+      },
+      "statut": "experimental",
+      "edition": false,
+      "licence_a_accepter": false
     }
   ]
 }

@@ -30,6 +30,8 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
+
+import video
 from urllib.parse import parse_qs, unquote, urlparse
 
 VERSION = '1.9.4'
@@ -366,6 +368,10 @@ REGLAGES_DEFAUT = {
     'modele_texte': '',
     'modele_vision': '',
     'vae': '',
+    # Modeles de la creation de video (Prisme 2.0, en developpement)
+    'video_modele': '',
+    'video_texte': '',
+    'video_vae': '',
     'etapes': 20,
     'cfg': 4.0,
     'methode': 'euler',
@@ -464,7 +470,7 @@ def valider_reglages(donnees):
     r = lire_reglages()
     try:
         for cle in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae', 'amelioration_modele_local',
-                    'amelioration_vision_locale'):
+                    'amelioration_vision_locale', *video.CLES):
             nom = str(donnees.get(cle, r[cle])).strip().replace('\\', '/')
             if nom and not chemin_relatif_sur(nom):
                 return None, 'Les modèles doivent être dans le dossier models.'
@@ -984,7 +990,8 @@ def etat_moteurs():
 # Modeles conseilles, telechargeables depuis Prisme : modeles officiels et generalistes, verifies par empreinte.
 # Le catalogue (fichiers et profils par machine) est dans app/modeles.json
 CATALOGUE = json.loads((RESSOURCES / 'modeles.json').read_text(encoding='utf-8'))
-ROLES_MODELES = {'image': 'Modèle de dessin', 'texte': 'Modèle de texte', 'edition': 'Vision', 'vae': 'VAE'}
+ROLES_MODELES = {'image': 'Modèle de dessin', 'texte': 'Modèle de texte', 'edition': 'Vision', 'vae': 'VAE',
+                 'video': 'Modèle vidéo', 'video_texte': 'Texte de la vidéo', 'video_vae': 'VAE vidéo'}
 MODELES_CONSEILLES = [
     m | {'role': ROLES_MODELES[m['role']], 'role_id': m['role'],
          'titre': f"{m['nom']} · {m['quantification']}" if m['quantification'] else m['nom'],
@@ -1910,6 +1917,74 @@ def generer(params):
             etat['fin'] = time.time()
 
 
+def generer_video(params):
+    """Une video avec le mode video de sd-cli (app/video.py). Partage l'etat, l'annulation et le moteur des images :
+    une seule creation a la fois sur la carte graphique."""
+    global processus
+    source_temp = None
+    v, r = params['video'], params['reglages']
+    try:
+        source = None
+        if params.get('source_nom'):
+            nom = params['source_nom']
+            if NOM_IMAGE.match(nom) and (IMAGES / nom).exists():
+                source = IMAGES / nom
+        elif params.get('source_data'):
+            _, _, donnees = params['source_data'].partition(',')
+            fd, chemin = tempfile.mkstemp(prefix='prisme_source_', suffix='.png')
+            with os.fdopen(fd, 'wb') as f:
+                f.write(base64.b64decode(donnees))
+            source = source_temp = Path(chemin)
+        sortie = video.nouveau_chemin(IMAGES)
+
+        def lancer(commande):
+            global processus
+            processus = lancer_moteur(commande, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
+            return processus
+
+        def rapporter(**champs):
+            with verrou:
+                etat.update(champs)
+
+        debut = time.time()
+        commande = [str(SD_CLI)] + video.arguments(r, MODELES, v, params['seed'], source, sortie, fils_calcul())
+        code, erreurs = video.executer(commande, lancer, rapporter, lambda: annule)
+        if annule:
+            sortie.unlink(missing_ok=True)
+        elif code != 0 or not sortie.exists():
+            with verrou:
+                etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
+        else:
+            details = video.details_a_enregistrer(v, params['seed'], source, time.time() - debut)
+            video.chemin_details(sortie).write_text(json.dumps(details, ensure_ascii=False), encoding='utf-8')
+            with verrou:
+                etat['resultats'].append(sortie.name)
+    except Exception as e:
+        with verrou:
+            etat['erreur'] = str(e)
+    finally:
+        processus = None
+        if source_temp:
+            source_temp.unlink(missing_ok=True)
+        with verrou:
+            etat['occupe'] = False
+            etat['phase'] = 'annule' if annule else ('erreur' if etat.get('erreur') else 'termine')
+            etat['fin'] = time.time()
+
+
+def lister_videos():
+    if not IMAGES.exists():
+        return []
+    resultat = []
+    for chemin in sorted(IMAGES.glob('video_*.webm'), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            details = json.loads(video.chemin_details(chemin).read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            details = None
+        resultat.append(video.infos(chemin, details))
+    return resultat
+
+
 # Permet d'installer Prisme comme une application (ecran d'accueil du telephone, fenetre du PC) avec son logo
 MANIFESTE = json.dumps({
     'name': 'Prisme', 'short_name': 'Prisme', 'start_url': '/', 'display': 'standalone',
@@ -2170,6 +2245,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
                                'loras': lister_loras(), 'dossier_loras': str(LORAS)})
         elif chemin == '/api/images':
             self.envoyer(200, lister_images())
+        elif chemin == '/api/videos':
+            self.envoyer(200, lister_videos())
         elif chemin == '/api/modeles-conseilles':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -2245,6 +2322,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             fichier = (IMAGES_CLAUDE if claude else IMAGES) / nom
             if NOM_IMAGE.match(nom) and fichier.exists():
                 self.envoyer(200, fichier.read_bytes(), 'image/png', cache=True)
+            elif not claude and video.NOM_VIDEO.match(nom) and fichier.exists():
+                self.envoyer(200, fichier.read_bytes(), 'video/webm', cache=True)
             else:
                 self.envoyer(404, {'erreur': 'Image introuvable'})
         else:
@@ -2320,6 +2399,37 @@ class Gestionnaire(BaseHTTPRequestHandler):
                           source_nom=None if claude else p.get('source_nom'), source_data=p.get('source_data'),
                           claude=claude)
             threading.Thread(target=generer, args=(params,), daemon=True).start()
+            self.envoyer(200, {'seed': seed})
+
+        elif chemin == '/api/video':
+            try:
+                p = self.lire_json()
+            except (ValueError, json.JSONDecodeError):
+                return self.envoyer(400, {'erreur': 'Paramètres invalides.'})
+            v, erreur = video.valider(p)
+            if erreur:
+                return self.envoyer(400, {'erreur': erreur})
+            # La video se cree d'abord depuis la fenetre de Prisme ; l'outil MCP viendra ensuite
+            if self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'La vidéo se crée depuis la fenêtre de Prisme pour l\'instant.'})
+            r = lire_reglages()
+            manquants = video.fichiers_manquants(r, MODELES)
+            if manquants:
+                return self.envoyer(409, {'erreur': 'Télécharge d\'abord le profil vidéo dans la fenêtre des modèles.',
+                                          'manquants': manquants})
+            seed = random.randint(0, 2**31 - 1) if v['seed'] is None else v['seed']
+            with verrou:
+                if etat['occupe']:
+                    return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
+                if amelioration_en_cours.locked():
+                    return self.envoyer(409, {'erreur': 'Attends la fin de l\'amélioration de la description.'})
+                annule = False
+                etat.clear()
+                etat.update(occupe=True, genre='video', phase='chargement', etape=0, total=video.ETAPES, total_decodage=0,
+                            index=1, nombre=1, seed=seed, seed_base=seed, debut=time.time(), resultats=[], erreur=None,
+                            largeur=v['largeur'], hauteur=v['hauteur'], duree=v['duree'], prompt=v['prompt'], claude=False)
+            params = dict(video=v, seed=seed, reglages=r, source_nom=p.get('source_nom'), source_data=p.get('source_data'))
+            threading.Thread(target=generer_video, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
 
         elif chemin == '/api/ameliorer':

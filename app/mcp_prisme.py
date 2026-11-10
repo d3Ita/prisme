@@ -205,7 +205,7 @@ class Prisme:
                     'download_size_gb': round(p['taille_totale'] / 1e9, 1), 'remaining_gb': round(p['taille_restante'] / 1e9, 1),
                     'status': 'recommended' if p['statut'] == 'recommande' else 'experimental',
                     'image_editing': p['edition'], 'downloaded': p['installe'], 'in_use': p['actif'],
-                    'category': 'main' if p.get('categorie', 'principal') == 'principal' else 'option',
+                    'category': {'principal': 'main', 'video': 'video'}.get(p.get('categorie', 'principal'), 'option'),
                     'license_to_accept': bool(p.get('licence_a_accepter')),
                     'speed': p['vitesse']['en'], 'models': [m['fichier'] for m in p['modeles']]}
                    for p in infos.get('profils', [])]

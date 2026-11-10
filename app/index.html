@@ -153,7 +153,7 @@ const EN = {
   'Accepter et télécharger': 'Accept and download', 'Refuser': 'Refuse',
   'Claude est installé : il peut créer des images avec Prisme.': 'Claude is installed: it can create images with Prisme.',
   'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
-  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Profils de modèles': 'Model profiles',
+  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Vidéo (bêta)': 'Video (beta)', 'Profils de modèles': 'Model profiles',
   'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
     'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
@@ -1096,6 +1096,8 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       <div class="profils" id="profils-modeles" role="radiogroup" aria-label="Profils de modèles"></div>
       <h4 class="titre-profils">Autres choix</h4>
       <div class="profils" id="profils-options" role="radiogroup" aria-label="Autres choix"></div>
+      <h4 class="titre-profils" id="titre-profils-video" hidden>Vidéo (bêta)</h4>
+      <div class="profils" id="profils-video" role="radiogroup" aria-label="Vidéo (bêta)" hidden></div>
       <div class="resume-profil" id="resume-profil"></div>
       <button type="button" class="bouton-lien bascule-avance" id="basculer-avance" aria-expanded="false">Choisir les modèles un par un (mode avancé)</button>
       <div class="liste-modeles" id="liste-modeles" hidden></div>
@@ -1840,9 +1842,10 @@ function rendreProfils(infos) {
   const actuel = profilActuel(infos), mac = !!infos.machine?.mac;
   $('#profils-modeles').innerHTML = '';
   $('#profils-options').innerHTML = '';
+  $('#profils-video').innerHTML = '';
   // Profils de cette machine (licences permissives), puis les autres choix (autre style, licence non commerciale)
   for (const p of infos.profils.filter(p => p.cible.type === 'tous' || (p.cible.type === 'mac') === mac)) {
-    const zone = $(p.categorie === 'option' ? '#profils-options' : '#profils-modeles');
+    const zone = $({option: '#profils-options', video: '#profils-video'}[p.categorie] || '#profils-modeles');
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'carte-profil';
     b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(p.id === actuel.id));
@@ -1859,11 +1862,14 @@ function rendreProfils(infos) {
     if (p.id === infos.suggestion) pastille(tx('Recommandé pour ta machine', 'Recommended for your machine'));
     if (p.actif) pastille(tx('Utilisé', 'In use'), 'ok');
     if (p.statut === 'experimental') pastille(tx('Expérimental', 'Experimental'), 'discrete');
-    if (!p.edition) pastille(tx('Sans modification d\'image', 'No image editing'), 'discrete');
+    if (!p.edition && p.categorie !== 'video') pastille(tx('Sans modification d\'image', 'No image editing'), 'discrete');
     if (p.licence_a_accepter) pastille(tx('Non commercial', 'Non-commercial'), 'discrete');
     b.addEventListener('click', () => { profilChoisi = p.id; rendreModeles(derniersInfosModeles); });
     zone.append(b);
   }
+  // Section video (beta) : seulement quand cette machine a un profil video
+  const video = !!$('#profils-video').children.length;
+  $('#profils-video').hidden = $('#titre-profils-video').hidden = !video;
   // Resume du profil choisi : contenu, vitesse, licences, place necessaire, progression
   const resume = $('#resume-profil'), ligne = (...morceaux) => {
     const e = document.createElement('p');

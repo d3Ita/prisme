@@ -4,6 +4,7 @@ import base64
 import hashlib
 import shlex
 import shutil
+import signal
 import ctypes
 import ipaddress
 import json
@@ -58,14 +59,146 @@ def fils_calcul():
     return max(1, physiques - 1)
 
 
+if WINDOWS:
+    class _LimitesJob(ctypes.Structure):
+        """JOBOBJECT_EXTENDED_LIMIT_INFORMATION"""
+        _fields_ = [('PerProcessUserTimeLimit', ctypes.c_int64), ('PerJobUserTimeLimit', ctypes.c_int64),
+                    ('LimitFlags', ctypes.c_uint32), ('MinimumWorkingSetSize', ctypes.c_size_t),
+                    ('MaximumWorkingSetSize', ctypes.c_size_t), ('ActiveProcessLimit', ctypes.c_uint32),
+                    ('Affinity', ctypes.c_size_t), ('PriorityClass', ctypes.c_uint32), ('SchedulingClass', ctypes.c_uint32),
+                    ('IoInfo', ctypes.c_uint64 * 6), ('ProcessMemoryLimit', ctypes.c_size_t),
+                    ('JobMemoryLimit', ctypes.c_size_t), ('PeakProcessMemoryUsed', ctypes.c_size_t),
+                    ('PeakJobMemoryUsed', ctypes.c_size_t)]
+    _noyau = ctypes.WinDLL('kernel32', use_last_error=True)
+    _noyau.CreateJobObjectW.restype = _noyau.OpenProcess.restype = ctypes.c_void_p
+elif sys.platform.startswith('linux'):
+    _prctl = ctypes.CDLL(None, use_errno=True).prctl
+_job = None
+
+
+def job_moteurs():
+    """Windows : objet Job qui arrete les moteurs des que Prisme se termine, meme s'il plante ou est tue
+    (JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE) ; None si le systeme le refuse."""
+    global _job
+    if _job is None:
+        job = _noyau.CreateJobObjectW(None, None)
+        limites = _LimitesJob(LimitFlags=0x2000)
+        _job = job if job and _noyau.SetInformationJobObject(ctypes.c_void_p(job), 9, ctypes.byref(limites),
+                                                             ctypes.sizeof(limites)) else 0
+    return _job or None
+
+
+def mourir_avec_prisme():
+    """Linux, dans le moteur juste avant son lancement : il recoit SIGKILL quand Prisme disparait (PR_SET_PDEATHSIG)."""
+    _prctl(1, signal.SIGKILL)
+
+
 def lancer_moteur(commande, **options):
-    processus = subprocess.Popen(commande, creationflags=OPTIONS_MOTEUR, **options)
+    """Moteur en priorite basse qui ne survit pas a Prisme : objet Job sous Windows, PR_SET_PDEATHSIG sous Linux, et sous
+    Linux et Mac un groupe de processus a lui, arrete d'un coup avec ce qu'il a lance."""
     if not WINDOWS:
+        options['start_new_session'] = True
+        if sys.platform.startswith('linux'):
+            options['preexec_fn'] = mourir_avec_prisme
+    processus = subprocess.Popen(commande, creationflags=OPTIONS_MOTEUR, **options)
+    if WINDOWS and job_moteurs():
+        _noyau.AssignProcessToJobObject(ctypes.c_void_p(job_moteurs()), ctypes.c_void_p(int(processus._handle)))
+    elif not WINDOWS:
         try:
             os.setpriority(os.PRIO_PROCESS, processus.pid, 10)
         except (OSError, AttributeError):
             pass
+    noter_moteur(processus.pid, commande[0])
     return processus
+
+
+def tuer_arbre(moteur):
+    """Arrete un moteur et ce qu'il a lance : son groupe sous Linux et Mac ; sous Windows, l'objet Job s'en charge."""
+    try:
+        if WINDOWS:
+            moteur.kill()
+        else:
+            os.killpg(moteur.pid, signal.SIGKILL)
+    except OSError:
+        try:
+            moteur.kill()
+        except OSError:
+            pass
+
+
+def chemin_processus(pid):
+    """Executable d'un processus en cours, ou None s'il n'existe plus ou n'est pas accessible."""
+    try:
+        if WINDOWS:
+            poignee = _noyau.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+            if not poignee:
+                return None
+            try:
+                code, tampon, taille = ctypes.c_ulong(), ctypes.create_unicode_buffer(32768), ctypes.c_ulong(32768)
+                _noyau.GetExitCodeProcess(ctypes.c_void_p(poignee), ctypes.byref(code))
+                if code.value != 259:  # STILL_ACTIVE
+                    return None
+                ok = _noyau.QueryFullProcessImageNameW(ctypes.c_void_p(poignee), 0, tampon, ctypes.byref(taille))
+                return tampon.value if ok else None
+            finally:
+                _noyau.CloseHandle(ctypes.c_void_p(poignee))
+        if sys.platform.startswith('linux'):
+            return os.readlink(f'/proc/{pid}/exe')
+        sortie = subprocess.run(['ps', '-p', str(pid), '-o', 'comm='], capture_output=True, text=True, timeout=5).stdout
+        return sortie.strip() or None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+def tuer_pid(pid):
+    if WINDOWS:
+        poignee = _noyau.OpenProcess(0x0001, False, pid)  # PROCESS_TERMINATE
+        if poignee:
+            _noyau.TerminateProcess(ctypes.c_void_p(poignee), 1)
+            _noyau.CloseHandle(ctypes.c_void_p(poignee))
+        return
+    for tuer in (lambda: os.killpg(pid, signal.SIGKILL), lambda: os.kill(pid, signal.SIGKILL)):
+        try:
+            return tuer()
+        except OSError:
+            pass
+
+
+verrou_fichier_moteurs = threading.Lock()
+
+
+def noter_moteur(pid, executable):
+    """Garde la trace des moteurs lances (fichier moteurs.json), pour arreter ceux qu'un plantage aurait laisses."""
+    with verrou_fichier_moteurs:
+        notes = lire_notes_moteurs()
+        notes = {p: c for p, c in notes.items() if chemin_processus(int(p))}
+        notes[str(pid)] = str(Path(executable).resolve())
+        DONNEES.mkdir(exist_ok=True)
+        FICHIER_MOTEURS.write_text(json.dumps(notes), encoding='utf-8')
+
+
+def lire_notes_moteurs():
+    try:
+        notes = json.loads(FICHIER_MOTEURS.read_text(encoding='utf-8'))
+        return {str(int(p)): str(c) for p, c in notes.items()} if isinstance(notes, dict) else {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def arreter_moteurs_orphelins():
+    """Au lancement : arrete les moteurs d'une session precedente (Prisme plante ou tue) notes dans moteurs.json,
+    seulement s'ils tournent encore depuis les dossiers des moteurs de ce Prisme : jamais un autre programme."""
+    dossiers = [(RACINE / 'sd').resolve(), (RACINE / 'llama').resolve()]
+    arretes = []
+    with verrou_fichier_moteurs:
+        for pid, chemin in lire_notes_moteurs().items():
+            reel = chemin_processus(int(pid))
+            if reel and Path(reel).resolve() == Path(chemin).resolve() and \
+                    any(Path(reel).resolve().is_relative_to(d) for d in dossiers):
+                tuer_pid(int(pid))
+                arretes.append(int(pid))
+        FICHIER_MOTEURS.unlink(missing_ok=True)
+    return arretes
 SUFFIXE_EXE = '.exe' if WINDOWS else ''
 # L'exe Linux ajoute ses propres bibliotheques a LD_LIBRARY_PATH : on rend l'original
 # aux programmes lances (moteurs, navigateur), qui chargeraient sinon des versions incompatibles
@@ -88,6 +221,8 @@ else:
     RACINE = Path(sys.executable).resolve().parent if EXE else Path(__file__).resolve().parent.parent
 RACINE.mkdir(parents=True, exist_ok=True)
 DONNEES = RACINE / 'app'
+# Moteurs lances par Prisme (PID et executable), pour arreter ceux qu'un plantage laisserait tourner
+FICHIER_MOTEURS = DONNEES / 'moteurs.json'
 MODELES = RACINE / 'models'
 LORAS = MODELES / 'loras'
 IMAGES = RACINE / 'images'
@@ -300,6 +435,9 @@ DUREE_CONSENTEMENT, CONSENTEMENTS_MAX = 600, 5
 dernier_contact_fenetre = 0.0
 dernier_contact_mcp = 0.0
 DELAI_MCP = 600
+# La fenetre appelle /api/etat toutes les 2,5 s (au moins une fois par minute si elle est reduite) : sans nouvelles
+# pendant 5 min, elle est fermee meme si elle n'a pas pu le dire (navigateur ferme d'un coup, plantage)
+SILENCE_FENETRE = 300
 verrou_echecs = threading.Lock()
 # Acces reseau du serveur en cours : un changement de reglage s'applique au prochain lancement
 SERVEUR_RESEAU = True
@@ -549,7 +687,7 @@ class MoteurTexte:
         global processus_texte
         processus_texte = None
         if self.processus and self.processus.poll() is None:
-            self.processus.kill()
+            tuer_arbre(self.processus)
             self.processus.wait()
         if self.processus:
             self.journal.close()
@@ -2355,7 +2493,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             annule = True
             if processus:
                 try:
-                    processus.kill()
+                    tuer_arbre(processus)
                 except OSError:
                     pass
             self.envoyer(200, {})
@@ -2536,13 +2674,13 @@ def ouvrir_fenetre():
 
 
 def arreter():
-    """Arrete Prisme et les moteurs qu'il a lances."""
+    """Arrete Prisme et les moteurs qu'il a lances, avec tout ce qu'ils ont eux-memes lance."""
     for moteur in (processus, processus_texte):
         if moteur and moteur.poll() is None:
-            try:
-                moteur.kill()
-            except OSError:
-                pass
+            tuer_arbre(moteur)
+    if WINDOWS and _job:
+        _noyau.TerminateJobObject(ctypes.c_void_p(_job), 1)
+    FICHIER_MOTEURS.unlink(missing_ok=True)
     os._exit(0)
 
 
@@ -2552,11 +2690,11 @@ def doit_s_arreter(maintenant, reglages):
         return False
     if maintenant - dernier_contact > reglages['arret_auto_minutes'] * 60:
         return True
-    # Fenetre fermee : arret, sauf si Claude se sert de Prisme en ce moment
-    return bool(reglages['arret_fermeture'] and fermeture_demandee
-                and dernier_contact_local <= fermeture_demandee
-                and maintenant - fermeture_demandee > DELAI_FERMETURE
-                and maintenant - dernier_contact_mcp > DELAI_MCP)
+    # Fenetre fermee (elle l'a dit, ou ne donne plus de nouvelles) : arret, sauf si Claude se sert de Prisme en ce moment
+    fermee = bool(fermeture_demandee and dernier_contact_local <= fermeture_demandee
+                  and maintenant - fermeture_demandee > DELAI_FERMETURE)
+    muette = bool(dernier_contact_fenetre and maintenant - dernier_contact_fenetre > SILENCE_FENETRE)
+    return bool(reglages['arret_fermeture'] and (fermee or muette) and maintenant - dernier_contact_mcp > DELAI_MCP)
 
 
 def surveiller():
@@ -2655,6 +2793,7 @@ def main():
     if not prendre_instance():
         return deja_lance()
     reprendre_apres_maj()
+    arreter_moteurs_orphelins()
     try:
         global SERVEUR_RESEAU
         SERVEUR_RESEAU = lire_reglages()['acces_reseau']

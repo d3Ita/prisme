@@ -7,6 +7,7 @@ Le serveur travaille sur un dossier temporaire : tes reglages, images et code d'
 import http.client
 import json
 import os
+import shutil
 import struct
 import sys
 import tempfile
@@ -466,6 +467,94 @@ class ModelesConseillesTest(unittest.TestCase):
             self.assertIn('installe', texte)
 
 
+class ArretDesMoteursTest(unittest.TestCase):
+    """Les moteurs ne survivent pas a Prisme, et ceux d'une session precedente sont arretes au lancement suivant."""
+
+    def faux_moteur(self, nom='sd-cli'):
+        """Un vrai programme qui attend une minute, copie dans le dossier des moteurs de Prisme."""
+        import subprocess
+        dossier = serveur.RACINE / 'sd'
+        dossier.mkdir(parents=True, exist_ok=True)
+        if serveur.WINDOWS:
+            programme = dossier / f'{nom}.exe'
+            shutil.copy2(Path(os.environ['SystemRoot']) / 'System32' / 'PING.EXE', programme)
+            commande = [str(programme), '-n', '60', '127.0.0.1']
+        else:
+            programme = dossier / nom
+            shutil.copy2(shutil.which('sleep'), programme)
+            commande = [str(programme), '60']
+        moteur = serveur.lancer_moteur(commande, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(lambda: moteur.poll() is None and moteur.kill())
+        return moteur
+
+    def attendre_fin(self, pid, limite=10):
+        import time
+        fin = time.time() + limite
+        while time.time() < fin and serveur.chemin_processus(pid):
+            time.sleep(0.1)
+        return serveur.chemin_processus(pid) is None
+
+    def test_orphelins_arretes_au_lancement(self):
+        import subprocess
+        moteur = self.faux_moteur()
+        self.assertIn(str(moteur.pid), serveur.lire_notes_moteurs())
+        # Un autre programme note par erreur (ou un PID reutilise) : jamais arrete
+        autre = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(autre.wait)
+        self.addCleanup(autre.kill)
+        serveur.noter_moteur(autre.pid, sys.executable)
+        arretes = serveur.arreter_moteurs_orphelins()
+        self.assertEqual(arretes, [moteur.pid])
+        moteur.wait(timeout=10)
+        self.assertIsNone(autre.poll())
+        self.assertFalse(serveur.FICHIER_MOTEURS.exists())
+
+    @unittest.skipIf(sys.platform == 'darwin', 'macOS : pas de signal a la mort du parent, les orphelins sont arretes au lancement')
+    def test_moteurs_arretes_si_prisme_est_tue(self):
+        import subprocess
+        # Cause C : un Prisme tue pendant une generation laissait son moteur tourner
+        programme = Path(DOSSIER_TEST.name) / 'prisme_tue.py'
+        programme.write_text(
+            'import os, sys, subprocess, time\n'
+            f'sys.path.insert(0, {str(Path(serveur.__file__).parent)!r})\n'
+            'import serveur, test_moteur\n', encoding='utf-8')
+        aide = Path(DOSSIER_TEST.name) / 'test_moteur.py'
+        if serveur.WINDOWS:
+            ping = str(Path(os.environ['SystemRoot']) / 'System32' / 'PING.EXE')
+            corps = f'p = serveur.lancer_moteur([{ping!r}, "-n", "60", "127.0.0.1"], stdout=subprocess.DEVNULL)\n'
+        else:
+            corps = f'p = serveur.lancer_moteur([{shutil.which("sleep")!r}, "60"])\n'
+        aide.write_text('import subprocess, time, serveur\n' + corps + 'print(p.pid, flush=True)\ntime.sleep(60)\n', encoding='utf-8')
+        prisme = subprocess.Popen([sys.executable, str(programme)], stdout=subprocess.PIPE, text=True,
+                                  env={**os.environ, 'PRISME_RACINE': DOSSIER_TEST.name, 'PYTHONPATH': DOSSIER_TEST.name})
+        self.addCleanup(prisme.stdout.close)
+        pid = int(prisme.stdout.readline())
+        self.assertIsNotNone(serveur.chemin_processus(pid))
+        prisme.kill()
+        prisme.wait()
+        self.assertTrue(self.attendre_fin(pid), 'le moteur a survecu a Prisme')
+
+    def test_arret_de_tout_l_arbre(self):
+        moteurs = [self.faux_moteur('sd-cli'), self.faux_moteur('llama-server')]
+        if serveur.WINDOWS:
+            # arreter() vide l'objet Job : tous les moteurs et ce qu'ils auraient lance
+            serveur._noyau.TerminateJobObject(ctypes_pointeur(serveur._job), 1)
+        else:
+            for moteur in moteurs:
+                serveur.tuer_arbre(moteur)
+        for moteur in moteurs:
+            moteur.wait(timeout=10)
+
+    def test_chemin_d_un_processus(self):
+        self.assertEqual(Path(serveur.chemin_processus(os.getpid())).resolve(), Path(sys.executable).resolve())
+        self.assertIsNone(serveur.chemin_processus(99999999))
+
+
+def ctypes_pointeur(valeur):
+    import ctypes
+    return ctypes.c_void_p(valeur)
+
+
 class InstanceUniqueTest(unittest.TestCase):
     """Un seul Prisme par dossier ; un second lancement ne cree jamais de deuxieme serveur ni de fenetre en trop."""
 
@@ -884,13 +973,23 @@ class ArretAutomatiqueTest(unittest.TestCase):
         serveur.etat.clear()
         serveur.etat.update(etat)
 
-    def situation(self, fermeture_il_y_a=None, contact_local_il_y_a=60, contact_il_y_a=1, occupe=False):
+    def situation(self, fermeture_il_y_a=None, contact_local_il_y_a=60, contact_il_y_a=1, occupe=False, fenetre_il_y_a=None):
         maintenant = 10_000.0
         serveur.dernier_contact = maintenant - contact_il_y_a
         serveur.dernier_contact_local = maintenant - contact_local_il_y_a
         serveur.fermeture_demandee = None if fermeture_il_y_a is None else maintenant - fermeture_il_y_a
+        serveur.dernier_contact_fenetre = 0.0 if fenetre_il_y_a is None else maintenant - fenetre_il_y_a
         serveur.etat['occupe'] = occupe
+        self.addCleanup(setattr, serveur, 'dernier_contact_fenetre', 0.0)
         return serveur.doit_s_arreter(maintenant, self.reglages)
+
+    def test_fenetre_fermee_sans_prevenir(self):
+        # Cause D : la page n'a pas pu envoyer /api/fermeture (navigateur ferme d'un coup, plantage)
+        self.assertTrue(self.situation(fenetre_il_y_a=serveur.SILENCE_FENETRE + 1))
+        # Fenetre reduite : le navigateur ralentit la page, mais elle donne encore des nouvelles chaque minute
+        self.assertFalse(self.situation(fenetre_il_y_a=70))
+        # Jamais de fenetre (lance par Claude) : seule l'inactivite compte
+        self.assertFalse(self.situation())
 
     def test_fenetre_fermee_puis_delai_ecoule(self):
         self.assertTrue(self.situation(fermeture_il_y_a=serveur.DELAI_FERMETURE + 1))

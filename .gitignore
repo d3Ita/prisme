@@ -18,6 +18,11 @@ images-claude/
 # Donnees de cette machine : code d'acces du telephone et reglages
 app/code-acces.txt
 app/reglages.json
+# Fichiers ecrits par Prisme pendant qu'il tourne : moteurs lances, verrou d'instance, echec de mise a jour
+app/moteurs.json
+app/instance-*.verrou
+app/maj-echec.txt
+app/mise-a-jour.log
 
 # Construction de l'exe
 .construction/

@@ -2469,6 +2469,64 @@ def fermer_demarrage(delai=0.0):
     threading.Timer(delai, pyi_splash.close).start()
 
 
+# Instance unique : un seul serveur par dossier de donnees et par port (une version de travail peut tourner a cote)
+_instance = None
+
+
+def nom_instance():
+    return 'Prisme-' + hashlib.sha256(f'{RACINE}|{PORT}'.encode()).hexdigest()[:16]
+
+
+def prendre_instance():
+    """Vrai si ce processus devient le seul Prisme de ce dossier, faux si un autre tourne deja.
+    Windows : mutex nomme, libere par le systeme a la fin du processus ; Linux et Mac : verrou flock sur un fichier
+    qui garde le PID, libere de meme, meme apres un plantage."""
+    global _instance
+    if WINDOWS:
+        noyau = ctypes.WinDLL('kernel32', use_last_error=True)
+        noyau.CreateMutexW.restype = ctypes.c_void_p
+        poignee = noyau.CreateMutexW(None, False, 'Local\\' + nom_instance())
+        if not poignee:
+            return True  # mutex refuse par le systeme : Prisme demarre quand meme
+        if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+            noyau.CloseHandle(ctypes.c_void_p(poignee))
+            return False
+        _instance = poignee
+        return True
+    import fcntl
+    DONNEES.mkdir(exist_ok=True)
+    fichier = open(DONNEES / f'instance-{PORT}.verrou', 'a+', encoding='ascii')
+    try:
+        fcntl.flock(fichier, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fichier.close()
+        return False
+    fichier.seek(0)
+    fichier.truncate()
+    fichier.write(str(os.getpid()))
+    fichier.flush()
+    _instance = fichier
+    return True
+
+
+def liberer_instance():
+    global _instance
+    if _instance is None:
+        return
+    if WINDOWS:
+        ctypes.WinDLL('kernel32').CloseHandle(ctypes.c_void_p(_instance))
+    else:
+        _instance.close()
+    _instance = None
+
+
+def deja_lance():
+    """Un autre Prisme tient deja ce dossier : rouvre sa fenetre, sauf lancement sans fenetre (mise a jour)."""
+    if '--sans-fenetre' not in sys.argv:
+        ouvrir_fenetre()
+    fermer_demarrage(0)
+
+
 def commande_demarrage():
     """Commande qui lance Prisme normalement (sans --mcp), pour le serveur MCP quand Prisme n'est pas ouvert."""
     return [sys.executable] if EXE else [sys.executable, str(Path(__file__).resolve())]
@@ -2488,16 +2546,17 @@ def main():
                          creationflags=SANS_CONSOLE, cwd=str(Path(__file__).resolve().parent))
         return
 
+    if not prendre_instance():
+        return deja_lance()
     try:
         global SERVEUR_RESEAU
         SERVEUR_RESEAU = lire_reglages()['acces_reseau']
         hote = '0.0.0.0' if SERVEUR_RESEAU else '127.0.0.1'
         serveur = Serveur((hote, PORT), Gestionnaire)
     except OSError:
-        # Deja lance : on rouvre seulement la fenetre
-        ouvrir_fenetre()
-        fermer_demarrage(1.5)
-        return
+        # Port tenu par un Prisme qui ne s'est pas encore arrete (ou par un autre programme)
+        liberer_instance()
+        return deja_lance()
     if '--sans-fenetre' not in sys.argv:
         ouvrir_fenetre()
     fermer_demarrage(1.5 if '--sans-fenetre' not in sys.argv else 0)

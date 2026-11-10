@@ -461,6 +461,50 @@ class ModelesConseillesTest(unittest.TestCase):
             self.assertIn('installe', texte)
 
 
+class InstanceUniqueTest(unittest.TestCase):
+    """Un seul Prisme par dossier ; un second lancement ne cree jamais de deuxieme serveur ni de fenetre en trop."""
+
+    def tearDown(self):
+        serveur.liberer_instance()
+
+    def test_verrou_pris_une_seule_fois(self):
+        self.assertTrue(serveur.prendre_instance())
+        # Le meme dossier vu par un autre lancement : refuse (le mutex ou le verrou existe deja)
+        poignee = serveur._instance
+        serveur._instance = None
+        try:
+            self.assertFalse(serveur.prendre_instance())
+        finally:
+            serveur._instance = poignee
+        serveur.liberer_instance()
+        self.assertTrue(serveur.prendre_instance())
+
+    def test_nom_propre_au_dossier_et_au_port(self):
+        from unittest import mock
+        nom = serveur.nom_instance()
+        with mock.patch.object(serveur, 'PORT', serveur.PORT + 1):
+            self.assertNotEqual(serveur.nom_instance(), nom)
+
+    def lancer_main(self, argv, deja_pris=False, port_pris=False):
+        from unittest import mock
+        with mock.patch.object(serveur.sys, 'argv', ['serveur.py', *argv]), \
+                mock.patch.object(serveur, 'prendre_instance', return_value=not deja_pris), \
+                mock.patch.object(serveur, 'Serveur', side_effect=OSError if port_pris else AssertionError('serveur lance')), \
+                mock.patch.object(serveur, 'ouvrir_fenetre') as fenetre, mock.patch.object(serveur, 'fermer_demarrage'):
+            serveur.main()
+        return fenetre.called
+
+    def test_second_lancement(self):
+        # Avec --sans-fenetre (redemarrage d'une mise a jour) : jamais de fenetre ; sinon, celle du Prisme deja ouvert
+        self.assertFalse(self.lancer_main(['--sans-fenetre'], deja_pris=True))
+        self.assertTrue(self.lancer_main([], deja_pris=True))
+
+    def test_port_deja_pris(self):
+        # Cause B : avant 1.9.4, une fenetre s'ouvrait meme avec --sans-fenetre
+        self.assertFalse(self.lancer_main(['--sans-fenetre'], port_pris=True))
+        self.assertTrue(self.lancer_main([], port_pris=True))
+
+
 class ConnexionClaudeTest(unittest.TestCase):
     """Branchement de Prisme dans Claude Desktop, sur une configuration temporaire."""
 

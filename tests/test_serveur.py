@@ -477,11 +477,11 @@ class ArretDesMoteursTest(unittest.TestCase):
         dossier.mkdir(parents=True, exist_ok=True)
         if serveur.WINDOWS:
             programme = dossier / f'{nom}.exe'
-            shutil.copy2(Path(os.environ['SystemRoot']) / 'System32' / 'PING.EXE', programme)
+            shutil.copy(Path(os.environ['SystemRoot']) / 'System32' / 'PING.EXE', programme)
             commande = [str(programme), '-n', '60', '127.0.0.1']
         else:
             programme = dossier / nom
-            shutil.copy2(shutil.which('sleep'), programme)
+            shutil.copy(shutil.which('sleep'), programme)
             commande = [str(programme), '60']
         moteur = serveur.lancer_moteur(commande, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.addCleanup(lambda: moteur.poll() is None and moteur.kill())
@@ -546,7 +546,9 @@ class ArretDesMoteursTest(unittest.TestCase):
             moteur.wait(timeout=10)
 
     def test_chemin_d_un_processus(self):
-        self.assertEqual(Path(serveur.chemin_processus(os.getpid())).resolve(), Path(sys.executable).resolve())
+        moteur = self.faux_moteur()
+        self.assertEqual(Path(serveur.chemin_processus(moteur.pid)).resolve(), (serveur.RACINE / 'sd').resolve() /
+                         Path(serveur.chemin_processus(moteur.pid)).name)
         self.assertIsNone(serveur.chemin_processus(99999999))
 
 
@@ -875,7 +877,10 @@ class VersionTest(unittest.TestCase):
         """Lance pour de vrai le script de remplacement sur des fichiers temporaires ; la relance ecrit un temoin."""
         import subprocess
         dossier = Path(tempfile.mkdtemp(dir=DOSSIER_TEST.name))
-        cible, nouveau, temoin = dossier / 'Prisme.exe', dossier / '.prisme-maj-Prisme.exe', dossier / 'relance.txt'
+        # Le programme dans son propre dossier : sous Linux et Mac, c'est ce dossier qu'on met en lecture seule
+        programme = dossier / 'programme'
+        programme.mkdir()
+        cible, nouveau, temoin = programme / 'Prisme.exe', dossier / '.prisme-maj-Prisme.exe', dossier / 'relance.txt'
         cible.write_bytes(b'ancien')
         nouveau.write_bytes(b'nouveau')
         serveur.FICHIER_ECHEC_MAJ.unlink(missing_ok=True)
@@ -894,13 +899,13 @@ class VersionTest(unittest.TestCase):
             if serveur.WINDOWS:
                 verrou = open(cible, 'rb')  # ouvert sans partage de suppression : ni renommage ni remplacement
             else:
-                dossier.chmod(0o555)  # dossier en lecture seule : mv echoue
+                programme.chmod(0o555)  # dossier du programme en lecture seule : mv echoue
         try:
             subprocess.run(commande, capture_output=True, timeout=120)
         finally:
             if verrou:
                 verrou.close()
-            dossier.chmod(0o755)
+            programme.chmod(0o755)
         return cible, nouveau, temoin, script
 
     def test_remplacement_reel(self):
@@ -911,6 +916,7 @@ class VersionTest(unittest.TestCase):
         self.assertFalse(serveur.FICHIER_ECHEC_MAJ.exists())
         self.assertFalse(script.exists())
         self.assertFalse(list(cible.parent.glob('Prisme.exe.ancien*')))
+        self.assertFalse(list(cible.parent.parent.glob('Prisme.exe.ancien*')))
 
     @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0, 'root ignore les droits du dossier')
     def test_remplacement_impossible_signale(self):

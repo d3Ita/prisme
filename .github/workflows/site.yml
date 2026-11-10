@@ -47,10 +47,10 @@ jobs:
           mkdir -p _site/telechargements
           cp -r docs/. _site/
           gh release download --repo "$GITHUB_REPOSITORY" --dir _site/telechargements \
-            --pattern 'Prisme.exe' --pattern 'Prisme-macOS-arm64.zip' --pattern 'Prisme-Linux-x64.tar.gz'
+            --pattern 'Prisme.exe' --pattern 'Prisme-macOS-arm64.dmg' --pattern 'Prisme-macOS-arm64.zip' --pattern 'Prisme-Linux-x64.tar.gz'
           version=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
           echo "$version" > _site/telechargements/version.txt
-          ( cd _site/telechargements && sha256sum Prisme.exe Prisme-macOS-arm64.zip Prisme-Linux-x64.tar.gz > SHA256SUMS.txt )
+          ( cd _site/telechargements && sha256sum Prisme.exe Prisme-macOS-arm64.dmg Prisme-macOS-arm64.zip Prisme-Linux-x64.tar.gz > SHA256SUMS.txt )
           cat _site/telechargements/version.txt _site/telechargements/SHA256SUMS.txt
       - uses: actions/upload-pages-artifact@v3
         with:

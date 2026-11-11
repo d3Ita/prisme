@@ -14,6 +14,10 @@ These additions are in the Prisme 2.0 beta (`video` branch).
 - **Remove models from the app**: a delete button for each installed model in the models window (advanced mode), including files added by hand. Deleted for good, after a confirmation, to really free the space.
 - **Claude can make videos** with the new MCP tool `generate_video` (duration, quality, format, optional starting image), followed with `get_status`.
 
+### Changed
+
+- **License: GNU GPL version 3 (GPL-3.0-only) instead of MIT**, from version 2.0. Prisme stays free and open source, and every distributed version, modified or not, must stay under the GPL with its source code: nobody can turn it into closed software. Versions up to 1.9.x remain under the MIT license.
+
 ## [1.9.6] - 2026-11-11
 
 ### Fixed

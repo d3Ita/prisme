@@ -27,6 +27,8 @@ Put your models in `models/`; the app installs its engines on first launch. How 
 
 The tests run automatically on GitHub for every pull request.
 
+By sending a contribution, you agree that it is released under Prisme's license, the [GNU GPL version 3](LICENSE) (GPL-3.0-only).
+
 ## Questions, results and ideas
 
 Use [Discussions](https://github.com/d3Ita/prisme/discussions): **Q&A** for questions, **Show and tell** to share your images or how Prisme runs on your hardware, **Ideas** for suggestions before they become feature requests.

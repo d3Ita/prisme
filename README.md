@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/d3Ita/prisme/releases/latest"><img src="https://img.shields.io/github/v/release/d3Ita/prisme?label=version&color=6d5dfc" alt="Latest version"></a>
   <a href="https://github.com/d3Ita/prisme/actions/workflows/tests.yml"><img src="https://github.com/d3Ita/prisme/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-a855f7" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-a855f7" alt="GPL-3.0 license"></a>
   <br>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows 10 and 11">
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white" alt="macOS on Apple Silicon">
@@ -357,10 +357,10 @@ Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https:/
 ## FAQ
 
 **Is Prisme free?**
-Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits. The models it offers are free to download too.
+Yes. Prisme is free and open-source software under the GNU GPL version 3, with no account, no subscription and no credits. The models it offers are free to download too.
 
 **Can I use the images commercially?**
-With the profiles for your machine (FLUX.2 klein 4B, Qwen3 4B, Apache-2.0), yes. With the Qwen-Image options, no: their license only allows research or evaluation. Prisme itself (MIT) adds no restriction. You remain responsible for what your images show.
+With the profiles for your machine (FLUX.2 klein 4B, Qwen3 4B, Apache-2.0), yes. With the Qwen-Image options, no: their license only allows research or evaluation. Prisme's own license (GPL-3.0) covers the program, not the images you create: it adds no restriction on them. You remain responsible for what your images show.
 
 **Does it work offline?**
 Yes, once the engine and the models are downloaded. Image creation, editing and prompt enhancement all run on your computer. The only optional connection is a version check on GitHub at launch, which you can turn off.
@@ -390,8 +390,12 @@ Yes. Prisme follows your browser's language (English, or French for French brows
 
 Prisme is designed for legal and ethical use. Each user is solely responsible for the images they create, edit or share with Prisme, and must respect the law of their country and the rights and image of other people.
 
-The author of Prisme accepts no liability for any abusive, illegal or unethical use of the software. As stated in the [MIT license](LICENSE), Prisme is provided "as is", without warranty of any kind.
+The author of Prisme accepts no liability for any abusive, illegal or unethical use of the software. As stated in the [GNU GPL version 3](LICENSE) (sections 15 and 16), Prisme is provided "as is", without warranty of any kind.
 
 ## License
 
-Prisme is released under the [MIT license](LICENSE).
+Copyright (C) 2026 d3Ita.
+
+From version 2.0, Prisme is released under the [GNU General Public License version 3](LICENSE) (GPL-3.0-only): you can use, study, share and modify it, and any version you distribute, modified or not, must stay under the same license, with its source code. Nobody can turn Prisme into closed software. Versions up to 1.9.x were released under the MIT license and remain so.
+
+The engines Prisme installs (stable-diffusion.cpp, llama.cpp) and the models it downloads keep their own licenses.

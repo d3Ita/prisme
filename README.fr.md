@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/d3Ita/prisme/releases/latest"><img src="https://img.shields.io/github/v/release/d3Ita/prisme?label=version&color=6d5dfc" alt="Dernière version"></a>
   <a href="https://github.com/d3Ita/prisme/actions/workflows/tests.yml"><img src="https://github.com/d3Ita/prisme/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-a855f7" alt="Licence MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-GPL--3.0-a855f7" alt="Licence GPL-3.0"></a>
   <br>
   <img src="https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white" alt="Python 3.12 et 3.13">
   <img src="https://img.shields.io/badge/JavaScript-sans%20d%C3%A9pendance-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript sans dépendance">
@@ -383,10 +383,10 @@ Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Di
 ## Questions fréquentes
 
 **Prisme est-il gratuit ?**
-Oui. Prisme est open source sous licence MIT, sans compte, sans abonnement et sans crédits. Les modèles qu'il propose sont gratuits aussi.
+Oui. Prisme est un logiciel libre et open source sous licence GNU GPL version 3, sans compte, sans abonnement et sans crédits. Les modèles qu'il propose sont gratuits aussi.
 
 **Puis-je utiliser les images commercialement ?**
-Avec les profils de ta machine (FLUX.2 klein 4B, Qwen3 4B, licence Apache-2.0), oui. Avec les options Qwen-Image, non : leur licence n'autorise que la recherche ou l'évaluation. Prisme lui-même (MIT) n'ajoute aucune restriction. Tu restes responsable de ce que montrent tes images.
+Avec les profils de ta machine (FLUX.2 klein 4B, Qwen3 4B, licence Apache-2.0), oui. Avec les options Qwen-Image, non : leur licence n'autorise que la recherche ou l'évaluation. La licence de Prisme (GPL-3.0) couvre le programme, pas les images que tu crées : elle n'y ajoute aucune restriction. Tu restes responsable de ce que montrent tes images.
 
 **Est-ce que ça marche sans Internet ?**
 Oui, une fois le moteur et les modèles téléchargés. La création, la modification et l'amélioration des descriptions tournent sur ton ordinateur. La seule connexion facultative est la recherche d'une nouvelle version sur GitHub au lancement, qui se désactive.
@@ -413,8 +413,12 @@ Oui, sur le même Wi-Fi : voir [Téléphone](#téléphone).
 
 Prisme est conçu pour un usage légal et éthique. Chaque utilisateur est seul responsable des images qu'il crée, modifie ou partage avec Prisme, et doit respecter la loi de son pays ainsi que les droits et l'image des autres personnes.
 
-L'auteur de Prisme décline toute responsabilité en cas d'utilisation abusive, illégale ou contraire à l'éthique du logiciel. Comme l'indique la [licence MIT](LICENSE), Prisme est fourni « en l'état », sans aucune garantie.
+L'auteur de Prisme décline toute responsabilité en cas d'utilisation abusive, illégale ou contraire à l'éthique du logiciel. Comme l'indique la [licence GNU GPL version 3](LICENSE) (articles 15 et 16), Prisme est fourni « en l'état », sans aucune garantie.
 
 ## Licence
 
-Prisme est distribué sous licence [MIT](LICENSE).
+Copyright (C) 2026 d3Ita.
+
+À partir de la version 2.0, Prisme est distribué sous la [licence publique générale GNU version 3](LICENSE) (GPL-3.0-only) : tu peux l'utiliser, l'étudier, le partager et le modifier, et toute version distribuée, modifiée ou non, doit rester sous la même licence, avec son code source. Personne ne peut faire de Prisme un logiciel fermé. Les versions jusqu'à la 1.9.x ont été publiées sous licence MIT et le restent.
+
+Les moteurs que Prisme installe (stable-diffusion.cpp, llama.cpp) et les modèles qu'il télécharge gardent leur propre licence.

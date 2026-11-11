@@ -30,9 +30,13 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
+
+import agrandir
+import video
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.9.6'
+# Branche video : numero de beta, pour la distinguer de la version stable (une beta passe avant 2.0.0)
+VERSION = '2.0.0-beta.4'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
 PORT = int(os.environ.get('PRISME_PORT') or 7861)
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe
@@ -381,6 +385,13 @@ REGLAGES_DEFAUT = {
     'modele_texte': '',
     'modele_vision': '',
     'vae': '',
+    # Modele d'agrandissement (Real-ESRGAN) ; vide = celui du catalogue, s'il est dans le dossier models
+    'modele_agrandissement': '',
+    # Modeles de la creation de video (Prisme 2.0, en developpement)
+    'video_modele': '',
+    'video_texte': '',
+    'video_vae': '',
+    **video.DEFAUTS,
     'etapes': 20,
     'cfg': 4.0,
     'methode': 'euler',
@@ -481,7 +492,7 @@ def valider_reglages(donnees):
     r = lire_reglages()
     try:
         for cle in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae', 'amelioration_modele_local',
-                    'amelioration_vision_locale'):
+                    'amelioration_vision_locale', agrandir.CLE, *video.CLES):
             nom = str(donnees.get(cle, r[cle])).strip().replace('\\', '/')
             if nom and not chemin_relatif_sur(nom):
                 return None, 'Les modèles doivent être dans le dossier models.'
@@ -510,6 +521,7 @@ def valider_reglages(donnees):
             or CONSIGNE_MODIFICATION
         r['ollama_adresse'] = str(donnees.get('ollama_adresse', r['ollama_adresse'])).strip().rstrip('/')
         r['amelioration_moteur'] = str(donnees.get('amelioration_moteur', r['amelioration_moteur']))
+        erreur_video = video.lire_reglages(donnees, r)
         [float(x) for x in r['sigmas'].split(',') if r['sigmas']]
     except (TypeError, ValueError):
         return None, 'Une valeur est invalide.'
@@ -531,6 +543,8 @@ def valider_reglages(donnees):
         return None, 'La force d\'un LoRA doit être entre -2 et 2.'
     if not 1 <= r['arret_auto_minutes'] <= 24 * 60:
         return None, 'L\'arrêt automatique doit être entre 1 et 1440 minutes.'
+    if erreur_video:
+        return None, erreur_video
     return r, None
 
 
@@ -579,6 +593,34 @@ class _OperationFichier(ctypes.Structure):
     _fields_ = [('hwnd', ctypes.c_void_p), ('wFunc', ctypes.c_uint), ('pFrom', ctypes.c_wchar_p),
                 ('pTo', ctypes.c_wchar_p), ('fFlags', ctypes.c_ushort), ('fAnyOperationsAborted', ctypes.c_int),
                 ('hNameMappings', ctypes.c_void_p), ('lpszProgressTitle', ctypes.c_wchar_p)]
+
+
+def supprimer_modele(nom):
+    """Supprime definitivement un fichier du dossier models (et son telechargement partiel) pour liberer la place, puis
+    retire ce fichier des reglages qui le choisissaient. Renvoie la place liberee, en octets."""
+    nom = str(nom).replace('\\', '/')
+    fichier = MODELES / nom
+    if not chemin_relatif_sur(nom) or not fichier.is_file() or fichier.suffix.lower() not in EXTENSIONS_MODELES \
+            or LORAS in fichier.parents:
+        raise ValueError('Modèle introuvable dans le dossier models.')
+    with verrou_modeles:
+        if any(t['phase'] in ('attente', 'telechargement', 'verification') and MODELES_PAR_ID[i]['fichier'] == nom
+               for i, t in telechargements_modeles.items() if i in MODELES_PAR_ID):
+            raise RuntimeError('Ce modèle est en cours de téléchargement : arrête d\'abord le téléchargement.')
+    libere = fichier.stat().st_size
+    fichier.unlink()
+    partiel = MODELES / (nom + '.partiel')
+    if partiel.is_file():
+        libere += partiel.stat().st_size
+        partiel.unlink()
+    r = lire_reglages()
+    vides = {cle: '' for cle, valeur in r.items() if isinstance(valeur, str) and valeur == nom and cle in REGLAGES_DEFAUT
+             and REGLAGES_DEFAUT[cle] == ''}
+    if vides:
+        r.update(vides)
+        DONNEES.mkdir(exist_ok=True)
+        FICHIER_REGLAGES.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
+    return libere
 
 
 def mettre_a_la_corbeille(chemin):
@@ -725,9 +767,18 @@ def amelioration_active(r):
     return Path(r['amelioration_modele_local']).stem if r['amelioration_modele_local'] else ''
 
 
-def ameliorer_description(r, texte, image=None):
+def demande_sans_image(texte, pour_video=False):
+    """Ce que voit le modele de langage quand il ne voit pas l'image de depart."""
+    if pour_video:
+        return f"Vidéo à partir d'une image (l'image n'est pas visible) : {texte}"
+    return f"Demande de modification (l'image n'est pas visible) : {texte}"
+
+
+def ameliorer_description(r, texte, image=None, pour_video=False):
+    if pour_video:
+        r = video.reglages_amelioration(r)
     if r['amelioration_moteur'] == 'ollama':
-        return ameliorer_avec_ollama(r, texte, image)
+        return ameliorer_avec_ollama(r, texte, image, pour_video)
     consigne = r['amelioration_consigne_modif'] if image is not None else r['amelioration_consigne']
     contenu = texte
     if image is not None:
@@ -735,7 +786,7 @@ def ameliorer_description(r, texte, image=None):
             contenu = [{'type': 'text', 'text': texte},
                        {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,' + base64.b64encode(image).decode()}}]
         else:
-            contenu = f"Demande de modification (l'image n'est pas visible) : {texte}"
+            contenu = demande_sans_image(texte, pour_video)
     messages = [{'role': 'system', 'content': consigne}, {'role': 'user', 'content': contenu}]
     resultat = ''
     with MoteurTexte(r) as moteur:
@@ -748,7 +799,7 @@ def ameliorer_description(r, texte, image=None):
     return CARACTERES_CJK.sub('', resultat).strip()
 
 
-def ameliorer_avec_ollama(r, texte, image=None):
+def ameliorer_avec_ollama(r, texte, image=None, pour_video=False):
     """Avec une image de depart, produit une consigne de modification au lieu d'une nouvelle description."""
     message = {'role': 'user', 'content': texte}
     if image is not None:
@@ -756,7 +807,7 @@ def ameliorer_avec_ollama(r, texte, image=None):
         if modele_voit_les_images(r):
             message['images'] = [base64.b64encode(image).decode()]
         else:
-            message['content'] = f"Demande de modification (l'image n'est pas visible) : {texte}"
+            message['content'] = demande_sans_image(texte, pour_video)
     else:
         consigne = r['amelioration_consigne']
     resultat = ''
@@ -1005,7 +1056,9 @@ def etat_moteurs():
 # Modeles conseilles, telechargeables depuis Prisme : modeles officiels et generalistes, verifies par empreinte.
 # Le catalogue (fichiers et profils par machine) est dans app/modeles.json
 CATALOGUE = json.loads((RESSOURCES / 'modeles.json').read_text(encoding='utf-8'))
-ROLES_MODELES = {'image': 'Modèle de dessin', 'texte': 'Modèle de texte', 'edition': 'Vision', 'vae': 'VAE'}
+ROLES_MODELES = {'image': 'Modèle de dessin', 'texte': 'Modèle de texte', 'edition': 'Vision', 'vae': 'VAE',
+                 'video': 'Modèle vidéo', 'video_texte': 'Texte de la vidéo', 'video_vae': 'VAE vidéo',
+                 'agrandissement': 'Agrandissement'}
 MODELES_CONSEILLES = [
     m | {'role': ROLES_MODELES[m['role']], 'role_id': m['role'],
          'titre': f"{m['nom']} · {m['quantification']}" if m['quantification'] else m['nom'],
@@ -1419,7 +1472,7 @@ def demander_modele(ident):
 def etat_profils():
     """Profils de modeles, avec ce qui est deja telecharge et le profil suggere pour cette machine."""
     machine = profil_machine()
-    r = lire_reglages()
+    r = reglages_video(lire_reglages())
     profils = []
     for p in PROFILS:
         fichiers = [MODELES_PAR_ID[i] for i in p['modeles']]
@@ -1449,7 +1502,9 @@ def etat_modeles_conseilles():
                    for m in MODELES_CONSEILLES]
     MODELES.mkdir(parents=True, exist_ok=True)
     # Le moteur de texte (pour Ameliorer) est propose dans la meme fenetre
-    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs(),
+    du_catalogue = {m['fichier'] for m in MODELES_CONSEILLES}
+    autres = [m for m in lister_modeles() if m['nom'] not in du_catalogue]
+    return {'modeles': modeles, 'autres': autres, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs(),
             'profils': profils['profils'], 'suggestion': profils['suggestion'], 'conseille': profils['conseille']}
 
 
@@ -1932,6 +1987,133 @@ def generer(params):
             etat['fin'] = time.time()
 
 
+def generer_video(params):
+    """Une video avec le mode video de sd-cli (app/video.py). Partage l'etat, l'annulation et le moteur des images :
+    une seule creation a la fois sur la carte graphique."""
+    global processus
+    source_temp = None
+    v, r = params['video'], params['reglages']
+    try:
+        source = None
+        if params.get('source_nom'):
+            nom = params['source_nom']
+            if NOM_IMAGE.match(nom) and (IMAGES / nom).exists():
+                source = IMAGES / nom
+        elif params.get('source_data'):
+            _, _, donnees = params['source_data'].partition(',')
+            fd, chemin = tempfile.mkstemp(prefix='prisme_source_', suffix='.png')
+            with os.fdopen(fd, 'wb') as f:
+                f.write(base64.b64decode(donnees))
+            source = source_temp = Path(chemin)
+        sortie = video.nouveau_chemin(IMAGES_CLAUDE if params.get('claude') else IMAGES)
+
+        def lancer(commande):
+            global processus
+            processus = lancer_moteur(commande, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
+            return processus
+
+        def rapporter(**champs):
+            with verrou:
+                etat.update(champs)
+
+        debut = time.time()
+        # Comme pour les images : de la memoire de carte graphique reste a l'affichage
+        commande = [str(SD_CLI)] + video.arguments(r, MODELES, v, params['seed'], source, sortie, fils_calcul()) \
+            + options_reserve_sd(r)
+        code, erreurs = video.executer(commande, lancer, rapporter, lambda: annule, video.etapes(r))
+        if annule:
+            sortie.unlink(missing_ok=True)
+        elif code != 0 or not sortie.exists():
+            with verrou:
+                etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
+        else:
+            details = video.details_a_enregistrer(v, params['seed'], source, time.time() - debut)
+            video.chemin_details(sortie).write_text(json.dumps(details, ensure_ascii=False), encoding='utf-8')
+            with verrou:
+                etat['resultats'].append(sortie.name)
+    except Exception as e:
+        with verrou:
+            etat['erreur'] = str(e)
+    finally:
+        processus = None
+        if source_temp:
+            source_temp.unlink(missing_ok=True)
+        with verrou:
+            etat['occupe'] = False
+            etat['phase'] = 'annule' if annule else ('erreur' if etat.get('erreur') else 'termine')
+            etat['fin'] = time.time()
+
+
+def reglages_video(r):
+    """Reglages avec les modeles video du catalogue deja presents dans models, s'ils n'ont pas ete choisis."""
+    connus = {cle: [m['fichier'] for m in MODELES_CONSEILLES if cle in m['remplit']] for cle in video.CLES}
+    return video.completer(r, MODELES, connus)
+
+
+def profil_video_machine():
+    """Profil video propose a ce type de machine (PC ou Mac), ou None."""
+    return next((p['id'] for p in PROFILS if p['categorie'] == 'video' and p['cible']['type'] == ('mac' if MAC else 'pc')), None)
+
+
+# Agrandissement : le modele choisi dans les reglages, ou celui du catalogue s'il est dans le dossier models
+AGRANDISSEMENT = next(m for m in MODELES_CONSEILLES if m['role_id'] == 'agrandissement')
+
+
+def modele_agrandissement(r):
+    nom = r.get(agrandir.CLE) or AGRANDISSEMENT['fichier']
+    return MODELES / nom if chemin_relatif_sur(nom) and (MODELES / nom).is_file() else None
+
+
+def generer_agrandissement(params):
+    """Agrandit une image de la galerie x4 dans une nouvelle image ; meme etat, meme annulation que les creations."""
+    global processus
+    source, sortie = params['source'], params['sortie']
+
+    def lancer(commande):
+        global processus
+        processus = lancer_moteur(commande, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
+        return processus
+
+    def rapporter(**champs):
+        with verrou:
+            etat.update(champs)
+
+    try:
+        commande = [str(SD_CLI)] + agrandir.arguments(params['modele'], source, sortie) + options_reserve_sd(params['reglages'])
+        code, erreurs = agrandir.executer(commande, lancer, rapporter, lambda: annule)
+        if annule:
+            sortie.unlink(missing_ok=True)
+        elif code != 0 or not sortie.exists():
+            with verrou:
+                etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
+        else:
+            agrandir.copier_description(source, sortie)
+            with verrou:
+                etat['resultats'].append(sortie.name)
+    except Exception as e:
+        with verrou:
+            etat['erreur'] = str(e)
+    finally:
+        processus = None
+        with verrou:
+            etat['occupe'] = False
+            etat['phase'] = 'annule' if annule else ('erreur' if etat.get('erreur') else 'termine')
+            etat['fin'] = time.time()
+
+
+def lister_videos():
+    if not IMAGES.exists():
+        return []
+    resultat = []
+    for chemin in sorted(IMAGES.glob('video_*.webm'), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            details = json.loads(video.chemin_details(chemin).read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            details = None
+        resultat.append(video.infos(chemin, details))
+    return resultat
+
+
 # Permet d'installer Prisme comme une application (ecran d'accueil du telephone, fenetre du PC) avec son logo
 MANIFESTE = json.dumps({
     'name': 'Prisme', 'short_name': 'Prisme', 'start_url': '/', 'display': 'standalone',
@@ -2125,6 +2307,38 @@ class Gestionnaire(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corps)
 
+    def envoyer_video(self, fichier):
+        """Une video, entiere ou par morceaux (en-tete Range) : sans morceaux, le navigateur ne sait pas aller a un
+        moment de la video et la lecture repart du debut quand on deplace le curseur."""
+        taille = fichier.stat().st_size
+        debut, fin, code = 0, taille - 1, 200
+        demande = re.fullmatch(r'bytes=(\d*)-(\d*)', (self.headers.get('Range') or '').strip())
+        if demande and (demande.group(1) or demande.group(2)):
+            if demande.group(1):
+                debut = int(demande.group(1))
+                fin = min(int(demande.group(2)), taille - 1) if demande.group(2) else taille - 1
+            else:  # bytes=-n : les n derniers octets
+                debut = max(0, taille - int(demande.group(2)))
+            if debut > fin or debut >= taille:
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{taille}')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+            code = 206
+        with open(fichier, 'rb') as f:
+            f.seek(debut)
+            corps = f.read(fin - debut + 1)
+        self.send_response(code)
+        self.send_header('Content-Type', 'video/webm')
+        self.send_header('Accept-Ranges', 'bytes')
+        if code == 206:
+            self.send_header('Content-Range', f'bytes {debut}-{fin}/{taille}')
+        self.send_header('Content-Length', str(len(corps)))
+        self.send_header('Cache-Control', 'max-age=31536000, immutable')
+        self.end_headers()
+        self.wfile.write(corps)
+
     def envoyer(self, code, corps, type_contenu='application/json; charset=utf-8', cache=False):
         if not isinstance(corps, bytes):
             corps = json.dumps(corps, ensure_ascii=False).encode('utf-8')
@@ -2192,6 +2406,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
                                'loras': lister_loras(), 'dossier_loras': str(LORAS)})
         elif chemin == '/api/images':
             self.envoyer(200, lister_images())
+        elif chemin == '/api/videos':
+            self.envoyer(200, lister_videos())
         elif chemin == '/api/modeles-conseilles':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -2232,6 +2448,10 @@ class Gestionnaire(BaseHTTPRequestHandler):
             copie['problemes'] = problemes_configuration(r)
             copie['amelioration'] = {'modele': amelioration_active(r), 'auto': r['amelioration_auto']}
             copie['moteurs'] = etat_moteurs()
+            copie['agrandissement'] = {'pret': modele_agrandissement(r) is not None, 'id': AGRANDISSEMENT['id'],
+                                       'taille': AGRANDISSEMENT['taille'], 'licence': AGRANDISSEMENT['licence']['nom']}
+            # Le choix Image / Video : pret quand les fichiers video sont la ; sinon, sur le PC, il ouvre le profil video
+            copie['video'] = {'pret': not video.fichiers_manquants(reglages_video(r), MODELES), 'profil': profil_video_machine()}
             if self.est_local():
                 with verrou_demandes:
                     copie['demandes'] = [{'id': i, 'ip': d['ip'], 'appareil': d['appareil'], 'code': d['code']}
@@ -2267,6 +2487,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             fichier = (IMAGES_CLAUDE if claude else IMAGES) / nom
             if NOM_IMAGE.match(nom) and fichier.exists():
                 self.envoyer(200, fichier.read_bytes(), 'image/png', cache=True)
+            elif video.NOM_VIDEO.match(nom) and fichier.exists():
+                self.envoyer_video(fichier)
             else:
                 self.envoyer(404, {'erreur': 'Image introuvable'})
         else:
@@ -2344,6 +2566,65 @@ class Gestionnaire(BaseHTTPRequestHandler):
             threading.Thread(target=generer, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
 
+        elif chemin == '/api/agrandir':
+            nom = str(self.lire_json().get('nom') or '')
+            if not NOM_IMAGE.match(nom) or not (IMAGES / nom).is_file():
+                return self.envoyer(404, {'erreur': 'Image introuvable.'})
+            if self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Les images de Prisme ne sont pas accessibles à Claude.'})
+            r = lire_reglages()
+            modele = modele_agrandissement(r)
+            if not modele:
+                return self.envoyer(409, {'erreur': 'Télécharge d\'abord le modèle d\'agrandissement.', 'telecharger': AGRANDISSEMENT['id']})
+            taille = agrandir.taille_png(IMAGES / nom)
+            if not taille or max(taille) > agrandir.COTE_MAX_SOURCE:
+                return self.envoyer(400, {'erreur': f'Image trop grande pour être agrandie (plus de {agrandir.COTE_MAX_SOURCE} pixels de côté).'})
+            sortie = nouveau_chemin(IMAGES)
+            with verrou:
+                if etat['occupe']:
+                    return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
+                if amelioration_en_cours.locked():
+                    return self.envoyer(409, {'erreur': 'Attends la fin de l\'amélioration de la description.'})
+                annule = False
+                etat.clear()
+                etat.update(occupe=True, genre='agrandissement', phase='chargement', etape=0, total=0, index=1, nombre=1,
+                            debut=time.time(), resultats=[], erreur=None, source=nom, claude=False,
+                            largeur=taille[0] * agrandir.FACTEUR, hauteur=taille[1] * agrandir.FACTEUR)
+            params = dict(source=IMAGES / nom, sortie=sortie, modele=modele, reglages=r)
+            threading.Thread(target=generer_agrandissement, args=(params,), daemon=True).start()
+            self.envoyer(200, {'largeur': taille[0] * agrandir.FACTEUR, 'hauteur': taille[1] * agrandir.FACTEUR})
+
+        elif chemin == '/api/video':
+            try:
+                p = self.lire_json()
+            except (ValueError, json.JSONDecodeError):
+                return self.envoyer(400, {'erreur': 'Paramètres invalides.'})
+            v, erreur = video.valider(p)
+            if erreur:
+                return self.envoyer(400, {'erreur': erreur})
+            # Claude cree ses videos dans images-claude, comme ses images, et ne nomme jamais une image de Prisme
+            claude = self.vient_du_mcp()
+            r = reglages_video(lire_reglages())
+            manquants = video.fichiers_manquants(r, MODELES)
+            if manquants:
+                return self.envoyer(409, {'erreur': 'Télécharge d\'abord le profil vidéo dans la fenêtre des modèles.',
+                                          'manquants': manquants})
+            seed = random.randint(0, 2**31 - 1) if v['seed'] is None else v['seed']
+            with verrou:
+                if etat['occupe']:
+                    return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
+                if amelioration_en_cours.locked():
+                    return self.envoyer(409, {'erreur': 'Attends la fin de l\'amélioration de la description.'})
+                annule = False
+                etat.clear()
+                etat.update(occupe=True, genre='video', phase='chargement', etape=0, total=video.etapes(r), total_decodage=0,
+                            index=1, nombre=1, seed=seed, seed_base=seed, debut=time.time(), resultats=[], erreur=None,
+                            largeur=v['largeur'], hauteur=v['hauteur'], duree=v['duree'], prompt=v['prompt'], claude=claude)
+            params = dict(video=v, seed=seed, reglages=r, source_nom=None if claude else p.get('source_nom'),
+                          source_data=p.get('source_data'), claude=claude)
+            threading.Thread(target=generer_video, args=(params,), daemon=True).start()
+            self.envoyer(200, {'seed': seed})
+
         elif chemin == '/api/ameliorer':
             r = lire_reglages()
             donnees = self.lire_json()
@@ -2364,7 +2645,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if etat.get('occupe') or not amelioration_en_cours.acquire(blocking=False):
                 return self.envoyer(409, {'erreur': 'Attends la fin du calcul en cours.'})
             try:
-                self.envoyer(200, {'prompt': ameliorer_description(r, texte, image), 'modification': image is not None})
+                pour_video = donnees.get('genre') == 'video'
+                self.envoyer(200, {'prompt': ameliorer_description(r, texte, image, pour_video), 'modification': image is not None})
             except RuntimeError as e:
                 self.envoyer(502, {'erreur': str(e)})
             finally:
@@ -2430,6 +2712,22 @@ class Gestionnaire(BaseHTTPRequestHandler):
                     if ident in telechargements_modeles:
                         telechargements_modeles[ident]['annule'] = True
             self.envoyer(200, {})
+
+        elif chemin == '/api/supprimer-modele':
+            # Seulement depuis la fenetre de Prisme sur le PC : ni le telephone, ni Claude ne suppriment de modele
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme sur le PC.'})
+            with verrou:
+                occupe = etat.get('occupe')
+            if occupe or amelioration_en_cours.locked():
+                return self.envoyer(409, {'erreur': 'Attends la fin du calcul en cours avant de supprimer un modèle.'})
+            try:
+                libere = supprimer_modele(self.lire_json().get('nom') or '')
+            except ValueError as e:
+                return self.envoyer(404, {'erreur': str(e)})
+            except (RuntimeError, OSError) as e:
+                return self.envoyer(409, {'erreur': str(e)})
+            self.envoyer(200, {'libere': libere})
 
         elif chemin == '/api/demander-telechargement':
             # Claude demande un telechargement qui demande l'accord de l'utilisateur dans la fenetre de Prisme
@@ -2513,10 +2811,14 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
         elif chemin == '/api/supprimer':
             nom = str(self.lire_json().get('nom') or '')
-            if not NOM_IMAGE.match(nom) or not (IMAGES / nom).exists():
+            est_video = bool(video.NOM_VIDEO.match(nom))
+            if not (NOM_IMAGE.match(nom) or est_video) or not (IMAGES / nom).exists():
                 return self.envoyer(404, {'erreur': 'Image introuvable.'})
             if not mettre_a_la_corbeille(IMAGES / nom):
                 return self.envoyer(500, {'erreur': 'Impossible de mettre l\'image à la corbeille.'})
+            if est_video:
+                # Les details de la video (description, variante) ne servent plus sans elle
+                video.chemin_details(IMAGES / nom).unlink(missing_ok=True)
             cache_infos.pop(nom, None)
             self.envoyer(200, {})
 
@@ -2556,7 +2858,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             nom = str(self.lire_json().get('nom') or '')
             IMAGES.mkdir(exist_ok=True)
-            ouvrir_dossier(IMAGES, IMAGES / nom if NOM_IMAGE.match(nom) and (IMAGES / nom).exists() else None)
+            connu = (NOM_IMAGE.match(nom) or video.NOM_VIDEO.match(nom)) and (IMAGES / nom).exists()
+            ouvrir_dossier(IMAGES, IMAGES / nom if connu else None)
             self.envoyer(200, {})
         else:
             self.envoyer(404, {'erreur': 'Introuvable'})

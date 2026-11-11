@@ -19,7 +19,7 @@ flowchart LR
     end
 
     subgraph Moteurs["Engines, installed by Prisme"]
-        SD["stable-diffusion.cpp<br/>sd-cli, one run per image"]
+        SD["stable-diffusion.cpp<br/>sd-cli, one run per image,<br/>video or enlargement"]
         LL["llama.cpp<br/>llama-server, only during Enhance"]
     end
 
@@ -31,7 +31,7 @@ flowchart LR
     SRV -. "optional" .-> OLL["Ollama"]
 
     MOD[("models/<br/>.gguf, .safetensors<br/>loras/")]
-    IMG[("images/<br/>PNG + prompt and seed")]
+    IMG[("images/<br/>PNG + prompt and seed,<br/>WebM videos + details")]
     REG[("app/reglages.json<br/>settings")]
 
     SD -- "reads" --> MOD
@@ -47,6 +47,9 @@ flowchart LR
 - **The interface** is a single HTML page (`app/index.html`, no dependency) opened in a browser window. It only talks to the local server, with JSON requests.
 - **The server** (`app/serveur.py`) uses the Python standard library only. It listens on `127.0.0.1:7861` (`PRISME_PORT` changes the port), checks every request (host name, origin, access code for other devices), keeps the settings and drives the engines.
 - **Creating or editing an image** starts `sd-cli` from stable-diffusion.cpp once per image, with the drawing model, the text model, the VAE and, for an edit, the vision file. The server reads its progress from the console output, and `sd-cli` writes a PNG to `images/` with the prompt and seed in its metadata.
+- **A video** (Prisme 2.0, beta) also starts `sd-cli`, in its video mode (`-M vid_gen`), with Wan 2.2: the model, its UMT5-XXL text encoder and its VAE, which decodes in tiles. `app/video.py` builds the command and reads the two-step progress (creation, then the decoded tiles); the WebM goes to `images/` with a `.json` file holding its description, size and duration.
+- **Enlarging** an image starts `sd-cli` in upscale mode (`-M upscale`) with Real-ESRGAN x4 (`app/agrandir.py`), then copies the original image's description into the new, larger PNG.
+- **The display stays usable**: every engine leaves 1.5 GB of the graphics card free for the screen (`--max-vram -1.5` for sd-cli, `--fit` with a margin for llama-server), unless **Keep the PC usable** is turned off.
 - **Enhance** starts `llama-server` from llama.cpp on a free local port, sends it the description (and the starting image if the model can see), then stops it to free the graphics card. Ollama can be used instead.
 - **Downloads** happen only when you ask: the engines come from pinned official GitHub releases and the models from Hugging Face, and every file is checked against its SHA-256. The only automatic request is the version check at launch, which can be turned off.
 - **The phone** connects to the same server over the local network, only if phone access is turned on and the device is approved on the PC.
@@ -65,6 +68,9 @@ Le schéma ci-dessus montre les mêmes éléments : le navigateur du PC et, si t
 - **L'interface** est une seule page HTML (`app/index.html`, sans dépendance) ouverte dans une fenêtre de navigateur. Elle ne parle qu'au serveur local, par des requêtes JSON.
 - **Le serveur** (`app/serveur.py`) n'utilise que la bibliothèque standard de Python. Il écoute sur `127.0.0.1:7861` (`PRISME_PORT` change le port), contrôle chaque requête (nom d'hôte, origine, code d'accès pour les autres appareils), garde les réglages et pilote les moteurs.
 - **Créer ou modifier une image** lance `sd-cli` (stable-diffusion.cpp) une fois par image, avec le modèle de dessin, le modèle de texte, le VAE et, pour une modification, le fichier de vision. Le serveur suit l'avancement dans la sortie de la console, et `sd-cli` écrit un PNG dans `images/` avec la description et la graine dans ses métadonnées.
+- **Une vidéo** (Prisme 2.0, bêta) lance aussi `sd-cli`, dans son mode vidéo (`-M vid_gen`), avec Wan 2.2 : le modèle, son encodeur de texte UMT5-XXL et son VAE, qui décode par morceaux. `app/video.py` construit la commande et lit l'avancement en deux temps (création, puis morceaux décodés) ; le WebM va dans `images/` avec un fichier `.json` qui garde sa description, sa taille et sa durée.
+- **Agrandir** une image lance `sd-cli` en mode agrandissement (`-M upscale`) avec Real-ESRGAN ×4 (`app/agrandir.py`), puis recopie la description de l'image d'origine dans le nouveau PNG, plus grand.
+- **L'écran reste utilisable** : chaque moteur laisse 1,5 Go de la carte graphique libre pour l'affichage (`--max-vram -1.5` pour sd-cli, `--fit` avec une marge pour llama-server), sauf si **Garder le PC utilisable** est désactivé.
 - **Améliorer** lance `llama-server` (llama.cpp) sur un port local libre, lui envoie la description (et l'image de départ si le modèle sait voir), puis l'arrête pour libérer la carte graphique. Ollama peut le remplacer.
 - **Les téléchargements** n'ont lieu qu'à ta demande : les moteurs viennent des versions officielles épinglées sur GitHub, les modèles de Hugging Face, et chaque fichier est vérifié par son empreinte SHA-256. La seule requête automatique est la recherche de nouvelle version au lancement, qui se désactive.
 - **Le téléphone** se connecte au même serveur par le réseau local, seulement si l'accès depuis le téléphone est activé et que l'appareil est autorisé sur le PC.

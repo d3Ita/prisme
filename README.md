@@ -5,14 +5,14 @@
 <h1 align="center">Prisme</h1>
 
 <p align="center">
-  <strong>A free, open-source local AI image generator for Windows, macOS and Linux.</strong><br>
-  Create and edit images on your own computer: no cloud, no subscription, no complicated setup.
+  <strong>A free, open-source local AI image and video generator for Windows, macOS and Linux.</strong><br>
+  Create, edit and enlarge images, and make short videos, on your own computer: no cloud, no subscription, no complicated setup.
 </p>
 
 <p align="center">
   <a href="https://github.com/d3Ita/prisme/releases/latest"><img src="https://img.shields.io/github/v/release/d3Ita/prisme?label=version&color=6d5dfc" alt="Latest version"></a>
   <a href="https://github.com/d3Ita/prisme/actions/workflows/tests.yml"><img src="https://github.com/d3Ita/prisme/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-a855f7" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-a855f7" alt="GPL-3.0 license"></a>
   <br>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows 10 and 11">
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white" alt="macOS on Apple Silicon">
@@ -32,6 +32,7 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#features">Features</a> ·
   <a href="#choosing-models-for-your-machine">Models</a> ·
+  <a href="#video-beta">Video</a> ·
   <a href="#phone-access">Phone access</a> ·
   <a href="#using-prisme-with-claude-via-mcp">Claude (MCP)</a> ·
   <a href="#security">Security</a> ·
@@ -71,6 +72,8 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Create** images from a description, 1 to 4 per run
 - **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
 - **Edit** an existing image: click **Edit** (Modifier) under a result, or drag, paste or attach any picture
+- **Make short videos** (beta, Prisme 2.0): 1 to 5 seconds from a description or from an image, in 480p or 720p, with the open Wan 2.2 model (see [Video](#video-beta))
+- **Enlarge** a finished image 4 times with Real-ESRGAN: one click under the image, details stay sharp
 - **Formats**: square, landscape, portrait, or the starting image's proportions
 - **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
@@ -79,6 +82,8 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Phone access** on the same Wi-Fi: type the address, approve the device on the PC
 - **Automatic engine install** on first launch, from pinned official releases verified by SHA-256: CUDA for NVIDIA cards, Vulkan for AMD and Intel
 - **Model downloads in the app**: one click fetches the recommended official models, resumes if interrupted and checks each file
+- **Remove models in the app**: free disk space from the models window, without opening the `models` folder
+- **Keeps the PC usable** during a creation: the engines leave 1.5 GB of the graphics card to the display, so the screen doesn't freeze
 
 ## Screenshots
 
@@ -123,6 +128,8 @@ Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), 
 | Same card with the Vulkan engine | 32 GB | Same models | About 50 s for a creation, model loading included |
 | NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | FLUX.2 klein 4B Q8_0, Qwen3 4B Q8_0 (12 GB card profile) | Creation 8 to 10 s, edit 10 to 12 s at 1024 × 768 |
 | Apple M3, 18 GB of unified memory (Metal, macOS) | 18 GB (shared) | Full set (before light versions were recommended on Mac) | About 5 minutes for a creation, model loading included |
+| NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | Video: Wan 2.2 TI2V 5B Q8_0 (video profile, beta) | 2 s of video: about 2 min in 480p, 4 min in 720p |
+| Same card | 32 GB | Real-ESRGAN x4plus | Enlarging 1280 × 704 to 5120 × 2816: 14 s |
 
 Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text model and keep **Offload to the CPU** (Décharger sur le processeur) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
@@ -205,6 +212,10 @@ The **12 GB card** profile is tested: creation in 8 to 10 s and edit in 10 to 12
 
 Before downloading a Qwen-Image profile, Prisme asks you to accept its license; the server refuses the download otherwise. The catalog, with every file's link, size, SHA-256 and license, is in [`app/modeles.json`](app/modeles.json).
 
+**Video (beta)** has its own section in the models window: the **Video, 12 GB card** profile downloads [Wan 2.2 TI2V 5B](https://huggingface.co/QuantStack/Wan2.2-TI2V-5B-GGUF) Q8_0, its UMT5-XXL text encoder and its VAE (12.9 GB, Apache-2.0). **Enlarging** uses [Real-ESRGAN x4plus](https://huggingface.co/Comfy-Org/Real-ESRGAN) (67 MB, BSD-3-Clause), downloaded the first time you click **Enlarge**.
+
+**Removing a model**: in the models window, **Choose or delete models one by one (advanced mode)** shows a delete button next to each installed file, including the ones you added by hand. The file is deleted for good (not moved to the trash, so the space is really freed), after a confirmation.
+
 ### Qwen-Image 2.1 Turbo by hand
 
 If you prefer to download Qwen-Image 2.1 Turbo yourself (after reading [its license](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE)):
@@ -235,6 +246,19 @@ A short prompt ("a cat on a roof at night") usually gives a weaker image than a 
 
 With a starting image, the model looks at the picture and writes an edit instruction that only describes what changes. The language model runs only for the time of the request, then frees the GPU for generation. If you already use [Ollama](https://ollama.com), you can select it instead.
 
+## Video (beta)
+
+Prisme 2.0, in beta, makes short videos with [Wan 2.2 TI2V 5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) (Apache-2.0), through stable-diffusion.cpp's video mode.
+
+![Prisme video demo: the Video tab, a short idea enhanced for Wan, two-step progress, then the video playing in the feed](docs/demo-video.gif)
+
+1. Open the models window and download the **Video, 12 GB card (beta)** profile (12.9 GB). Wan files you already have in `models` are used without downloading them again.
+2. Choose **Video** in the tabs above the description.
+3. Describe the subject, what moves and the camera ("a red fox trotting through snow, slow tracking shot"). **Enhance** rewrites it the way Wan understands best. Add a picture to animate it.
+4. Choose the duration (1 to 5 s, by half second), the quality (480p, or 720p twice as slow) and the format, then **Create**.
+
+The video (WebM, 24 frames per second, no sound) appears in the feed and loops. Progress shows in two steps: creating the video, then assembling the frames. On an RTX 4070 SUPER with 12 GB, 2 seconds take about 2 minutes in 480p and 4 minutes in 720p. Steps, CFG and the **Enhance** instructions for video are in **Settings → Video**. Wan 2.2 5B needs a 12 GB graphics card; other machines don't get the video tab yet.
+
 ## Phone access
 
 Network access is **off by default**. Turn it on in **Settings → Application → Phone access** (Réglages → Application → Accès depuis le téléphone), restart Prisme and allow it through your firewall if your system asks. The **Phone** (Téléphone) button then shows the address to type, for example `192.168.1.22:7861`.
@@ -254,6 +278,7 @@ If Claude Desktop or Claude Code is installed on your computer, Prisme offers **
 Claude can then:
 
 - **create and edit images** (`generate_image`, `edit_image`), and follow long ones (`get_status`);
+- **make short videos** (`generate_video`, beta): 1 to 5 s, optionally from an image. A video takes a few minutes: Claude gets a `task_id`, then the path of the `.webm` file through `get_status`;
 - **set Prisme up**: see the profile recommended for your machine (`list_profiles`), install the engines (`install_engine`) and download a profile (`download_profile`);
 - **download another model** that you name (`download_model`, a `.gguf` or `.safetensors` link).
 
@@ -305,12 +330,16 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | `app/modeles.json` | Catalog of downloadable models and profiles by hardware |
 | `app/icone.py` | Program icon and splash screen, made from the logo |
 | `app/mcp_prisme.py` | MCP server built into Prisme (`--mcp`), standard library only |
+| `app/video.py` | Video creation with Wan 2.2: engine command, sizes, progress (beta) |
+| `app/agrandir.py` | Enlarging an image with Real-ESRGAN |
 | `mcp/` | MCP README, and a launcher for developers |
 | `construire.py` | Builds Prisme for the current system |
 | `construire.ps1` | Prepares a Python environment on Windows, then runs `construire.py` |
 | `tests/test_serveur.py` | Server tests |
 | `tests/test_mcp.py` | MCP server tests, against a fake Prisme |
 | `tests/test_protocole_mcp.py` | The MCP server with the official MCP client (run when the `mcp` package is installed) |
+| `tests/test_video.py`, `tests/test_agrandir.py`, `tests/test_supprimer_modele.py` | Video, enlarging and model removal, with a fake engine |
+| `tests/test_interface.py` | Checks that every script of the interface is valid JavaScript (with Node.js, if installed) |
 | `docs/architecture.md` | Architecture diagram and explanation |
 
 ## Roadmap
@@ -320,16 +349,18 @@ Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https:/
 - ~~**Model profiles by hardware**~~: done in 1.9.0 (see [Choosing models for your machine](#choosing-models-for-your-machine)).
 - ~~**MCP server for Claude**~~: done in 1.9.0 (see [Using Prisme with Claude via MCP](#using-prisme-with-claude-via-mcp)).
 - **Faster successive images**: keep the models loaded between two creations instead of loading them each time.
-- **Remove models from the app**: free disk space without opening the `models` folder.
-- **Upscaling**: enlarge a finished image.
+- ~~**Remove models from the app**~~: done in 2.0 (see [Choosing models for your machine](#choosing-models-for-your-machine)).
+- ~~**Upscaling**~~: done in 2.0, with Real-ESRGAN x4.
+- ~~**Video**~~: in beta for 2.0 (see [Video](#video-beta)), also from Claude.
+- **Video on smaller cards and on Mac**: profiles to measure before offering them.
 
 ## FAQ
 
 **Is Prisme free?**
-Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits. The models it offers are free to download too.
+Yes. Prisme is free and open-source software under the GNU GPL version 3, with no account, no subscription and no credits. The models it offers are free to download too.
 
 **Can I use the images commercially?**
-With the profiles for your machine (FLUX.2 klein 4B, Qwen3 4B, Apache-2.0), yes. With the Qwen-Image options, no: their license only allows research or evaluation. Prisme itself (MIT) adds no restriction. You remain responsible for what your images show.
+With the profiles for your machine (FLUX.2 klein 4B, Qwen3 4B, Apache-2.0), yes. With the Qwen-Image options, no: their license only allows research or evaluation. Prisme's own license (GPL-3.0) covers the program, not the images you create: it adds no restriction on them. You remain responsible for what your images show.
 
 **Does it work offline?**
 Yes, once the engine and the models are downloaded. Image creation, editing and prompt enhancement all run on your computer. The only optional connection is a version check on GitHub at launch, which you can turn off.
@@ -339,6 +370,9 @@ A graphics card with 8 GB of video memory or more: NVIDIA (CUDA) or AMD and Inte
 
 **Which models does it support?**
 Models that stable-diffusion.cpp can run with an LLM text encoder, in GGUF or safetensors format, plus LoRA. Prisme downloads a set suited to your machine: see [Choosing models for your machine](#choosing-models-for-your-machine).
+
+**Can it make videos?**
+Yes, in the 2.0 beta: 1 to 5 seconds from a description or an image, with Wan 2.2 (Apache-2.0), on a 12 GB graphics card. See [Video](#video-beta).
 
 **Is it an alternative to ComfyUI?**
 For creating and editing images from a description, yes, with a much simpler interface. For complex multi-step workflows, ComfyUI stays more powerful.
@@ -356,8 +390,12 @@ Yes. Prisme follows your browser's language (English, or French for French brows
 
 Prisme is designed for legal and ethical use. Each user is solely responsible for the images they create, edit or share with Prisme, and must respect the law of their country and the rights and image of other people.
 
-The author of Prisme accepts no liability for any abusive, illegal or unethical use of the software. As stated in the [MIT license](LICENSE), Prisme is provided "as is", without warranty of any kind.
+The author of Prisme accepts no liability for any abusive, illegal or unethical use of the software. As stated in the [GNU GPL version 3](LICENSE) (sections 15 and 16), Prisme is provided "as is", without warranty of any kind.
 
 ## License
 
-Prisme is released under the [MIT license](LICENSE).
+Copyright (C) 2026 d3Ita.
+
+From version 2.0, Prisme is released under the [GNU General Public License version 3](LICENSE) (GPL-3.0-only): you can use, study, share and modify it, and any version you distribute, modified or not, must stay under the same license, with its source code. Nobody can turn Prisme into closed software. Versions up to 1.9.x were released under the MIT license and remain so.
+
+The engines Prisme installs (stable-diffusion.cpp, llama.cpp) and the models it downloads keep their own licenses.

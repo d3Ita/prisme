@@ -68,7 +68,7 @@ class FauxPrisme:
                      'moteurs': {'image': {'installe': True, 'nom': 'stable-diffusion.cpp', 'version': 'm1', 'taille': 10},
                                  'texte': {'installe': False, 'nom': 'llama.cpp', 'version': 'b1', 'taille': 290_000_000,
                                            'requiert': 'image', 'installation': None}},
-                     'telechargements': [], 'consentements': []}
+                     'telechargements': [], 'consentements': [], 'video': {'pret': True, 'profil': 'video-12go'}}
         # Reponses successives de /api/consentement, et requetes POST recues (chemin, corps, en-tete X-Prisme-Client)
         self.accords, self.posts = ['attente', 'acceptee'], []
         self.reglages = {'modele_diffusion': 'dessin.gguf', 'modele_texte': 'texte.gguf', 'modele_vision': 'vision.gguf',
@@ -96,8 +96,10 @@ class FauxPrisme:
                         faux.lectures += 1
                         faux.etat['etape'] = faux.lectures
                         if faux.lectures >= faux.etapes:
+                            fichier = 'video_20261108_120000.webm' if getattr(faux, 'video_en_cours', False) else 'image_20261108_120000.png'
+                            faux.video_en_cours = False
                             faux.etat.update(occupe=False, phase='erreur' if faux.erreur else 'termine', erreur=faux.erreur,
-                                             resultats=[] if faux.erreur else ['image_20261108_120000.png'])
+                                             resultats=[] if faux.erreur else [fichier])
                     return self.envoyer(200, faux.etat)
                 if self.path == '/api/reglages':
                     return self.envoyer(200, {'reglages': faux.reglages, 'edition_possible': faux.edition,
@@ -120,6 +122,8 @@ class FauxPrisme:
                                               'telechargements': []})
                 if self.path == '/images-claude/image_20261108_120000.png':
                     return self.envoyer(200, faux.image, 'image/png')
+                if self.path == '/images-claude/video_20261108_120000.webm':
+                    return self.envoyer(200, b'\x1a\x45\xdf\xa3 webm', 'video/webm')
                 self.envoyer(404, {'erreur': 'Introuvable'})
 
             def do_POST(self):
@@ -135,6 +139,15 @@ class FauxPrisme:
                         details = {'url': corps['url'], 'hote': 'huggingface.co', 'fichier': 'mien.gguf', 'taille': 2 * 10 ** 9,
                                    'sha256': None, 'role': corps.get('role')}
                     return self.envoyer(200, {'id': 'demande-1', 'details': details, 'expire': 600})
+                if self.path == '/api/video':
+                    faux.recu.append(corps)
+                    faux.lectures = 0
+                    faux.etapes = 2
+                    faux.etat.update(occupe=True, claude=True, genre='video', phase='dessin', etape=0, total=20, debut=1762600001.0,
+                                     seed_base=corps.get('seed') or 9, largeur=832, hauteur=480, duree=corps['duree'],
+                                     prompt=corps['prompt'], resultats=[], erreur=None)
+                    faux.video_en_cours = True
+                    return self.envoyer(200, {'seed': faux.etat['seed_base']})
                 if self.path != '/api/generer':
                     return self.envoyer(404, {'erreur': 'Introuvable'})
                 if faux.etat['occupe']:
@@ -210,6 +223,35 @@ class OutilsMcpTest(unittest.TestCase):
         self.assertNotIn('task_id', self.prisme.statut())
         with self.assertRaisesRegex(PrismeErreur, 'not Prisme\'s latest'):
             self.prisme.suivre(en_cours['task_id'])
+
+    def test_video(self):
+        depart = self.dossier / 'depart.png'
+        depart.write_bytes(png(16, 16))
+        resultat = self.prisme.video('un renard qui court dans la neige', duration=2.5, quality='720p', shape='portrait',
+                                     seed=3, start_image=str(depart))
+        self.assertEqual(resultat['status'], 'done')
+        envoye = self.faux.recu[0]
+        self.assertEqual({k: envoye[k] for k in ('prompt', 'duree', 'qualite', 'format', 'seed')},
+                         {'prompt': 'un renard qui court dans la neige', 'duree': 2.5, 'qualite': '720p', 'format': 'portrait', 'seed': 3})
+        self.assertTrue(envoye['source_data'].startswith('data:image/png;base64,'))
+        chemin = Path(resultat['images'][0]['path'])
+        self.assertEqual((chemin.parent, chemin.suffix, resultat['duration']), (self.dossier, '.webm', 2.5))
+        self.assertTrue(chemin.read_bytes().startswith(b'\x1a\x45\xdf\xa3'))
+        # Pas d'apercu pour une video : Claude recoit le chemin du fichier
+        contenu = prisme_client.contenu_resultat(resultat)
+        self.assertEqual([c['type'] for c in contenu], ['text', 'text'])
+        self.assertIn(str(chemin), contenu[1]['text'])
+
+    def test_video_entrees_et_profil_manquant(self):
+        for arguments, motif in (({'prompt': 'x', 'duration': 9}, 'duration'), ({'prompt': 'x', 'duration': 2.3}, 'duration'),
+                                 ({'prompt': 'x', 'quality': '4k'}, 'quality'), ({'prompt': 'x', 'shape': 'rond'}, 'shape'),
+                                 ({'prompt': 'x', 'start_image': '/etc/passwd'}, 'PRISME_OUTPUT_DIR')):
+            with self.subTest(arguments=arguments), self.assertRaisesRegex(PrismeErreur, motif):
+                self.prisme.video(**arguments)
+        self.faux.etat['video'] = {'pret': False, 'profil': 'video-12go'}
+        with self.assertRaisesRegex(PrismeErreur, 'video-12go'):
+            self.prisme.video('un renard')
+        self.assertEqual(self.faux.recu, [])
 
     def test_prisme_occupe(self):
         self.faux.etat.update(occupe=True, debut=1.0)
@@ -408,7 +450,7 @@ class OutilsMcpTest(unittest.TestCase):
         self.assertEqual(reponses[1]['result']['serverInfo']['version'], '9.9')
         self.assertIn('tools', reponses[1]['result']['capabilities'])
         noms = {o['name'] for o in reponses[2]['result']['tools']}
-        self.assertEqual(noms, {'generate_image', 'edit_image', 'list_models', 'list_profiles', 'get_status',
+        self.assertEqual(noms, {'generate_image', 'edit_image', 'generate_video', 'list_models', 'list_profiles', 'get_status',
                                 'install_engine', 'download_profile', 'download_model'})
         self.assertTrue(all(o['inputSchema']['type'] == 'object' and o['description'] for o in reponses[2]['result']['tools']))
         self.assertEqual(reponses[3]['result'], {})

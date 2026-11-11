@@ -153,10 +153,29 @@ const EN = {
   'Accepter et télécharger': 'Accept and download', 'Refuser': 'Refuse',
   'Claude est installé : il peut créer des images avec Prisme.': 'Claude is installed: it can create images with Prisme.',
   'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
-  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Garder le PC utilisable': 'Keep the PC usable',
+  'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Vidéo': 'Video', 'Durée': 'Duration', 'Qualité': 'Quality',
+  'Créer une image ou une vidéo': 'Create an image or a video', 'Durée de la vidéo': 'Video duration',
+  'Durée de la vidéo, en secondes : de 1 à 5, par demi-seconde': 'Video duration in seconds: 1 to 5, in half seconds',
+  'Durée de la vidéo en secondes': 'Video duration in seconds',
+  'Qualité de la vidéo : 480p (832 × 480) est deux fois plus rapide que 720p (1280 × 704)': 'Video quality: 480p (832 × 480) is twice as fast as 720p (1280 × 704)',
+  'Vidéo (bêta) · Wan 2.2': 'Video (beta) · Wan 2.2', 'Modèle vidéo': 'Video model', 'Fait la vidéo': 'Makes the video',
+  'Texte de la vidéo': 'Video text encoder', 'Comprend la description': 'Understands the description', 'VAE vidéo': 'Video VAE',
+  'Produit les images de la vidéo': 'Produces the video frames', 'Étapes de la vidéo': 'Video steps',
+  'Plus d\'étapes : plus net, plus long (20 conseillé)': 'More steps: sharper, slower (20 recommended)', 'CFG de la vidéo': 'Video CFG',
+  'Fidélité à la description (5 conseillé)': 'Faithfulness to the description (5 recommended)',
+  'Automatique : fichiers Wan du dossier models': 'Automatic: Wan files in the models folder',
+  'Agrandir l\'image 4 fois (Real-ESRGAN)': 'Enlarge the image 4 times (Real-ESRGAN)', 'Agrandissement de l\'image': 'Enlarging the image',
+  'Agrandissement': 'Upscaling',
+  'Améliorer : consigne vidéo': 'Improve: video instruction', 'Améliorer : vidéo depuis une image': 'Improve: video from an image', 'Créer la vidéo': 'Create the video', 'Créer la vidéo (Entrée)': 'Create the video (Enter)',
+  'Création de la vidéo': 'Creating the video', 'Assemblage des images': 'Assembling the frames', 'Lire la vidéo': 'Play the video',
+  'Décris la vidéo à créer…': 'Describe the video to create…', 'Décris ta vidéo…': 'Describe your video…',
+  'Décris ce qui se passe à partir de cette image…': 'Describe what happens from this image…', 'Décris le mouvement…': 'Describe the motion…',
+  'Vidéo mise à la corbeille': 'Video moved to the trash', 'Description et réglages de la vidéo repris': 'Video description and settings reused',
+  'À partir d\'une image': 'From an image', 'Vidéo (bêta)': 'Video (beta)', 'Profils de modèles': 'Model profiles',
+  'Garder le PC utilisable': 'Keep the PC usable',
   'Laisse 1,5 Go de la carte graphique à l\'affichage pendant les calculs : un peu plus lent, mais l\'écran ne gèle plus':
-    'Leaves 1.5 GB of the graphics card to the display during calculations: a little slower, but the screen no longer freezes', 'Profils de modèles': 'Model profiles',
-  'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
+    'Leaves 1.5 GB of the graphics card to the display during calculations: a little slower, but the screen no longer freezes',
+  'Choisir ou supprimer les modèles un par un (mode avancé)': 'Choose or delete models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
     'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
   'En attente…': 'Waiting…', 'Vérification du fichier…': 'Checking the file…',
@@ -425,6 +444,9 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 }
 .carte-image.eclaire { box-shadow: 0 0 0 3px var(--accent); }
 .carte-image > img { display: block; width: 100%; height: auto; cursor: zoom-in; animation: apparition .35s ease; }
+.carte-image > video { display: block; width: 100%; height: auto; background: #000; animation: apparition .35s ease; }
+.carte-image.video .actions-image { top: 8px; bottom: auto; transform: translateY(-6px); }
+.carte-image.video:hover .actions-image, .carte-image.video:focus-within .actions-image { transform: none; }
 @keyframes apparition { from { opacity: 0; } }
 .actions-image {
   position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; gap: 2px; justify-content: center; flex-wrap: wrap;
@@ -503,6 +525,21 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 #prompt.ameliore { color: var(--accent-2); }
 .barre-outils { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; margin-top: 6px; }
 .barre-outils:has(#retablir:not([hidden])) .format span { display: none; }
+/* Video : duree, qualite et choix du mode prennent de la place ; les formats gardent seulement leur forme */
+.barre-outils:has(#duree:not([hidden])) .format span { display: none; }
+/* Choix Image / Video : des onglets au-dessus de la description */
+.onglets-mode { display: inline-flex; margin: 0 0 6px -4px; }
+.onglets-mode button { height: 26px; font-size: 13px; }
+#qualite button { min-width: 0; padding: 0 7px; }
+/* Duree de la video : un champ en secondes, dans le meme style que les groupes de boutons */
+.champ-duree { align-items: center; padding: 3px 9px 3px 3px; cursor: text; }
+.champ-duree input { width: 46px; height: 28px; padding: 0 4px; border: 0; border-radius: 7px; background: var(--segment); box-shadow: var(--ombre-douce);
+  color: var(--texte); font: inherit; font-weight: 600; font-size: 13.5px; text-align: center; }
+.champ-duree input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.champ-duree span { margin-left: 5px; color: var(--texte-2); font-size: 13px; }
+.panneau-plus .champ-duree input { flex: 1; height: 36px; }
+/* Fenetre etroite : plutot une deuxieme ligne dans la bulle qu'un bouton Creer qui en sort */
+@media (min-width: 721px) and (max-width: 960px) { .barre-outils { flex-wrap: wrap; row-gap: 6px; } #generer { margin-left: auto; } }
 .outil-compo {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 10px;
   border: 0; background: transparent; color: var(--texte-2); font-size: 14px; white-space: nowrap; list-style: none;
@@ -520,6 +557,7 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 .groupe button { min-width: 30px; height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--texte-2); font-weight: 600; font-size: 13.5px; }
 .groupe button:hover { color: var(--texte); }
 .groupe button.actif { background: var(--segment); color: var(--texte); box-shadow: var(--ombre-douce); }
+.groupe button, .envoyer { white-space: nowrap; }
 .barre-outils .espace { flex: 1; }
 .plus { position: relative; }
 .plus[open] > summary { background: var(--surface-3); color: var(--texte); }
@@ -694,6 +732,9 @@ body:has(#bandeau-maj:not([hidden])):has(#bandeau-claude:not([hidden])) .fil { p
 .modele .etat-modele.alerte { color: var(--danger); }
 .liste-modeles .role-modele { margin: -4px 0 8px; font-size: 12.5px; color: var(--texte-3); }
 .modele .present { color: var(--succes); font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 5px; }
+.modele .action { display: inline-flex; align-items: center; gap: 10px; }
+.supprimer-modele { width: 34px; height: 34px; padding: 0; display: inline-grid; place-items: center; }
+.supprimer-modele:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-doux); }
 .carte-modeles > footer { display: flex; gap: 8px; align-items: center; padding: 14px 24px; border-top: 1px solid var(--bordure); flex-wrap: wrap; }
 .carte-modeles > footer .espace { flex: 1; }
 /* Avis de nouvelle version */
@@ -852,6 +893,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
     <symbol id="i-ok" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
     <symbol id="i-alerte" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></symbol>
     <symbol id="i-carre" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+    <symbol id="i-agrandir" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
     <symbol id="i-corbeille" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></symbol>
     <symbol id="i-quitter" viewBox="0 0 24 24"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/></symbol>
     <symbol id="i-reglages" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
@@ -935,6 +977,9 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="texte"><strong id="source-nom" translate="no"></strong><span id="source-taille"></span></div>
         <button type="button" class="bouton-icone" id="retirer" title="Retirer l'image"><svg class="i"><use href="#i-x"/></svg></button>
       </div>
+      <div class="groupe onglets-mode" id="mode" hidden title="Créer une image ou une vidéo">
+        <button type="button" class="actif" data-mode="image">Image</button><button type="button" data-mode="video">Vidéo</button>
+      </div>
       <textarea id="prompt" rows="1" placeholder="Décris l'image à créer, ou le changement à faire sur ton image…" spellcheck="false" aria-label="Description de l'image"></textarea>
       <div class="barre-outils">
         <button type="button" class="outil-compo" id="depot" title="Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)"><svg class="i"><use href="#i-image"/></svg><span>Image</span></button>
@@ -949,11 +994,20 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="groupe" id="nombre" title="Nombre d'images à créer">
           <button type="button" class="actif" data-n="1">1</button><button type="button" data-n="2">2</button><button type="button" data-n="3">3</button><button type="button" data-n="4">4</button>
         </div>
+        <label class="groupe champ-duree" id="duree" hidden title="Durée de la vidéo, en secondes : de 1 à 5, par demi-seconde">
+          <input type="number" id="duree-valeur" min="1" max="5" step="0.5" value="2" inputmode="decimal" aria-label="Durée de la vidéo en secondes"><span>s</span>
+        </label>
+        <div class="groupe" id="qualite" hidden title="Qualité de la vidéo : 480p (832 × 480) est deux fois plus rapide que 720p (1280 × 704)">
+          <button type="button" class="actif" data-q="480p">480p</button><button type="button" data-q="720p">720p</button>
+        </div>
         <details class="plus" id="plus">
           <summary class="outil-compo" title="Plus d'options"><svg class="i"><use href="#i-plus"/></svg><span class="pc">Options</span></summary>
           <div class="panneau-plus">
+            <div class="section-tel" id="section-mode" hidden><p class="etiquette">Créer</p><div id="place-mode"></div></div>
             <div class="section-tel"><p class="etiquette">Format</p><div id="place-formats"></div></div>
-            <div class="section-tel"><p class="etiquette">Nombre d'images</p><div id="place-nombre"></div></div>
+            <div class="section-tel" id="section-nombre"><p class="etiquette">Nombre d'images</p><div id="place-nombre"></div></div>
+            <div class="section-tel" id="section-duree" hidden><p class="etiquette">Durée</p><div id="place-duree"></div></div>
+            <div class="section-tel" id="section-qualite" hidden><p class="etiquette">Qualité</p><div id="place-qualite"></div></div>
             <p class="etiquette">Variante <small>· vide = au hasard</small></p>
             <div class="seed">
               <input class="champ" id="seed" inputmode="numeric" placeholder="Au hasard" autocomplete="off">
@@ -1029,6 +1083,16 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="reglage"><label for="r-vision">Vision<small>Lit l'image de départ · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vision" data-cle="modele_vision"></select></div>
         <div class="reglage"><label for="r-vae">VAE<small>Produit l'image finale · <a class="lien-modele" href="https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/tree/main/vae" target="_blank" rel="noopener">Où le trouver</a></small></label><select class="champ" id="r-vae" data-cle="vae"></select></div>
         <p class="note-champ" id="dossier-chemin" style="margin:4px 0 0"></p>
+      </section>
+      <section class="bloc" id="bloc-video">
+        <h4>Vidéo (bêta) · Wan 2.2</h4>
+        <div class="reglage"><label for="r-video-modele">Modèle vidéo<small>Fait la vidéo</small></label><select class="champ" id="r-video-modele" data-cle="video_modele"></select></div>
+        <div class="reglage"><label for="r-video-texte">Texte de la vidéo<small>Comprend la description</small></label><select class="champ" id="r-video-texte" data-cle="video_texte"></select></div>
+        <div class="reglage"><label for="r-video-vae">VAE vidéo<small>Produit les images de la vidéo</small></label><select class="champ" id="r-video-vae" data-cle="video_vae"></select></div>
+        <div class="reglage"><label for="r-video-etapes">Étapes de la vidéo<small>Plus d'étapes : plus net, plus long (20 conseillé)</small></label><input class="champ court" id="r-video-etapes" data-cle="video_etapes" type="number" min="1" max="100"></div>
+        <div class="reglage"><label for="r-video-cfg">CFG de la vidéo<small>Fidélité à la description (5 conseillé)</small></label><input class="champ court" id="r-video-cfg" data-cle="video_cfg" type="number" min="0" max="30" step="0.1"></div>
+        <div class="reglage"><label for="r-video-consigne">Améliorer : consigne vidéo<small>Sans image de départ</small></label><textarea class="champ consigne" id="r-video-consigne" data-cle="video_consigne"></textarea></div>
+        <div class="reglage"><label for="r-video-consigne-image">Améliorer : vidéo depuis une image<small>Avec une image de départ, envoyée au modèle s'il voit les images</small></label><textarea class="champ consigne" id="r-video-consigne-image" data-cle="video_consigne_image"></textarea></div>
       </section>
       <section class="bloc">
         <h4>LoRA <span class="liens"><button type="button" class="bouton-lien" id="dossier-loras">Ouvrir le dossier</button></span></h4>
@@ -1111,8 +1175,10 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       <div class="profils" id="profils-modeles" role="radiogroup" aria-label="Profils de modèles"></div>
       <h4 class="titre-profils">Autres choix</h4>
       <div class="profils" id="profils-options" role="radiogroup" aria-label="Autres choix"></div>
+      <h4 class="titre-profils" id="titre-profils-video" hidden>Vidéo (bêta)</h4>
+      <div class="profils" id="profils-video" role="radiogroup" aria-label="Vidéo (bêta)" hidden></div>
       <div class="resume-profil" id="resume-profil"></div>
-      <button type="button" class="bouton-lien bascule-avance" id="basculer-avance" aria-expanded="false">Choisir les modèles un par un (mode avancé)</button>
+      <button type="button" class="bouton-lien bascule-avance" id="basculer-avance" aria-expanded="false">Choisir ou supprimer les modèles un par un (mode avancé)</button>
       <div class="liste-modeles" id="liste-modeles" hidden></div>
     </div>
     <footer>
@@ -1152,6 +1218,11 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
 const $ = s => document.querySelector(s);
 const FORMATS = { carre: [1024, 1024], paysage: [1280, 720], portrait: [720, 1280] };
 const PERIMETRE = 2 * Math.PI * 48;
+// Memes tailles que app/video.py (multiples de 32 pour le VAE de Wan 2.2)
+const TAILLES_VIDEO = {
+  '480p': { paysage: [832, 480], portrait: [480, 832], carre: [640, 640] },
+  '720p': { paysage: [1280, 704], portrait: [704, 1280], carre: [960, 960] },
+};
 
 const etat = {
   images: [],
@@ -1159,6 +1230,11 @@ const etat = {
   source: null,
   format: 'carre',
   nombre: 1,
+  // Video (branche video, Prisme 2.0) : visible quand le profil video est telecharge
+  mode: 'image',
+  duree: 2,
+  qualite: '480p',
+  videoPret: false,
   occupe: false,
   nouvelles: new Set(),
   minuteur: null,
@@ -1282,6 +1358,65 @@ $('#nombre').addEventListener('click', e => {
   document.querySelectorAll('#nombre button').forEach(x => x.classList.toggle('actif', x === b));
   majBoutonCreer();
 });
+// ---------- Video ----------
+function majAgrandissement(a) { if (a) etat.agrandissementInfos = a; }
+function majVideo(v) {
+  etat.videoPret = !!v?.pret;
+  etat.videoProfil = v?.profil || null;
+  // Sur le PC, le choix apparait aussi sans les modeles video : Video ouvre alors leur profil a telecharger
+  const visible = etat.videoPret || (etat.local && !!etat.videoProfil);
+  $('#mode').hidden = $('#section-mode').hidden = !visible;
+  if (!etat.videoPret && etat.mode === 'video') choisirMode('image');
+}
+async function demanderVideo() {
+  if (etat.videoPret) return choisirMode('video');
+  profilChoisi = etat.videoProfil;
+  $('#plus').open = false;
+  await ouvrirModeles();
+  // La section video est sous les profils d'image : on la montre tout de suite, avec son resume
+  $('#titre-profils-video').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  note(tx('Télécharge le profil vidéo pour créer des vidéos.', 'Download the video profile to create videos.'));
+}
+function choisirMode(m) {
+  etat.mode = m;
+  const video = m === 'video';
+  document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('actif', b.dataset.mode === m));
+  $('#nombre').hidden = $('#section-nombre').hidden = video;
+  $('#duree').hidden = $('#qualite').hidden = $('#section-duree').hidden = $('#section-qualite').hidden = !video;
+  $('#depot').title = video ? tx('Ajouter une image de départ pour la vidéo', 'Add a start image for the video')
+                            : tx('Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)', 'Add an image to edit (you can also drag or paste it here)');
+  majAmelioration(etat.amelioration);
+  majPlaceholder();
+  majBoutonCreer();
+}
+// Format de la video : celui choisi, ou le plus proche de l'image de depart pour « Original »
+function formatVideo() {
+  if (etat.format === 'source' && etat.source) {
+    const rapport = etat.source.largeur / etat.source.hauteur;
+    return rapport > 1.2 ? 'paysage' : rapport < 0.83 ? 'portrait' : 'carre';
+  }
+  return TAILLES_VIDEO['480p'][etat.format] ? etat.format : 'paysage';
+}
+// Duree de 1 a 5 s par demi-seconde ; une valeur vide ou hors limites revient a la plus proche
+function choisirDuree(s) {
+  const valeur = Number.isFinite(s) ? Math.min(5, Math.max(1, Math.round(s * 2) / 2)) : 2;
+  etat.duree = valeur;
+  $('#duree-valeur').value = valeur;
+}
+const dureeLisible = s => tx(`${String(s).replace('.', ',')} s`, `${s} s`);
+function choisirQualite(q) {
+  etat.qualite = q;
+  document.querySelectorAll('#qualite button').forEach(b => b.classList.toggle('actif', b.dataset.q === q));
+}
+$('#mode').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || etat.occupe) return;
+  if (b.dataset.mode === 'video') demanderVideo(); else choisirMode('image');
+});
+$('#duree-valeur').addEventListener('change', e => choisirDuree(parseFloat(String(e.target.value).replace(',', '.'))));
+$('#duree-valeur').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+$('#qualite').addEventListener('click', e => { const b = e.target.closest('button'); if (b) choisirQualite(b.dataset.q); });
+
 $('#hasard').addEventListener('click', () => { $('#seed').value = ''; $('#seed').focus(); });
 $('#seed').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10); });
 
@@ -1297,6 +1432,7 @@ function tailleVoulue() {
 // ---------- Generation ----------
 async function lancer() {
   if (etat.occupe || etat.ameliorant) return;
+  if (etat.mode === 'video') return lancerVideo();
   // Tant qu'il manque le moteur ou un modele, on montre ce qu'il reste a faire plutot qu'une erreur
   if (problemes.length) {
     etat.courant = null;
@@ -1321,11 +1457,38 @@ async function lancer() {
     etat.dernierTexte = texte;
     montrerDemande({ prompt: texte, largeur, hauteur, modification: !!etat.source });
     majCalcul({ phase: 'chargement', etape: 0, total: 8, index: 1, nombre: etat.nombre, ecoule: 0 });
-    prompt.value = ''; etat.texteAmeliore = null; prompt.classList.remove('ameliore'); $('#retablir').hidden = true; ajusterPrompt();
-    definirSource(null);
-    $('#plus').open = false;
-    descendre(true);
-    suivre();
+    apresLancement();
+  } catch (err) { note(err.message, 'erreur'); }
+}
+
+function apresLancement() {
+  prompt.value = ''; etat.texteAmeliore = null; prompt.classList.remove('ameliore'); $('#retablir').hidden = true; ajusterPrompt();
+  definirSource(null);
+  $('#plus').open = false;
+  descendre(true);
+  suivre();
+}
+
+// Une video : description, duree, qualite, format, et une image de depart facultative
+async function lancerVideo() {
+  let texte = prompt.value.trim();
+  if (!texte) { note(tx('Écris d\'abord ce que tu veux voir dans la vidéo.', 'First write what you want to see in the video.'), 'erreur'); prompt.focus(); return; }
+  if (etat.amelioration?.auto && etat.amelioration.modele && texte !== etat.texteAmeliore) {
+    if (await ameliorer()) texte = prompt.value.trim();
+    else note('Génération avec ta description telle quelle.');
+  }
+  const format = formatVideo(), [largeur, hauteur] = TAILLES_VIDEO[etat.qualite][format];
+  choisirDuree(parseFloat(String($('#duree-valeur').value).replace(',', '.')));
+  const corps = { prompt: texte, qualite: etat.qualite, format, duree: etat.duree, seed: $('#seed').value };
+  if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
+  else if (etat.source) corps.source_data = etat.source.data;
+  try {
+    await api('/api/video', corps);
+    etat.occupe = true;
+    etat.dernierTexte = texte;
+    montrerDemande({ prompt: texte, largeur, hauteur, modification: !!etat.source, genre: 'video', duree: etat.duree });
+    majCalcul({ genre: 'video', phase: 'chargement', etape: 0, total: 20, ecoule: 0 });
+    apresLancement();
   } catch (err) { note(err.message, 'erreur'); }
 }
 
@@ -1346,7 +1509,8 @@ async function ameliorer() {
   bouton.querySelector('span').textContent = etat.source ? 'Analyse de l\'image…' : 'Amélioration…';
   $('#serveur').textContent = 'Amélioration de la description';
   try {
-    const corps = { prompt: texte };
+    // En video, Prisme utilise les consignes video (mouvement, camera) au lieu de celles des images
+    const corps = { prompt: texte, genre: etat.mode };
     if (etat.source?.galerie) corps.source_nom = etat.source.galerie;
     else if (etat.source) corps.source_data = etat.source.data;
     const { prompt: nouveau } = await api('/api/ameliorer', corps);
@@ -1396,19 +1560,24 @@ function majInterfaceOccupee(occupe) {
 function majBoutonCreer(occupe = etat.occupe) {
   const b = $('#generer');
   b.classList.toggle('annuler', occupe);
-  const texte = occupe ? 'Arrêter' : etat.source ? 'Modifier' : etat.nombre > 1 ? `Créer ${etat.nombre} images` : 'Créer';
+  const texte = occupe ? 'Arrêter' : etat.mode === 'video' ? 'Créer' : etat.source ? 'Modifier' : etat.nombre > 1 ? `Créer ${etat.nombre} images` : 'Créer';
   b.innerHTML = `<svg class="i"><use href="#i-${occupe ? 'carre' : 'fleche'}"/></svg><span>${texte}</span>`;
-  b.title = occupe ? 'Arrêter la création en cours' : 'Créer (Entrée)';
+  b.title = occupe ? 'Arrêter la création en cours' : etat.mode === 'video' ? 'Créer la vidéo (Entrée)' : 'Créer (Entrée)';
 }
 
 // Bulle de la demande en cours, en bas du fil
-function montrerDemande({ prompt: texte, largeur, hauteur, modification }) {
+function montrerDemande({ prompt: texte, largeur, hauteur, modification, genre, duree }) {
+  const video = genre === 'video';
   $('#en-cours-texte').textContent = texte || traduire('Création en cours');
-  $('#en-cours-meta').textContent = [modification ? 'Modification d\'une image' : '', largeur ? `${largeur} × ${hauteur}` : ''].filter(Boolean).join(' · ');
+  $('#en-cours-meta').textContent = [video ? tx(`Vidéo de ${dureeLisible(duree)}`, `${dureeLisible(duree)} video`) : '',
+    genre === 'agrandissement' ? tx('Agrandissement ×4', 'Upscaling ×4') : '',
+    modification ? (video ? 'À partir d\'une image' : 'Modification d\'une image') : '', largeur ? `${largeur} × ${hauteur}` : ''].filter(Boolean).join(' · ');
   $('#attente').style.aspectRatio = largeur ? `${largeur} / ${hauteur}` : '1';
 }
 
 function majCalcul(e) {
+  if (e.genre === 'video') return majCalculVideo(e);
+  if (e.genre === 'agrandissement') return majCalculAgrandissement(e);
   majInterfaceOccupee(true);
   const lot = e.nombre > 1 ? ` · image ${e.index} sur ${e.nombre}` : '';
   const secondes = Math.round(e.ecoule || 0) + ' s';
@@ -1428,6 +1597,40 @@ function majCalcul(e) {
   }
 }
 
+// Agrandissement : l'image est traitee par morceaux (etape sur total)
+function majCalculAgrandissement(e) {
+  majInterfaceOccupee(true);
+  const secondes = Math.round(e.ecoule || 0) + ' s', anneau = $('#anneau'), part = e.total ? e.etape / e.total : null;
+  anneau.classList.toggle('indetermine', part === null);
+  $('#arc').style.strokeDashoffset = PERIMETRE * (part === null ? .72 : 1 - part);
+  $('#chiffre').textContent = part === null ? '' : Math.round(part * 100) + '%';
+  $('#phase').textContent = part === null ? 'Préparation…' : 'Agrandissement de l\'image';
+  $('#detail').textContent = part === null ? secondes : tx(`Morceau ${e.etape} sur ${e.total} · ${secondes}`, `Part ${e.etape} of ${e.total} · ${secondes}`);
+}
+
+// Video : creation (20 etapes), puis assemblage des images par morceaux ; chacune compte pour moitie
+function majCalculVideo(e) {
+  majInterfaceOccupee(true);
+  const secondes = Math.round(e.ecoule || 0) + ' s', anneau = $('#anneau');
+  let part = null;
+  if (e.phase === 'dessin' && e.etape > 0) {
+    part = e.etape / e.total / 2;
+    $('#phase').textContent = 'Création de la vidéo';
+    $('#detail').textContent = tx(`Étape ${e.etape} sur ${e.total} · ${secondes}`, `Step ${e.etape} of ${e.total} · ${secondes}`);
+  } else if (e.phase === 'decodage') {
+    if (e.total_decodage) part = .5 + e.etape / e.total_decodage / 2;
+    $('#phase').textContent = 'Assemblage des images';
+    $('#detail').textContent = e.total_decodage
+      ? tx(`Morceau ${e.etape} sur ${e.total_decodage} · ${secondes}`, `Part ${e.etape} of ${e.total_decodage} · ${secondes}`) : secondes;
+  } else {
+    $('#phase').textContent = 'Préparation…';
+    $('#detail').textContent = 'Chargement des modèles · ' + secondes;
+  }
+  anneau.classList.toggle('indetermine', part === null);
+  $('#arc').style.strokeDashoffset = PERIMETRE * (part === null ? .72 : 1 - part);
+  $('#chiffre').textContent = part === null ? '' : Math.round(part * 100) + '%';
+}
+
 function suivre() {
   clearTimeout(etat.minuteur);
   etat.minuteur = setTimeout(async () => {
@@ -1445,8 +1648,11 @@ function suivre() {
     if (dernier) descendre(true);
     // En cas d'echec, la description revient dans la zone d'ecriture pour reessayer
     if (e.phase !== 'termine' && !e.resultats?.length && !prompt.value && etat.dernierTexte) { prompt.value = etat.dernierTexte; ajusterPrompt(); }
+    majVideo(e.video);
     if (e.phase === 'erreur') note('La création a échoué.\n' + (e.erreur || ''), 'erreur');
     else if (e.phase === 'annule') note('Création arrêtée');
+    else if (e.resultats?.length && e.genre === 'agrandissement') note(tx(`Image agrandie en ${Math.round(e.ecoule)} s`, `Image enlarged in ${Math.round(e.ecoule)} s`));
+    else if (e.resultats?.length && e.genre === 'video') note(tx(`Vidéo créée en ${Math.round(e.ecoule)} s`, `Video created in ${Math.round(e.ecoule)} s`));
     else if (e.resultats?.length) note(`${e.resultats.length > 1 ? e.resultats.length + ' images créées' : 'Image créée'} en ${Math.round(e.ecoule)} s`);
     battement();
   }, 700);
@@ -1460,6 +1666,8 @@ function battement() {
       const e = await api('/api/etat');
       majDemandes(e.demandes);
       majConsentements(e.consentements);
+      majVideo(e.video);
+      majAgrandissement(e.agrandissement);
       if (e.occupe) { etat.occupe = true; majCalcul(e); suivre(); return; }
     } catch {}
     battement();
@@ -1600,9 +1808,10 @@ function grouper(liste) {
   const groupes = [];
   for (const img of [...liste].reverse()) {
     const g = groupes.at(-1);
-    if (g && g.prompt === img.prompt && g.largeur === img.largeur && g.hauteur === img.hauteur && g.images.length < 4
-        && new Date(img.date) - new Date(g.images.at(-1).date) < 5 * 60e3) g.images.push(img);
-    else groupes.push({ prompt: img.prompt, largeur: img.largeur, hauteur: img.hauteur, images: [img] });
+    // Une video forme toujours un echange a elle seule
+    if (g && !g.video && !img.video && g.prompt === img.prompt && g.largeur === img.largeur && g.hauteur === img.hauteur
+        && g.images.length < 4 && new Date(img.date) - new Date(g.images.at(-1).date) < 5 * 60e3) g.images.push(img);
+    else groupes.push({ prompt: img.prompt, largeur: img.largeur, hauteur: img.hauteur, video: !!img.video, images: [img] });
   }
   return groupes;
 }
@@ -1610,6 +1819,7 @@ function grouper(liste) {
 const ACTIONS = [
   ['modifier', 'crayon', 'Modifier', 'Partir de cette image pour la modifier'],
   ['reutiliser', 'reprendre', 'Réutiliser', 'Reprendre la description et la variante'],
+  ['agrandir', 'agrandir', '', 'Agrandir l\'image 4 fois (Real-ESRGAN)'],
   ['copier', 'copier', 'Copier', 'Copier l\'image'],
   ['enregistrer', 'telecharger', 'Enregistrer', 'Enregistrer sous…'],
   ['dossier', 'dossier', '', 'Afficher dans le dossier'],
@@ -1618,16 +1828,26 @@ const ACTIONS = [
 
 function carteImage(img) {
   const carte = document.createElement('figure');
-  carte.className = 'carte-image';
+  carte.className = 'carte-image' + (img.video ? ' video' : '');
   carte.dataset.nom = img.nom;
-  const image = document.createElement('img');
-  image.loading = 'lazy'; image.decoding = 'async'; image.translate = false; image.alt = img.prompt || '';
+  let image;
+  if (img.video) {
+    // Video : lecture en boucle, sans le son (Wan ne fait pas de son), commandes du navigateur
+    image = document.createElement('video');
+    image.controls = true; image.loop = true; image.muted = true; image.playsInline = true; image.preload = 'metadata';
+    image.title = 'Lire la vidéo';
+  } else {
+    image = document.createElement('img');
+    image.loading = 'lazy'; image.decoding = 'async'; image.alt = img.prompt || '';
+  }
+  image.translate = false;
   if (img.largeur) image.style.aspectRatio = `${img.largeur} / ${img.hauteur}`;
   image.src = urlImage(img);
   const barre = document.createElement('div');
   barre.className = 'actions-image';
   for (const [action, icone, texte, titre] of ACTIONS) {
     if (action === 'copier' && !etat.peutCopier) continue;
+    if (img.video && (action === 'modifier' || action === 'copier' || action === 'agrandir')) continue;
     if (action === 'dossier' && !etat.local) continue;
     const b = document.createElement(action === 'enregistrer' ? 'a' : 'button');
     b.className = 'action-image' + (action === 'supprimer' ? ' danger' : '');
@@ -1671,7 +1891,9 @@ function rendreFil() {
     texte.textContent = g.prompt || traduire('Sans description');
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = [heure(premiere.date), g.largeur ? `${g.largeur} × ${g.hauteur}` : '', ...(premiere.loras || []).map(l => 'LoRA ' + l)]
+    meta.textContent = [heure(premiere.date), g.video ? tx(`Vidéo de ${dureeLisible(premiere.duree)}`, `${dureeLisible(premiere.duree)} video`) : '',
+                        g.video && premiere.depuis_image ? 'À partir d\'une image' : '',
+                        g.largeur ? `${g.largeur} × ${g.hauteur}` : '', ...(premiere.loras || []).map(l => 'LoRA ' + l)]
       .filter(Boolean).join(' · ');
     demande.append(texte, meta);
     const reponse = document.createElement('div');
@@ -1710,6 +1932,7 @@ fil.addEventListener('click', e => {
   const action = bouton.dataset.action;
   if (action === 'modifier') modifierImage(img);
   else if (action === 'reutiliser') reutiliserImage(img);
+  else if (action === 'agrandir') agrandirImage(img);
   else if (action === 'copier') copierImage(img);
   else if (action === 'dossier') api('/api/dossier', { nom: img.nom }).catch(err => note(err.message, 'erreur'));
   else if (action === 'supprimer') supprimerImage(img, bouton);
@@ -1721,13 +1944,57 @@ function modifierImage(img) {
   note('Image ajoutée : décris le changement voulu');
 }
 
+// Agrandir x4 avec Real-ESRGAN ; au premier usage, le modele (67 Mo) se telecharge en un clic
+async function agrandirImage(img) {
+  if (etat.occupe) return;
+  const infos = etat.agrandissementInfos;
+  if (infos && !infos.pret) {
+    if (!etat.local) { note(tx('Télécharge d\'abord le modèle d\'agrandissement depuis le PC.', 'First download the upscaling model from the PC.'), 'erreur'); return; }
+    if (!confirm(tx(`Pour agrandir les images, Prisme télécharge Real-ESRGAN x4plus (${taille(infos.taille)}, licence ${infos.licence}). Continuer ?`,
+                    `To enlarge images, Prisme downloads Real-ESRGAN x4plus (${taille(infos.taille)}, ${infos.licence} license). Continue?`))) return;
+    try {
+      await api('/api/telecharger-modele', { id: infos.id });
+      note(tx('Téléchargement du modèle d\'agrandissement…', 'Downloading the upscaling model…'));
+      for (let i = 0; i < 600; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        const m = (await api('/api/modeles-conseilles')).modeles.find(x => x.id === infos.id);
+        if (m?.present) break;
+        if (['erreur', 'annule'].includes(m?.telechargement?.phase)) throw new Error(m.telechargement.erreur || tx('Téléchargement arrêté.', 'Download stopped.'));
+      }
+      infos.pret = true;
+    } catch (err) { note(err.message, 'erreur'); return; }
+  }
+  try {
+    const { largeur, hauteur } = await api('/api/agrandir', { nom: img.nom });
+    etat.occupe = true;
+    montrerDemande({ prompt: img.prompt, largeur, hauteur, genre: 'agrandissement' });
+    majCalcul({ genre: 'agrandissement', phase: 'chargement', etape: 0, total: 0, ecoule: 0 });
+    descendre(true);
+    suivre();
+  } catch (err) { note(err.message, 'erreur'); }
+}
+
 function reutiliserImage(img) {
+  if (img.video) return reutiliserVideo(img);
   prompt.value = img.prompt; ajusterPrompt();
   if (img.seed !== null) $('#seed').value = img.seed;
   const f = Object.entries(FORMATS).find(([, t]) => t[0] === img.largeur && t[1] === img.hauteur);
   if (f) choisirFormat(f[0]);
   prompt.focus();
   note(img.seed !== null ? 'Description et variante reprises' : 'Description reprise');
+}
+
+function reutiliserVideo(v) {
+  if (!etat.videoPret) { note(tx('Télécharge d\'abord le profil vidéo dans la fenêtre des modèles.', 'First download the video profile in the models window.'), 'erreur'); return; }
+  choisirMode('video');
+  prompt.value = v.prompt; ajusterPrompt();
+  if (v.seed !== null && v.seed !== undefined) $('#seed').value = v.seed;
+  for (const [qualite, formats] of Object.entries(TAILLES_VIDEO))
+    for (const [format, [l, h]] of Object.entries(formats))
+      if (l === v.largeur && h === v.hauteur) { choisirQualite(qualite); choisirFormat(format); }
+  if (v.duree) choisirDuree(v.duree);
+  prompt.focus();
+  note('Description et réglages de la vidéo repris');
 }
 
 async function copierImage(img) {
@@ -1759,7 +2026,7 @@ async function supprimerImage(img, bouton) {
     const haut = fil.scrollTop;
     rendreFil();
     fil.scrollTop = haut;
-    note('Image mise à la corbeille');
+    note(img.video ? 'Vidéo mise à la corbeille' : 'Image mise à la corbeille');
   } catch (err) { note(err.message, 'erreur'); }
 }
 
@@ -1800,6 +2067,9 @@ function moteurTexteAInstaller(m) {
   return !!t && !t.installe && !(t.requiert && !m[t.requiert].installe)
     && !['telechargement', 'extraction'].includes(t.installation?.phase);
 }
+// Le moteur de texte sert a Ameliorer, pour les images : un profil video n'en a pas besoin
+function moteurTexteUtile(infos, profil) { return profil?.categorie !== 'video' && moteurTexteAInstaller(infos.moteurs); }
+
 function rendreMoteurTexte(m) {
   const info = m?.texte;
   if (!info) return null;
@@ -1855,9 +2125,10 @@ function rendreProfils(infos) {
   const actuel = profilActuel(infos), mac = !!infos.machine?.mac;
   $('#profils-modeles').innerHTML = '';
   $('#profils-options').innerHTML = '';
+  $('#profils-video').innerHTML = '';
   // Profils de cette machine (licences permissives), puis les autres choix (autre style, licence non commerciale)
   for (const p of infos.profils.filter(p => p.cible.type === 'tous' || (p.cible.type === 'mac') === mac)) {
-    const zone = $(p.categorie === 'option' ? '#profils-options' : '#profils-modeles');
+    const zone = $({option: '#profils-options', video: '#profils-video'}[p.categorie] || '#profils-modeles');
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'carte-profil';
     b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(p.id === actuel.id));
@@ -1874,11 +2145,14 @@ function rendreProfils(infos) {
     if (p.id === infos.suggestion) pastille(tx('Recommandé pour ta machine', 'Recommended for your machine'));
     if (p.actif) pastille(tx('Utilisé', 'In use'), 'ok');
     if (p.statut === 'experimental') pastille(tx('Expérimental', 'Experimental'), 'discrete');
-    if (!p.edition) pastille(tx('Sans modification d\'image', 'No image editing'), 'discrete');
+    if (!p.edition && p.categorie !== 'video') pastille(tx('Sans modification d\'image', 'No image editing'), 'discrete');
     if (p.licence_a_accepter) pastille(tx('Non commercial', 'Non-commercial'), 'discrete');
     b.addEventListener('click', () => { profilChoisi = p.id; rendreModeles(derniersInfosModeles); });
     zone.append(b);
   }
+  // Section video (beta) : seulement quand cette machine a un profil video
+  const video = !!$('#profils-video').children.length;
+  $('#profils-video').hidden = $('#titre-profils-video').hidden = !video;
   // Resume du profil choisi : contenu, vitesse, licences, place necessaire, progression
   const resume = $('#resume-profil'), ligne = (...morceaux) => {
     const e = document.createElement('p');
@@ -1899,7 +2173,7 @@ function rendreProfils(infos) {
     a.href = l.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = l.nom;
     ligneLicences.append(...(i ? [', '] : []), a, l.commercial ? '' : tx(' (usage non commercial)', ' (non-commercial use)'));
   });
-  const moteur = moteurTexteAInstaller(infos.moteurs) ? infos.moteurs.texte.taille : 0;
+  const moteur = moteurTexteUtile(infos, actuel) ? infos.moteurs.texte.taille : 0;
   const restant = actuel.taille_restante + moteur;
   if (restant) {
     ligne(tx(`À télécharger : ${taille(restant)}${moteur ? ' (moteur de texte compris)' : ''} · ${taille(infos.libre)} libres sur le disque`,
@@ -1965,7 +2239,10 @@ function rendreModeles(infos) {
       ligne.querySelector('strong').textContent = m.titre;
       ligne.querySelector('small').textContent = `${LANGUE === 'en' ? m.detail_en : m.detail} · ${taille(m.taille)}`;
       const action = ligne.querySelector('.action');
-      if (m.present) action.innerHTML = '<span class="present"><svg class="i"><use href="#i-ok"/></svg>Installé</span>';
+      if (m.present) {
+        action.innerHTML = '<span class="present"><svg class="i"><use href="#i-ok"/></svg>Installé</span>';
+        action.append(boutonSupprimerModele(m.fichier, m.titre, m.taille));
+      }
       else if (actif) {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'bouton-secondaire'; b.textContent = 'Arrêter';
@@ -2004,6 +2281,23 @@ function rendreModeles(infos) {
     }
     liste.append(bloc);
   }
+  // Fichiers du dossier models qui ne viennent pas du catalogue : modeles ajoutes a la main
+  if (infos.autres?.length) {
+    const bloc = document.createElement('section');
+    bloc.innerHTML = `<h4></h4><p class="role-modele"></p>`;
+    bloc.querySelector('h4').textContent = tx('Autres fichiers du dossier models', 'Other files in the models folder');
+    bloc.querySelector('p').textContent = tx('Ajoutés à la main ou hors du catalogue de Prisme', 'Added by hand or outside Prisme\'s catalog');
+    for (const f of infos.autres) {
+      const ligne = document.createElement('div');
+      ligne.className = 'modele';
+      ligne.innerHTML = '<div><strong translate="no"></strong><small></small></div><div class="action"></div>';
+      ligne.querySelector('strong').textContent = f.nom;
+      ligne.querySelector('small').textContent = taille(f.taille);
+      ligne.querySelector('.action').append(boutonSupprimerModele(f.nom, f.nom, f.taille));
+      bloc.append(ligne);
+    }
+    liste.append(bloc);
+  }
   const blocMoteur = rendreMoteurTexte(infos.moteurs);
   if (blocMoteur) liste.append(blocMoteur);
   // Ce que Prisme a detecte de la machine (rien n'est envoye), et le profil qu'il recommande
@@ -2020,7 +2314,7 @@ function rendreModeles(infos) {
       : tx(`${description}. Prisme n'a pas pu tout lire : choisis le profil de ta machine.`, `${description}. Prisme couldn't read everything: choose your machine's profile.`);
   }
   // Le bouton principal telecharge (ou choisit) le profil selectionne, moteur de texte compris
-  const moteurTexte = moteurTexteAInstaller(infos.moteurs);
+  const moteurTexte = moteurTexteUtile(infos, profil);
   const restant = profil.taille_restante + (moteurTexte ? infos.moteurs.texte.taille : 0);
   const bouton = $('#tout-telecharger');
   const manquants = profil.modeles.filter(m => !m.present);
@@ -2030,6 +2324,27 @@ function rendreModeles(infos) {
     : tx('Utiliser ce profil', 'Use this profile');
   bouton.disabled = !!restant && (infos.libre < restant + 200 * 2 ** 20 || (tousActifs && !moteurTexte) || licenceManquante(profil));
   $('#place-disque').textContent = `${taille(infos.libre)} libres sur le disque`;
+}
+
+// Supprimer un modele : definitif (la corbeille ne libererait pas la place), apres confirmation
+function boutonSupprimerModele(fichier, titre, octets) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'bouton-secondaire supprimer-modele';
+  b.title = tx(`Supprimer ${titre} pour libérer ${taille(octets)}`, `Delete ${titre} to free ${taille(octets)}`);
+  b.innerHTML = '<svg class="i"><use href="#i-corbeille"/></svg>';
+  b.setAttribute('aria-label', b.title);
+  b.addEventListener('click', async () => {
+    const ok = confirm(tx(
+      `Supprimer définitivement ${titre} (${taille(octets)}) ?\n\nLe fichier ne passe pas par la corbeille : il faudra le retélécharger pour s'en resservir.`,
+      `Permanently delete ${titre} (${taille(octets)})?\n\nThe file does not go to the trash: you will need to download it again to use it.`));
+    if (!ok) return;
+    try {
+      const { libere } = await api('/api/supprimer-modele', { nom: fichier });
+      note(tx(`${titre} supprimé : ${taille(libere)} libérés`, `${titre} deleted: ${taille(libere)} freed`));
+      await majModeles();
+    } catch (err) { note(err.message, 'erreur'); }
+  });
+  return b;
 }
 
 async function majModeles() {
@@ -2067,8 +2382,8 @@ $('#ouvrir-modeles').addEventListener('click', ouvrirModeles);
 $('#tout-telecharger').addEventListener('click', async () => {
   const infos = await api('/api/modeles-conseilles').catch(() => null);
   if (!infos) return;
-  if (moteurTexteAInstaller(infos.moteurs)) await installerMoteur('texte');
   const profil = profilActuel(infos);
+  if (moteurTexteUtile(infos, profil)) await installerMoteur('texte');
   if (licenceManquante(profil)) return;
   telechargerModeles(profil.modeles.map(m => m.id), licencesAcceptees.has(profil.id));
 });
@@ -2076,7 +2391,7 @@ $('#basculer-avance').addEventListener('click', () => {
   const ouvert = $('#liste-modeles').hidden;
   $('#liste-modeles').hidden = !ouvert;
   $('#basculer-avance').setAttribute('aria-expanded', String(ouvert));
-  $('#basculer-avance').textContent = ouvert ? 'Masquer le mode avancé' : 'Choisir les modèles un par un (mode avancé)';
+  $('#basculer-avance').textContent = ouvert ? 'Masquer le mode avancé' : 'Choisir ou supprimer les modèles un par un (mode avancé)';
 });
 
 // ---------- Nouvelle version ----------
@@ -2252,7 +2567,7 @@ function ouvrirVisionneuse(img) {
 }
 // Image suivante ou precedente, dans l'ordre du fil
 function voisine(sens) {
-  const liste = [...filtrees()].reverse(), i = liste.findIndex(x => x.nom === etat.courant?.nom);
+  const liste = [...filtrees()].filter(x => !x.video).reverse(), i = liste.findIndex(x => x.nom === etat.courant?.nom);
   const img = liste[i + sens];
   if (img) ouvrirVisionneuse(img);
 }
@@ -2268,7 +2583,11 @@ function fermerVisionneuse() {
 
 // ---------- Mes images ----------
 async function chargerImages() {
-  try { etat.images = await api('/api/images'); } catch (err) { note(err.message, 'erreur'); }
+  try {
+    // Images et videos dans un seul fil, de la plus recente a la plus ancienne
+    const [images, videos] = await Promise.all([api('/api/images'), api('/api/videos').catch(() => [])]);
+    etat.images = [...images, ...videos].sort((a, b) => b.date.localeCompare(a.date) || b.version - a.version);
+  } catch (err) { note(err.message, 'erreur'); }
   $('#nb-images').textContent = etat.images.length;
 }
 
@@ -2280,15 +2599,26 @@ $('#filtre').addEventListener('input', () => { rendreFil(); descendre(); });
 
 // ---------- Telephone : format et nombre d'images dans le panneau d'options ----------
 const TELEPHONE = matchMedia('(max-width: 720px)');
-const ancreFormats = document.createComment('formats'), ancreNombre = document.createComment('nombre');
-$('#formats').before(ancreFormats);
-$('#nombre').before(ancreNombre);
+// Sur telephone, format, nombre, duree et qualite passent dans le panneau d'options
+const OUTILS_TELEPHONE = ['mode', 'formats', 'nombre', 'duree', 'qualite'].map(id => {
+  const ancre = document.createComment(id);
+  $('#' + id).before(ancre);
+  return [id, ancre];
+});
 function placerOutils() {
-  if (TELEPHONE.matches) { $('#place-formats').append($('#formats')); $('#place-nombre').append($('#nombre')); }
-  else { ancreFormats.after($('#formats')); ancreNombre.after($('#nombre')); }
+  for (const [id, ancre] of OUTILS_TELEPHONE) {
+    if (TELEPHONE.matches) $('#place-' + id).append($('#' + id));
+    else ancre.after($('#' + id));
+  }
   majPlaceholder();
 }
 function majPlaceholder() {
+  if (etat.mode === 'video') {
+    prompt.placeholder = TELEPHONE.matches
+      ? traduire(etat.source ? 'Décris le mouvement…' : 'Décris ta vidéo…')
+      : traduire(etat.source ? 'Décris ce qui se passe à partir de cette image…' : 'Décris la vidéo à créer…');
+    return;
+  }
   prompt.placeholder = TELEPHONE.matches
     ? (etat.source ? 'Décris le changement…' : 'Décris ton image…')
     : (etat.source ? 'Décris le changement à faire sur cette image…' : 'Décris l\'image à créer, ou le changement à faire sur ton image…');
@@ -2404,6 +2734,10 @@ function remplirReglages(r) {
   remplirOllama(r.amelioration_modele);
   remplirModeles($('#r-llm-local'), r.amelioration_modele_local, true, 'Désactivée');
   remplirModeles($('#r-llm-vision'), r.amelioration_vision_locale, true, 'Aucune');
+  // Video : vide = les fichiers Wan du catalogue trouves dans le dossier models
+  remplirModeles($('#r-video-modele'), r.video_modele, true, 'Automatique : fichiers Wan du dossier models');
+  remplirModeles($('#r-video-texte'), r.video_texte, true, 'Automatique : fichiers Wan du dossier models');
+  remplirModeles($('#r-video-vae'), r.video_vae, true, 'Automatique : fichiers Wan du dossier models');
   const methode = $('#r-methode');
   methode.innerHTML = '';
   infosReglages.methodes.forEach(m => methode.append(new Option(m, m)));
@@ -2606,6 +2940,8 @@ function finChargement() {
     majProblemes(e.problemes, e.local);
     majMoteurs(e.moteurs);
     majAmelioration(e.amelioration);
+    majVideo(e.video);
+    majAgrandissement(e.agrandissement);
     majVersion(e.mise_a_jour);
     majEchecMaj(e.maj_echec);
     if (e.local) {

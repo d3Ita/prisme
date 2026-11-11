@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prisme · Free local AI image generator for Windows, macOS and Linux</title>
-<meta name="description" content="Prisme is a free, open-source desktop app to create and edit AI images on your own computer. No cloud, no subscription, no complicated setup: download it, let it install the engine and models, and type what you want.">
+<title>Prisme · Free local AI image and video generator for Windows, macOS and Linux</title>
+<meta name="description" content="Prisme is a free, open-source desktop app to create, edit and enlarge AI images, and make short videos, on your own computer. No cloud, no subscription, no complicated setup: download it, let it install the engine and models, and type what you want.">
 <link rel="canonical" href="https://d3ita.github.io/prisme/">
 <meta name="google-site-verification" content="oWAAWyfXSKnJGQkltS277YJsJ8U-xIm69XapfaP7Hng">
 <link rel="icon" type="image/png" href="logo.png">
@@ -14,7 +14,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Prisme">
 <meta property="og:title" content="Prisme · Local AI image generation, as simple as sending a message">
-<meta property="og:description" content="Free and open source. Create and edit AI images on your own computer: no cloud, no subscription, no complicated setup.">
+<meta property="og:description" content="Free and open source. Create, edit and enlarge AI images, and make short videos, on your own computer: no cloud, no subscription, no complicated setup.">
 <meta property="og:url" content="https://d3ita.github.io/prisme/">
 <meta property="og:image" content="https://d3ita.github.io/prisme/social-preview.png">
 <meta property="og:image:width" content="1280">
@@ -33,7 +33,7 @@
   "downloadUrl": "https://d3ita.github.io/prisme/#download",
   "image": "https://d3ita.github.io/prisme/logo.png",
   "screenshot": "https://d3ita.github.io/prisme/apercu.png",
-  "license": "https://opensource.org/licenses/MIT",
+  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
   "isAccessibleForFree": true,
   "inLanguage": ["en", "fr"],
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
@@ -46,7 +46,7 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    { "@type": "Question", "name": "Is Prisme free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits." } },
+    { "@type": "Question", "name": "Is Prisme free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Prisme is free and open-source software under the GNU GPL version 3, with no account, no subscription and no credits." } },
     { "@type": "Question", "name": "Does Prisme work offline?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. An internet connection is needed once, to download the engine and the models. After that, creating and editing images runs entirely on your computer." } },
     { "@type": "Question", "name": "What hardware does Prisme need?", "acceptedAnswer": { "@type": "Answer", "text": "A graphics card with 8 GB of video memory or more: NVIDIA, AMD or Intel on Windows, any Vulkan card on Linux, or an Apple Silicon Mac." } },
     { "@type": "Question", "name": "Is Prisme an alternative to ComfyUI?", "acceptedAnswer": { "@type": "Answer", "text": "For creating and editing images from a description, yes, with a much simpler interface. For complex multi-step workflows, ComfyUI stays more powerful." } }
@@ -223,8 +223,8 @@ footer p { margin: 0; max-width: 640px; }
       <span lang="fr">Créer des images par IA sur ton ordinateur, aussi simplement qu'un message</span>
     </h1>
     <p class="sous">
-      <span lang="en">Prisme creates and edits images on your own graphics card. No cloud, no subscription, no Python, no node editor: download it, let it install everything, and type what you want.</span>
-      <span lang="fr">Prisme crée et modifie des images avec ta propre carte graphique. Sans cloud, sans abonnement, sans Python ni éditeur de nœuds : télécharge-le, laisse-le tout installer, et écris ce que tu veux.</span>
+      <span lang="en">Prisme creates, edits and enlarges images, and makes short videos, on your own graphics card. No cloud, no subscription, no Python, no node editor: download it, let it install everything, and type what you want.</span>
+      <span lang="fr">Prisme crée, modifie et agrandit des images, et fait de courtes vidéos, avec ta propre carte graphique. Sans cloud, sans abonnement, sans Python ni éditeur de nœuds : télécharge-le, laisse-le tout installer, et écris ce que tu veux.</span>
     </p>
     <div class="boutons">
       <a class="bouton principal" href="telechargements/Prisme.exe">
@@ -280,6 +280,16 @@ footer p { margin: 0; max-width: 640px; }
           <p><span lang="en">Drop a photo or reuse a result, then describe the change: "add snow on the roof".</span><span lang="fr">Dépose une photo ou reprends un résultat, puis décris le changement : « ajoute de la neige sur le toit ».</span></p>
         </div>
         <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg></div>
+          <h3><span lang="en">Short videos (beta)</span><span lang="fr">Courtes vidéos (bêta)</span></h3>
+          <p><span lang="en">1 to 5 seconds from a description or from an image, with the open Wan 2.2 model, on a 12 GB graphics card.</span><span lang="fr">De 1 à 5 secondes à partir d'une description ou d'une image, avec le modèle ouvert Wan 2.2, sur une carte graphique de 12 Go.</span></p>
+        </div>
+        <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+          <h3><span lang="en">Enlarge ×4</span><span lang="fr">Agrandis ×4</span></h3>
+          <p><span lang="en">One click under an image: Real-ESRGAN makes it four times larger and keeps the details sharp.</span><span lang="fr">Un clic sous une image : Real-ESRGAN la rend quatre fois plus grande en gardant les détails nets.</span></p>
+        </div>
+        <div class="carte">
           <div class="icone"><svg viewBox="0 0 24 24"><path d="M4 6h12M4 11h8M4 16h5M14.5 19.5l6-6-2-2-6 6-.5 2.5z"/></svg></div>
           <h3><span lang="en">Better prompts, locally</span><span lang="fr">De meilleures descriptions, en local</span></h3>
           <p><span lang="en">A local language model turns a short idea into a detailed description, and looks at your image for edits.</span><span lang="fr">Un modèle de langage local détaille une idée courte, et regarde ton image pour les modifications.</span></p>
@@ -295,9 +305,14 @@ footer p { margin: 0; max-width: 640px; }
           <p><span lang="en">NVIDIA (CUDA), AMD and Intel (Vulkan) on Windows, Vulkan on Linux, Metal on Apple Silicon Macs.</span><span lang="fr">NVIDIA (CUDA), AMD et Intel (Vulkan) sous Windows, Vulkan sous Linux, Metal sur les Mac à puce Apple.</span></p>
         </div>
         <div class="carte">
+          <div class="icone"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
+          <h3><span lang="en">Ask Claude</span><span lang="fr">Demande à Claude</span></h3>
+          <p><span lang="en">One click connects Prisme to Claude: "create an image of a fox in the snow", or a short video, on your PC.</span><span lang="fr">Un clic connecte Prisme à Claude : « crée l'image d'un renard dans la neige », ou une courte vidéo, sur ton PC.</span></p>
+        </div>
+        <div class="carte">
           <div class="icone"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9M12 3v9l6 3"/></svg></div>
           <h3><span lang="en">Open and checked</span><span lang="fr">Ouvert et vérifié</span></h3>
-          <p><span lang="en">MIT license, automated tests, and engines and models verified by SHA-256 before use.</span><span lang="fr">Licence MIT, tests automatiques, et moteurs et modèles vérifiés par SHA-256 avant usage.</span></p>
+          <p><span lang="en">GPL-3.0 license, automated tests, and engines and models verified by SHA-256 before use.</span><span lang="fr">Licence GPL-3.0, tests automatiques, et moteurs et modèles vérifiés par SHA-256 avant usage.</span></p>
         </div>
       </div>
     </div>
@@ -316,6 +331,10 @@ footer p { margin: 0; max-width: 640px; }
           <figure style="margin-top:22px">
             <img src="captures/modeles.png" data-src-fr="captures/fr/modeles.png" width="1280" height="760" loading="lazy" alt="Recommended models window with one-click downloads">
             <figcaption><span lang="en">Recommended models, downloaded in one click</span><span lang="fr">Les modèles conseillés, téléchargés en un clic</span></figcaption>
+          </figure>
+          <figure style="margin-top:22px">
+            <img src="demo-video.gif" data-src-fr="demo-video-fr.gif" width="880" height="522" loading="lazy" alt="Prisme video demo: the Video tab, a short idea enhanced, then the video playing in the feed">
+            <figcaption><span lang="en">A short video, from an idea (beta)</span><span lang="fr">Une courte vidéo, à partir d'une idée (bêta)</span></figcaption>
           </figure>
         </div>
         <div class="telephones">
@@ -384,7 +403,11 @@ footer p { margin: 0; max-width: 640px; }
       <div class="faq">
         <details>
           <summary><span lang="en">Is Prisme free?</span><span lang="fr">Prisme est-il gratuit ?</span></summary>
-          <p><span lang="en">Yes. Prisme is open source under the MIT license, with no account, no subscription and no credits. The recommended models are free to download too; check each model's license on its page.</span><span lang="fr">Oui. Prisme est open source sous licence MIT, sans compte, sans abonnement et sans crédits. Les modèles conseillés sont gratuits aussi ; vérifie la licence de chacun sur sa page.</span></p>
+          <p><span lang="en">Yes. Prisme is free and open-source software under the GNU GPL version 3, with no account, no subscription and no credits. The recommended models are free to download too; check each model's license on its page.</span><span lang="fr">Oui. Prisme est un logiciel libre et open source sous licence GNU GPL version 3, sans compte, sans abonnement et sans crédits. Les modèles conseillés sont gratuits aussi ; vérifie la licence de chacun sur sa page.</span></p>
+        </details>
+        <details>
+          <summary><span lang="en">Can it make videos?</span><span lang="fr">Peut-il faire des vidéos ?</span></summary>
+          <p><span lang="en">Yes, in the Prisme 2.0 beta: 1 to 5 seconds from a description or an image, with Wan 2.2 (Apache-2.0), on a 12 GB graphics card. On an RTX 4070 SUPER, 2 seconds take about 2 minutes in 480p and 4 minutes in 720p.</span><span lang="fr">Oui, dans la bêta de Prisme 2.0 : de 1 à 5 secondes à partir d'une description ou d'une image, avec Wan 2.2 (Apache-2.0), sur une carte graphique de 12 Go. Sur une RTX 4070 SUPER, 2 secondes prennent environ 2 minutes en 480p et 4 minutes en 720p.</span></p>
         </details>
         <details>
           <summary><span lang="en">Does it work offline?</span><span lang="fr">Est-ce que ça marche sans Internet ?</span></summary>
@@ -437,8 +460,8 @@ footer p { margin: 0; max-width: 640px; }
 <footer>
   <div class="largeur">
     <p>
-      <span lang="en">Prisme is designed for legal and ethical use. Each user is responsible for the images they create, edit or share. Released under the <a href="https://github.com/d3Ita/prisme/blob/main/LICENSE">MIT license</a>.</span>
-      <span lang="fr">Prisme est conçu pour un usage légal et éthique. Chaque utilisateur est responsable des images qu'il crée, modifie ou partage. Distribué sous <a href="https://github.com/d3Ita/prisme/blob/main/LICENSE">licence MIT</a>.</span>
+      <span lang="en">Prisme is designed for legal and ethical use. Each user is responsible for the images they create, edit or share. Released under the <a href="https://github.com/d3Ita/prisme/blob/main/LICENSE">GNU GPL version 3</a>.</span>
+      <span lang="fr">Prisme est conçu pour un usage légal et éthique. Chaque utilisateur est responsable des images qu'il crée, modifie ou partage. Distribué sous <a href="https://github.com/d3Ita/prisme/blob/main/LICENSE">licence GNU GPL version 3</a>.</span>
     </p>
     <p>
       <a href="https://github.com/d3Ita/prisme">GitHub</a> ·

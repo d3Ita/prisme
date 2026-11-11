@@ -233,7 +233,8 @@ class ModelesConseillesTest(unittest.TestCase):
                 self.assertTrue(m['url'].startswith(m['page'] + '/resolve/main/'), m['url'])
                 self.assertTrue(m['page'].startswith('https://huggingface.co/'), m['page'])
                 self.assertFalse(any(mot in (m['url'] + m['fichier']).lower() for mot in LiensModelesTest.INTERDITS), m['url'])
-                self.assertGreater(m['taille'], 100_000_000)
+                # Le modele d'agrandissement (Real-ESRGAN, 67 Mo) est bien plus petit que les autres
+                self.assertGreater(m['taille'], 10_000_000 if m['role'] == 'agrandissement' else 100_000_000)
                 if m['sha256'] is not None:
                     self.assertRegex(m['sha256'], r'^[0-9a-f]{64}$')
                 self.assertTrue(m['licence']['nom'] and m['licence']['url'].startswith('https://'))
@@ -259,16 +260,21 @@ class ModelesConseillesTest(unittest.TestCase):
                     self.assertTrue(profil[champ]['fr'] and profil[champ]['en'], champ)
                 self.assertTrue(profil['vitesse']['fr'] and profil['vitesse']['en'])
                 self.assertIn(profil['statut'], ('recommande', 'experimental'))
-                self.assertIn(profil['categorie'], ('principal', 'option'))
-                self.assertIn(profil['cible']['type'], ('pc', 'mac') if profil['categorie'] == 'principal' else ('tous',))
+                self.assertIn(profil['categorie'], ('principal', 'option', 'video'))
+                self.assertIn(profil['cible']['type'], ('pc', 'mac') if profil['categorie'] != 'option' else ('tous',))
                 modeles = [par_id[i] for i in profil['modeles']]
                 roles = [m['role'] for m in modeles]
-                # Un fichier par role ; la vision (modification d'image) est facultative
-                for role in ('image', 'texte', 'vae'):
-                    self.assertEqual(roles.count(role), 1, role)
-                self.assertLessEqual(roles.count('edition'), 1)
-                dessin = next(m for m in modeles if m['role'] == 'image')
-                self.assertEqual(profil['edition'], dessin['edition'] == 'reference' or (dessin['edition'] == 'vision' and 'edition' in roles))
+                if profil['categorie'] == 'video':
+                    # Un profil video : son modele, son encodeur de texte et son VAE, rien pour les images
+                    self.assertEqual(sorted(roles), ['video', 'video_texte', 'video_vae'])
+                    self.assertFalse(profil['edition'])
+                else:
+                    # Un fichier par role ; la vision (modification d'image) est facultative
+                    for role in ('image', 'texte', 'vae'):
+                        self.assertEqual(roles.count(role), 1, role)
+                    self.assertLessEqual(roles.count('edition'), 1)
+                    dessin = next(m for m in modeles if m['role'] == 'image')
+                    self.assertEqual(profil['edition'], dessin['edition'] == 'reference' or (dessin['edition'] == 'vision' and 'edition' in roles))
                 # Les fichiers d'un profil vont ensemble
                 self.assertTrue(set.intersection(*(set(m['familles']) for m in modeles)), profil['id'])
                 # Les profils principaux n'ont que des licences permissives ; les autres demandent d'accepter la leur

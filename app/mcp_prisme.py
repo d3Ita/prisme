@@ -38,6 +38,11 @@ PROMPT_MAX = 4000
 IMAGE_SOURCE_MAX = 32 * 1024 * 1024
 APERCU_MAX = 900 * 1024
 NOM_IMAGE = re.compile(r'^[\w.-]+\.png$')
+NOM_VIDEO = re.compile(r'^video_[\w.-]+\.webm$')
+# Video (Prisme 2.0) : memes choix que dans la fenetre de Prisme
+DUREES_VIDEO = (1, 5)
+QUALITES_VIDEO = ('480p', '720p')
+FORMATS_VIDEO = {'landscape': 'paysage', 'portrait': 'portrait', 'square': 'carre'}
 HOTES_LOCAUX = ('127.0.0.1', 'localhost', '::1')
 COMMENT_TELECHARGER = ('Ask Claude to call download_profile with that profile, or in Prisme click "Download the models" '
                        '(Télécharger les modèles), pick that profile, then "Download this profile".')
@@ -177,6 +182,12 @@ class Prisme:
         if e.get('occupe') and e.get('claude'):
             statut.update(task_id=identifiant_tache(e), step=e.get('etape'), steps=e.get('total'),
                           image=e.get('index'), images=e.get('nombre'), elapsed_seconds=e.get('ecoule'))
+            if e.get('genre') == 'video':
+                # Creation (etapes), puis assemblage des images de la video par morceaux
+                statut.update(kind='video', phase='assembling frames' if e.get('phase') == 'decodage' else 'creating',
+                              parts=e.get('total_decodage') or None)
+        if e.get('video') is not None:
+            statut['video_ready'] = bool(e['video'].get('pret'))
         if e.get('erreur'):
             statut['error'] = e['erreur']
         moteurs = e.get('moteurs') or {}
@@ -205,7 +216,7 @@ class Prisme:
                     'download_size_gb': round(p['taille_totale'] / 1e9, 1), 'remaining_gb': round(p['taille_restante'] / 1e9, 1),
                     'status': 'recommended' if p['statut'] == 'recommande' else 'experimental',
                     'image_editing': p['edition'], 'downloaded': p['installe'], 'in_use': p['actif'],
-                    'category': 'main' if p.get('categorie', 'principal') == 'principal' else 'option',
+                    'category': {'principal': 'main', 'video': 'video'}.get(p.get('categorie', 'principal'), 'option'),
                     'license_to_accept': bool(p.get('licence_a_accepter')),
                     'speed': p['vitesse']['en'], 'models': [m['fichier'] for m in p['modeles']]}
                    for p in infos.get('profils', [])]
@@ -343,6 +354,40 @@ class Prisme:
                                       'source_data': source}, delai=60)
         return self.attendre()
 
+    def video(self, prompt, duration=2, quality='480p', shape='landscape', seed=None, start_image=None):
+        """generate_video : une video Wan 2.2 de 1 a 5 s ; quelques minutes, donc presque toujours un task_id."""
+        prompt = valider_prompt(prompt)
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)) \
+                or not DUREES_VIDEO[0] <= duration <= DUREES_VIDEO[1] or (duration * 2) % 1:
+            raise PrismeErreur('duration must be between 1 and 5 seconds, in half seconds.')
+        if quality not in QUALITES_VIDEO:
+            raise PrismeErreur('quality must be "480p" or "720p".')
+        if shape not in FORMATS_VIDEO:
+            raise PrismeErreur('shape must be "landscape", "portrait" or "square".')
+        if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 2 ** 31):
+            raise PrismeErreur('seed must be a whole number between 0 and 2147483647.')
+        etat = self.etat()
+        video = etat.get('video')
+        if video is None:
+            raise PrismeErreur(f'This version of Prisme ({etat.get("version")}) cannot create videos yet.')
+        if not video.get('pret'):
+            profil = video.get('profil')
+            raise PrismeErreur('Prisme does not have its video models yet.'
+                               + (f' Suggest the "{profil}" profile to the user (see list_profiles, category "video"), and '
+                                  'with their agreement call download_profile with it.' if profil else
+                                  ' No video profile fits this computer.'))
+        self.verifier_libre(etat)
+        corps = {'prompt': prompt, 'duree': duration, 'qualite': quality, 'format': FORMATS_VIDEO[shape], 'seed': seed}
+        if start_image:
+            chemin = self.chemin_autorise(start_image)
+            donnees = chemin.read_bytes()
+            genre = type_image(donnees)
+            if not genre:
+                raise PrismeErreur('The start image must be a PNG or JPEG.')
+            corps['source_data'] = f'data:image/{genre};base64,' + base64.b64encode(donnees).decode('ascii')
+        self.requete('/api/video', corps, delai=60)
+        return self.attendre()
+
     def chemin_autorise(self, image_path):
         """L'image a modifier doit etre dans PRISME_OUTPUT_DIR : le serveur MCP ne lit rien d'autre sur le disque."""
         if not image_path or not str(image_path).strip():
@@ -382,20 +427,25 @@ class Prisme:
             raise PrismeErreur('The creation was cancelled in Prisme.')
         if etat.get('erreur') or phase == 'erreur':
             raise PrismeErreur('Prisme could not create the image: ' + str(etat.get('erreur') or 'unknown error'))
-        noms = [n for n in etat.get('resultats') or [] if NOM_IMAGE.match(str(n))]
+        noms = [n for n in etat.get('resultats') or [] if NOM_IMAGE.match(str(n)) or NOM_VIDEO.match(str(n))]
         if not noms:
             raise PrismeErreur('Prisme finished without producing an image.')
         self.dossier.mkdir(parents=True, exist_ok=True)
         images = []
         for nom in noms:
-            contenu = self.requete('/images-claude/' + quote(nom), brut=True, delai=60)
+            contenu = self.requete('/images-claude/' + quote(nom), brut=True, delai=120)
             chemin = self.dossier / nom
             if not chemin.is_file():  # deja la quand PRISME_OUTPUT_DIR est le dossier de Prisme pour Claude
                 chemin.write_bytes(contenu)
-            images.append({'path': str(chemin), 'png': contenu})
-        return {'status': 'done', 'task_id': identifiant_tache(etat), 'seed': etat.get('seed_base'),
-                'width': etat.get('largeur'), 'height': etat.get('hauteur'), 'prompt': etat.get('prompt'),
-                'seconds': etat.get('ecoule'), 'images': images}
+            # Une video n'a pas d'apercu : Claude recoit son chemin
+            images.append({'path': str(chemin), 'video': True, 'size': len(contenu)} if NOM_VIDEO.match(nom)
+                          else {'path': str(chemin), 'png': contenu})
+        resultat = {'status': 'done', 'task_id': identifiant_tache(etat), 'seed': etat.get('seed_base'),
+                    'width': etat.get('largeur'), 'height': etat.get('hauteur'), 'prompt': etat.get('prompt'),
+                    'seconds': etat.get('ecoule'), 'images': images}
+        if etat.get('genre') == 'video':
+            resultat['duration'] = etat.get('duree')
+        return resultat
 
     def suivre(self, task_id=None):
         """get_status : etat de Prisme, ou resultat d'une tache lancee plus tot."""
@@ -499,7 +549,7 @@ def resume(resultat):
     """Texte court pour Claude, sans les octets des images."""
     if resultat.get('status') != 'done':
         return json.dumps({k: v for k, v in resultat.items()}, ensure_ascii=False)
-    infos = {k: resultat[k] for k in ('status', 'task_id', 'seed', 'width', 'height', 'seconds') if resultat.get(k) is not None}
+    infos = {k: resultat[k] for k in ('status', 'task_id', 'seed', 'width', 'height', 'duration', 'seconds') if resultat.get(k) is not None}
     infos['files'] = [i['path'] for i in resultat['images']]
     return json.dumps(infos, ensure_ascii=False)
 
@@ -604,7 +654,9 @@ INSTRUCTIONS = (
     'graphics card to several minutes on a Mac or without one. If Prisme is not ready, call list_profiles, suggest the '
     'recommended profile to the user, and with their agreement call download_profile (and install_engine if needed). '
     'Licenses that are not open (Qwen-Image) and models outside Prisme\'s catalog are approved by the user in Prisme\'s '
-    'window, never by you. If a tool returns a task_id, call get_status with it later. Images are saved in PRISME_OUTPUT_DIR.')
+    'window, never by you. If a tool returns a task_id, call get_status with it later. Images are saved in PRISME_OUTPUT_DIR. '
+    'Videos (generate_video, 1 to 5 seconds) take a few minutes: tell the user, then follow them with get_status; you '
+    'receive the saved file path, not a preview.')
 
 SCHEMA_VIDE = {'type': 'object', 'properties': {}}
 OUTILS = [
@@ -625,6 +677,19 @@ OUTILS = [
                     'the starting image\'s proportions. Needs a profile with image editing (FLUX.2 klein or Qwen-Image).',
      'inputSchema': {'type': 'object', 'required': ['image_path', 'instruction'], 'properties': {
          'image_path': {'type': 'string'}, 'instruction': {'type': 'string'}}}},
+    {'name': 'generate_video',
+     'description': 'Create a short video (1 to 5 s, 24 frames per second, no sound) with Prisme\'s video model (Wan 2.2), '
+                    'on this computer. Describe the subject, what moves and the camera movement. quality: "480p" (about 2 '
+                    'minutes for 2 s on a 12 GB card) or "720p" (about twice as long). start_image: optional PNG or JPEG '
+                    'inside PRISME_OUTPUT_DIR to animate. Needs the video profile (list_profiles, category "video"). Returns '
+                    'a task_id to pass to get_status, then the path of the .webm file.',
+     'inputSchema': {'type': 'object', 'required': ['prompt'], 'properties': {
+         'prompt': {'type': 'string', 'description': 'What the video shows: subject, motion, camera.'},
+         'duration': {'type': 'number', 'default': 2, 'minimum': 1, 'maximum': 5, 'multipleOf': 0.5},
+         'quality': {'type': 'string', 'enum': list(QUALITES_VIDEO), 'default': '480p'},
+         'shape': {'type': 'string', 'enum': list(FORMATS_VIDEO), 'default': 'landscape'},
+         'seed': {'type': 'integer', 'minimum': 0, 'maximum': 2147483647},
+         'start_image': {'type': 'string', 'description': 'Optional image to animate, inside PRISME_OUTPUT_DIR.'}}}},
     {'name': 'list_models',
      'description': 'Model files in Prisme\'s models folder, the ones currently selected, and whether image editing is possible.',
      'inputSchema': SCHEMA_VIDE},
@@ -659,6 +724,10 @@ def contenu_resultat(resultat):
     """Texte (chemins, graine) et apercu des images pour Claude."""
     sortie = [{'type': 'text', 'text': resume(resultat)}]
     for image in resultat.get('images', []):
+        if image.get('video'):
+            sortie.append({'type': 'text', 'text': f'Video saved: {image["path"]} (WebM, no sound). The user can open it '
+                                                   'in a web browser or in Prisme.'})
+            continue
         donnees, genre = apercu(image['png'])
         if donnees:
             sortie.append({'type': 'image', 'data': base64.b64encode(donnees).decode('ascii'), 'mimeType': f'image/{genre}'})
@@ -674,6 +743,10 @@ def appeler_outil(prisme, nom, arguments):
     if nom == 'generate_image':
         return contenu_resultat(prisme.generer(a.get('prompt'), a.get('width', 1024), a.get('height', 1024),
                                                a.get('seed'), a.get('model')))
+    if nom == 'generate_video':
+        resultat = prisme.video(a.get('prompt'), a.get('duration', 2), a.get('quality', '480p'), a.get('shape', 'landscape'),
+                                a.get('seed'), a.get('start_image'))
+        return contenu_resultat(resultat) if resultat.get('status') == 'done' else texte(resultat)
     if nom == 'edit_image':
         return contenu_resultat(prisme.modifier(a.get('image_path'), a.get('instruction')))
     if nom == 'list_models':

@@ -268,6 +268,8 @@ L'option **Améliorer automatiquement** le fait avant chaque génération. Les d
 
 Prisme 2.0, en bêta, fait de courtes vidéos avec [Wan 2.2 TI2V 5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) (Apache-2.0), par le mode vidéo de stable-diffusion.cpp.
 
+![Démonstration vidéo de Prisme : l'onglet Vidéo, une idée courte améliorée pour Wan, l'avancement en deux temps, puis la vidéo lue dans le fil](docs/demo-video-fr.gif)
+
 1. Ouvre la fenêtre des modèles et télécharge le profil **Vidéo, carte de 12 Go (bêta)** (12,9 Go). Les fichiers Wan déjà présents dans `models` servent sans être retéléchargés.
 2. Choisis **Vidéo** dans les onglets au-dessus de la description.
 3. Décris le sujet, ce qui bouge et la caméra (« un renard roux qui trotte dans la neige, travelling lent »). **Améliorer** la réécrit comme Wan la comprend le mieux. Ajoute une image pour l'animer.

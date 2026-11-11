@@ -250,6 +250,8 @@ With a starting image, the model looks at the picture and writes an edit instruc
 
 Prisme 2.0, in beta, makes short videos with [Wan 2.2 TI2V 5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) (Apache-2.0), through stable-diffusion.cpp's video mode.
 
+![Prisme video demo: the Video tab, a short idea enhanced for Wan, two-step progress, then the video playing in the feed](docs/demo-video.gif)
+
 1. Open the models window and download the **Video, 12 GB card (beta)** profile (12.9 GB). Wan files you already have in `models` are used without downloading them again.
 2. Choose **Video** in the tabs above the description.
 3. Describe the subject, what moves and the camera ("a red fox trotting through snow, slow tracking shot"). **Enhance** rewrites it the way Wan understands best. Add a picture to animate it.

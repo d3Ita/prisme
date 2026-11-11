@@ -30,6 +30,8 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
+
+import agrandir
 from urllib.parse import parse_qs, unquote, urlparse
 
 VERSION = '1.9.6'
@@ -381,6 +383,8 @@ REGLAGES_DEFAUT = {
     'modele_texte': '',
     'modele_vision': '',
     'vae': '',
+    # Modele d'agrandissement (Real-ESRGAN) ; vide = celui du catalogue, s'il est dans le dossier models
+    'modele_agrandissement': '',
     'etapes': 20,
     'cfg': 4.0,
     'methode': 'euler',
@@ -481,7 +485,7 @@ def valider_reglages(donnees):
     r = lire_reglages()
     try:
         for cle in ('modele_diffusion', 'modele_texte', 'modele_vision', 'vae', 'amelioration_modele_local',
-                    'amelioration_vision_locale'):
+                    'amelioration_vision_locale', agrandir.CLE):
             nom = str(donnees.get(cle, r[cle])).strip().replace('\\', '/')
             if nom and not chemin_relatif_sur(nom):
                 return None, 'Les modèles doivent être dans le dossier models.'
@@ -1033,7 +1037,8 @@ def etat_moteurs():
 # Modeles conseilles, telechargeables depuis Prisme : modeles officiels et generalistes, verifies par empreinte.
 # Le catalogue (fichiers et profils par machine) est dans app/modeles.json
 CATALOGUE = json.loads((RESSOURCES / 'modeles.json').read_text(encoding='utf-8'))
-ROLES_MODELES = {'image': 'Modèle de dessin', 'texte': 'Modèle de texte', 'edition': 'Vision', 'vae': 'VAE'}
+ROLES_MODELES = {'image': 'Modèle de dessin', 'texte': 'Modèle de texte', 'edition': 'Vision', 'vae': 'VAE',
+                 'agrandissement': 'Agrandissement'}
 MODELES_CONSEILLES = [
     m | {'role': ROLES_MODELES[m['role']], 'role_id': m['role'],
          'titre': f"{m['nom']} · {m['quantification']}" if m['quantification'] else m['nom'],
@@ -1962,6 +1967,52 @@ def generer(params):
             etat['fin'] = time.time()
 
 
+# Agrandissement : le modele choisi dans les reglages, ou celui du catalogue s'il est dans le dossier models
+AGRANDISSEMENT = next(m for m in MODELES_CONSEILLES if m['role_id'] == 'agrandissement')
+
+
+def modele_agrandissement(r):
+    nom = r.get(agrandir.CLE) or AGRANDISSEMENT['fichier']
+    return MODELES / nom if chemin_relatif_sur(nom) and (MODELES / nom).is_file() else None
+
+
+def generer_agrandissement(params):
+    """Agrandit une image de la galerie x4 dans une nouvelle image ; meme etat, meme annulation que les creations."""
+    global processus
+    source, sortie = params['source'], params['sortie']
+
+    def lancer(commande):
+        global processus
+        processus = lancer_moteur(commande, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
+        return processus
+
+    def rapporter(**champs):
+        with verrou:
+            etat.update(champs)
+
+    try:
+        commande = [str(SD_CLI)] + agrandir.arguments(params['modele'], source, sortie) + options_reserve_sd(params['reglages'])
+        code, erreurs = agrandir.executer(commande, lancer, rapporter, lambda: annule)
+        if annule:
+            sortie.unlink(missing_ok=True)
+        elif code != 0 or not sortie.exists():
+            with verrou:
+                etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
+        else:
+            agrandir.copier_description(source, sortie)
+            with verrou:
+                etat['resultats'].append(sortie.name)
+    except Exception as e:
+        with verrou:
+            etat['erreur'] = str(e)
+    finally:
+        processus = None
+        with verrou:
+            etat['occupe'] = False
+            etat['phase'] = 'annule' if annule else ('erreur' if etat.get('erreur') else 'termine')
+            etat['fin'] = time.time()
+
+
 # Permet d'installer Prisme comme une application (ecran d'accueil du telephone, fenetre du PC) avec son logo
 MANIFESTE = json.dumps({
     'name': 'Prisme', 'short_name': 'Prisme', 'start_url': '/', 'display': 'standalone',
@@ -2262,6 +2313,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             copie['problemes'] = problemes_configuration(r)
             copie['amelioration'] = {'modele': amelioration_active(r), 'auto': r['amelioration_auto']}
             copie['moteurs'] = etat_moteurs()
+            copie['agrandissement'] = {'pret': modele_agrandissement(r) is not None, 'id': AGRANDISSEMENT['id'],
+                                       'taille': AGRANDISSEMENT['taille'], 'licence': AGRANDISSEMENT['licence']['nom']}
             if self.est_local():
                 with verrou_demandes:
                     copie['demandes'] = [{'id': i, 'ip': d['ip'], 'appareil': d['appareil'], 'code': d['code']}
@@ -2373,6 +2426,34 @@ class Gestionnaire(BaseHTTPRequestHandler):
                           claude=claude)
             threading.Thread(target=generer, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
+
+        elif chemin == '/api/agrandir':
+            nom = str(self.lire_json().get('nom') or '')
+            if not NOM_IMAGE.match(nom) or not (IMAGES / nom).is_file():
+                return self.envoyer(404, {'erreur': 'Image introuvable.'})
+            if self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Les images de Prisme ne sont pas accessibles à Claude.'})
+            r = lire_reglages()
+            modele = modele_agrandissement(r)
+            if not modele:
+                return self.envoyer(409, {'erreur': 'Télécharge d\'abord le modèle d\'agrandissement.', 'telecharger': AGRANDISSEMENT['id']})
+            taille = agrandir.taille_png(IMAGES / nom)
+            if not taille or max(taille) > agrandir.COTE_MAX_SOURCE:
+                return self.envoyer(400, {'erreur': f'Image trop grande pour être agrandie (plus de {agrandir.COTE_MAX_SOURCE} pixels de côté).'})
+            sortie = nouveau_chemin(IMAGES)
+            with verrou:
+                if etat['occupe']:
+                    return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
+                if amelioration_en_cours.locked():
+                    return self.envoyer(409, {'erreur': 'Attends la fin de l\'amélioration de la description.'})
+                annule = False
+                etat.clear()
+                etat.update(occupe=True, genre='agrandissement', phase='chargement', etape=0, total=0, index=1, nombre=1,
+                            debut=time.time(), resultats=[], erreur=None, source=nom, claude=False,
+                            largeur=taille[0] * agrandir.FACTEUR, hauteur=taille[1] * agrandir.FACTEUR)
+            params = dict(source=IMAGES / nom, sortie=sortie, modele=modele, reglages=r)
+            threading.Thread(target=generer_agrandissement, args=(params,), daemon=True).start()
+            self.envoyer(200, {'largeur': taille[0] * agrandir.FACTEUR, 'hauteur': taille[1] * agrandir.FACTEUR})
 
         elif chemin == '/api/ameliorer':
             r = lire_reglages()

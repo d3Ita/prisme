@@ -92,7 +92,7 @@ class RouteSuppressionTest(unittest.TestCase):
 
     def setUp(self):
         self.supprimes = []
-        for patch in (mock.patch.object(serveur, 'PORT', self.port),
+        for patch in (mock.patch.object(serveur, 'PORT', self.port), mock.patch.object(serveur, 'dernier_contact_mcp', 0.0),
                       mock.patch.object(serveur, 'supprimer_modele', lambda nom: self.supprimes.append(nom) or 42)):
             patch.start()
             self.addCleanup(patch.stop)

@@ -233,7 +233,8 @@ class ModelesConseillesTest(unittest.TestCase):
                 self.assertTrue(m['url'].startswith(m['page'] + '/resolve/main/'), m['url'])
                 self.assertTrue(m['page'].startswith('https://huggingface.co/'), m['page'])
                 self.assertFalse(any(mot in (m['url'] + m['fichier']).lower() for mot in LiensModelesTest.INTERDITS), m['url'])
-                self.assertGreater(m['taille'], 100_000_000)
+                # Le modele d'agrandissement (Real-ESRGAN, 67 Mo) est bien plus petit que les autres
+                self.assertGreater(m['taille'], 10_000_000 if m['role'] == 'agrandissement' else 100_000_000)
                 if m['sha256'] is not None:
                     self.assertRegex(m['sha256'], r'^[0-9a-f]{64}$')
                 self.assertTrue(m['licence']['nom'] and m['licence']['url'].startswith('https://'))

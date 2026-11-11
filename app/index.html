@@ -171,7 +171,7 @@ const EN = {
   'Vidéo mise à la corbeille': 'Video moved to the trash', 'Description et réglages de la vidéo repris': 'Video description and settings reused',
   'À partir d\'une image': 'From an image', 'Vidéo (bêta)': 'Video (beta)', 'Profils de modèles': 'Model profiles',
   'Garder le PC utilisable': 'Keep the PC usable',
-  'Laisse 1,5 Go de la carte graphique à l'affichage pendant les calculs : un peu plus lent, mais l'écran ne gèle plus':
+  'Laisse 1,5 Go de la carte graphique à l\'affichage pendant les calculs : un peu plus lent, mais l\'écran ne gèle plus':
     'Leaves 1.5 GB of the graphics card to the display during calculations: a little slower, but the screen no longer freezes',
   'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
@@ -525,9 +525,9 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 .barre-outils:has(#retablir:not([hidden])) .format span { display: none; }
 /* Video : duree, qualite et choix du mode prennent de la place ; les formats gardent seulement leur forme */
 .barre-outils:has(#duree:not([hidden])) .format span { display: none; }
-/* Avec le choix Image / Video, Options, Ameliorer et Retablir gardent seulement leur icone (le texte reste dans leur
-   bulle d'aide) : sinon le bouton Creer sort de la bulle */
-.barre-outils:has(#mode:not([hidden])) :is(#plus summary, #ameliorer, #retablir) > span { display: none; }
+/* Choix Image / Video : des onglets au-dessus de la description */
+.onglets-mode { display: inline-flex; margin: 0 0 6px -4px; }
+.onglets-mode button { height: 26px; font-size: 13px; }
 #qualite button { min-width: 0; padding: 0 7px; }
 /* Duree de la video : un champ en secondes, dans le meme style que les groupes de boutons */
 .champ-duree { align-items: center; padding: 3px 9px 3px 3px; cursor: text; }
@@ -536,7 +536,6 @@ body.occupe .action-image[data-action="modifier"] { opacity: .4; pointer-events:
 .champ-duree input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .champ-duree span { margin-left: 5px; color: var(--texte-2); font-size: 13px; }
 .panneau-plus .champ-duree input { flex: 1; height: 36px; }
-.barre-outils:has(#mode:not([hidden])) { gap: 2px; }
 /* Fenetre etroite : plutot une deuxieme ligne dans la bulle qu'un bouton Creer qui en sort */
 @media (min-width: 721px) and (max-width: 960px) { .barre-outils { flex-wrap: wrap; row-gap: 6px; } #generer { margin-left: auto; } }
 .outil-compo {
@@ -972,12 +971,11 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="texte"><strong id="source-nom" translate="no"></strong><span id="source-taille"></span></div>
         <button type="button" class="bouton-icone" id="retirer" title="Retirer l'image"><svg class="i"><use href="#i-x"/></svg></button>
       </div>
+      <div class="groupe onglets-mode" id="mode" hidden title="Créer une image ou une vidéo">
+        <button type="button" class="actif" data-mode="image">Image</button><button type="button" data-mode="video">Vidéo</button>
+      </div>
       <textarea id="prompt" rows="1" placeholder="Décris l'image à créer, ou le changement à faire sur ton image…" spellcheck="false" aria-label="Description de l'image"></textarea>
       <div class="barre-outils">
-        <div class="groupe" id="mode" hidden title="Créer une image ou une vidéo">
-          <button type="button" class="actif" data-mode="image">Image</button><button type="button" data-mode="video">Vidéo</button>
-        </div>
-        <span class="separateur" id="sep-mode" hidden></span>
         <button type="button" class="outil-compo" id="depot" title="Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)"><svg class="i"><use href="#i-image"/></svg><span>Image</span></button>
         <span class="separateur"></span>
         <div class="formats" id="formats">
@@ -1360,7 +1358,7 @@ function majVideo(v) {
   etat.videoProfil = v?.profil || null;
   // Sur le PC, le choix apparait aussi sans les modeles video : Video ouvre alors leur profil a telecharger
   const visible = etat.videoPret || (etat.local && !!etat.videoProfil);
-  $('#mode').hidden = $('#sep-mode').hidden = $('#section-mode').hidden = !visible;
+  $('#mode').hidden = $('#section-mode').hidden = !visible;
   if (!etat.videoPret && etat.mode === 'video') choisirMode('image');
 }
 async function demanderVideo() {

@@ -156,7 +156,7 @@ const EN = {
   'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Garder le PC utilisable': 'Keep the PC usable',
   'Laisse 1,5 Go de la carte graphique à l\'affichage pendant les calculs : un peu plus lent, mais l\'écran ne gèle plus':
     'Leaves 1.5 GB of the graphics card to the display during calculations: a little slower, but the screen no longer freezes', 'Profils de modèles': 'Model profiles',
-  'Choisir les modèles un par un (mode avancé)': 'Choose models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
+  'Choisir ou supprimer les modèles un par un (mode avancé)': 'Choose or delete models one by one (advanced mode)', 'Masquer le mode avancé': 'Hide advanced mode',
   'Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.':
     'These models cannot edit an image: choose a profile that can (FLUX.2 klein or Qwen-Image) in the models window.', 'Conseillé': 'Recommended', 'Installé': 'Installed', 'Reprendre': 'Resume',
   'En attente…': 'Waiting…', 'Vérification du fichier…': 'Checking the file…',
@@ -694,6 +694,9 @@ body:has(#bandeau-maj:not([hidden])):has(#bandeau-claude:not([hidden])) .fil { p
 .modele .etat-modele.alerte { color: var(--danger); }
 .liste-modeles .role-modele { margin: -4px 0 8px; font-size: 12.5px; color: var(--texte-3); }
 .modele .present { color: var(--succes); font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 5px; }
+.modele .action { display: inline-flex; align-items: center; gap: 10px; }
+.supprimer-modele { width: 34px; height: 34px; padding: 0; display: inline-grid; place-items: center; }
+.supprimer-modele:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-doux); }
 .carte-modeles > footer { display: flex; gap: 8px; align-items: center; padding: 14px 24px; border-top: 1px solid var(--bordure); flex-wrap: wrap; }
 .carte-modeles > footer .espace { flex: 1; }
 /* Avis de nouvelle version */
@@ -1112,7 +1115,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
       <h4 class="titre-profils">Autres choix</h4>
       <div class="profils" id="profils-options" role="radiogroup" aria-label="Autres choix"></div>
       <div class="resume-profil" id="resume-profil"></div>
-      <button type="button" class="bouton-lien bascule-avance" id="basculer-avance" aria-expanded="false">Choisir les modèles un par un (mode avancé)</button>
+      <button type="button" class="bouton-lien bascule-avance" id="basculer-avance" aria-expanded="false">Choisir ou supprimer les modèles un par un (mode avancé)</button>
       <div class="liste-modeles" id="liste-modeles" hidden></div>
     </div>
     <footer>
@@ -1965,7 +1968,10 @@ function rendreModeles(infos) {
       ligne.querySelector('strong').textContent = m.titre;
       ligne.querySelector('small').textContent = `${LANGUE === 'en' ? m.detail_en : m.detail} · ${taille(m.taille)}`;
       const action = ligne.querySelector('.action');
-      if (m.present) action.innerHTML = '<span class="present"><svg class="i"><use href="#i-ok"/></svg>Installé</span>';
+      if (m.present) {
+        action.innerHTML = '<span class="present"><svg class="i"><use href="#i-ok"/></svg>Installé</span>';
+        action.append(boutonSupprimerModele(m.fichier, m.titre, m.taille));
+      }
       else if (actif) {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'bouton-secondaire'; b.textContent = 'Arrêter';
@@ -2004,6 +2010,23 @@ function rendreModeles(infos) {
     }
     liste.append(bloc);
   }
+  // Fichiers du dossier models qui ne viennent pas du catalogue : modeles ajoutes a la main
+  if (infos.autres?.length) {
+    const bloc = document.createElement('section');
+    bloc.innerHTML = `<h4></h4><p class="role-modele"></p>`;
+    bloc.querySelector('h4').textContent = tx('Autres fichiers du dossier models', 'Other files in the models folder');
+    bloc.querySelector('p').textContent = tx('Ajoutés à la main ou hors du catalogue de Prisme', 'Added by hand or outside Prisme\'s catalog');
+    for (const f of infos.autres) {
+      const ligne = document.createElement('div');
+      ligne.className = 'modele';
+      ligne.innerHTML = '<div><strong translate="no"></strong><small></small></div><div class="action"></div>';
+      ligne.querySelector('strong').textContent = f.nom;
+      ligne.querySelector('small').textContent = taille(f.taille);
+      ligne.querySelector('.action').append(boutonSupprimerModele(f.nom, f.nom, f.taille));
+      bloc.append(ligne);
+    }
+    liste.append(bloc);
+  }
   const blocMoteur = rendreMoteurTexte(infos.moteurs);
   if (blocMoteur) liste.append(blocMoteur);
   // Ce que Prisme a detecte de la machine (rien n'est envoye), et le profil qu'il recommande
@@ -2030,6 +2053,27 @@ function rendreModeles(infos) {
     : tx('Utiliser ce profil', 'Use this profile');
   bouton.disabled = !!restant && (infos.libre < restant + 200 * 2 ** 20 || (tousActifs && !moteurTexte) || licenceManquante(profil));
   $('#place-disque').textContent = `${taille(infos.libre)} libres sur le disque`;
+}
+
+// Supprimer un modele : definitif (la corbeille ne libererait pas la place), apres confirmation
+function boutonSupprimerModele(fichier, titre, octets) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'bouton-secondaire supprimer-modele';
+  b.title = tx(`Supprimer ${titre} pour libérer ${taille(octets)}`, `Delete ${titre} to free ${taille(octets)}`);
+  b.innerHTML = '<svg class="i"><use href="#i-corbeille"/></svg>';
+  b.setAttribute('aria-label', b.title);
+  b.addEventListener('click', async () => {
+    const ok = confirm(tx(
+      `Supprimer définitivement ${titre} (${taille(octets)}) ?\n\nLe fichier ne passe pas par la corbeille : il faudra le retélécharger pour s'en resservir.`,
+      `Permanently delete ${titre} (${taille(octets)})?\n\nThe file does not go to the trash: you will need to download it again to use it.`));
+    if (!ok) return;
+    try {
+      const { libere } = await api('/api/supprimer-modele', { nom: fichier });
+      note(tx(`${titre} supprimé : ${taille(libere)} libérés`, `${titre} deleted: ${taille(libere)} freed`));
+      await majModeles();
+    } catch (err) { note(err.message, 'erreur'); }
+  });
+  return b;
 }
 
 async function majModeles() {
@@ -2076,7 +2120,7 @@ $('#basculer-avance').addEventListener('click', () => {
   const ouvert = $('#liste-modeles').hidden;
   $('#liste-modeles').hidden = !ouvert;
   $('#basculer-avance').setAttribute('aria-expanded', String(ouvert));
-  $('#basculer-avance').textContent = ouvert ? 'Masquer le mode avancé' : 'Choisir les modèles un par un (mode avancé)';
+  $('#basculer-avance').textContent = ouvert ? 'Masquer le mode avancé' : 'Choisir ou supprimer les modèles un par un (mode avancé)';
 });
 
 // ---------- Nouvelle version ----------

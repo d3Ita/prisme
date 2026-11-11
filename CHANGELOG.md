@@ -4,6 +4,16 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+These additions are in the Prisme 2.0 beta (`video` branch); the fixes below also go into the next 1.9.x.
+
+### Added
+
+- **Video (beta)**: 1 to 5 second videos from a description or from an image, in 480p or 720p, with Wan 2.2 TI2V 5B (Apache-2.0). A **Video, 12 GB card (beta)** profile downloads it in one click (12.9 GB); Wan files already in `models` are used without choosing it. **Image | Video** tabs above the description, two-step progress (creating, then assembling the frames), videos played in the feed. **Settings → Video**: models, steps, CFG, and the **Enhance** instructions for video.
+- **Enhance for video**: describes the subject, the motion and the camera, or what moves from a starting image.
+- **Enlarge**: a finished image ×4 with Real-ESRGAN x4plus (BSD-3-Clause, 67 MB, downloaded at the first click), in a new image that keeps the description and variant. 1280 × 704 to 5120 × 2816 in 14 s on an RTX 4070 SUPER.
+- **Remove models from the app**: a delete button for each installed model in the models window (advanced mode), including files added by hand. Deleted for good, after a confirmation, to really free the space.
+- **Claude can make videos** with the new MCP tool `generate_video` (duration, quality, format, optional starting image), followed with `get_status`.
+
 ### Fixed
 
 - **The PC no longer freezes during a creation or Improve.** The image engine and the text engine now leave 1.5 GB of the graphics card to the display, which they used to fill up to 0.5 GB. It costs a few seconds (a 720p video: 243 s instead of 235 s). **Settings → Performance → Keep the PC usable** turns it off.

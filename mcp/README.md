@@ -16,6 +16,7 @@ Claude starts Prisme by itself when it is not open, and Prisme stays open when C
 |---|---|
 | `generate_image(prompt, width, height, seed, model)` | Creates an image. Width and height: multiples of 16 between 256 and 2048 (1024 × 1024 by default). `model` is optional: a drawing model file from `list_models`, used for this image only. |
 | `edit_image(image_path, instruction)` | Edits a PNG or JPEG found in `PRISME_OUTPUT_DIR`, keeping its proportions. Needs a profile with image editing (FLUX.2 klein or Qwen-Image). |
+| `generate_video(prompt, duration, quality, shape, seed, start_image)` | Prisme 2.0 (beta): a 1 to 5 s video with Wan 2.2. `duration` in seconds (by half second, 2 by default), `quality` `480p` or `720p`, `shape` `landscape`, `portrait` or `square`, `start_image` an optional PNG or JPEG in `PRISME_OUTPUT_DIR` to animate. Needs the video profile (`list_profiles`, category `video`). |
 | `get_status(task_id)` | Prisme's status: progress, engines, downloads, problems; with a `task_id`, the finished image. |
 | `list_models()` | Files in Prisme's `models` folder, the ones selected, and whether editing is possible. |
 | `list_profiles()` | Model profiles by hardware and other choices, with size and license, and the profile suggested for this computer. |
@@ -23,7 +24,7 @@ Claude starts Prisme by itself when it is not open, and Prisme stays open when C
 | `download_profile(profile_id)` | Downloads a profile and the missing engines. |
 | `download_model(url, use_as)` | Downloads a model outside Prisme's catalog (`.gguf` or `.safetensors` over https), optionally selected as `image`, `text`, `vision`, `vae` or `lora`. |
 
-Each image is copied to `PRISME_OUTPUT_DIR` and shown to Claude as a small preview. If a creation takes longer than `PRISME_TIMEOUT`, the tool returns a `task_id`: Claude then calls `get_status` to get the image.
+Each image is copied to `PRISME_OUTPUT_DIR` and shown to Claude as a small preview. If a creation takes longer than `PRISME_TIMEOUT`, the tool returns a `task_id`: Claude then calls `get_status` to get the image. A video takes a few minutes, so `generate_video` almost always returns a `task_id`; `get_status` then gives the path of the `.webm` file (Claude gets no preview of a video).
 
 ## Your approval for licenses and other models
 
@@ -100,6 +101,7 @@ Claude lance Prisme tout seul s'il n'est pas ouvert, et Prisme reste ouvert quan
 |---|---|
 | `generate_image(prompt, width, height, seed, model)` | Crée une image. Largeur et hauteur : multiples de 16 entre 256 et 2048 (1024 × 1024 par défaut). `model` est facultatif : un fichier de modèle de dessin donné par `list_models`, pour cette image seulement. |
 | `edit_image(image_path, instruction)` | Modifie un PNG ou un JPEG du dossier `PRISME_OUTPUT_DIR`, en gardant ses proportions. Demande un profil qui sait modifier (FLUX.2 klein ou Qwen-Image). |
+| `generate_video(prompt, duration, quality, shape, seed, start_image)` | Prisme 2.0 (bêta) : une vidéo de 1 à 5 s avec Wan 2.2. `duration` en secondes (par demi-seconde, 2 par défaut), `quality` `480p` ou `720p`, `shape` `landscape`, `portrait` ou `square`, `start_image` un PNG ou JPEG facultatif de `PRISME_OUTPUT_DIR` à animer. Demande le profil vidéo (`list_profiles`, catégorie `video`). |
 | `get_status(task_id)` | L'état de Prisme : avancement, moteurs, téléchargements, problèmes ; avec un `task_id`, l'image terminée. |
 | `list_models()` | Les fichiers du dossier `models`, ceux qui sont choisis, et si la modification est possible. |
 | `list_profiles()` | Les profils par machine et les autres choix, avec taille et licence, et le profil suggéré pour cet ordinateur. |
@@ -107,7 +109,7 @@ Claude lance Prisme tout seul s'il n'est pas ouvert, et Prisme reste ouvert quan
 | `download_profile(profile_id)` | Télécharge un profil et les moteurs qui manquent. |
 | `download_model(url, use_as)` | Télécharge un modèle hors du catalogue de Prisme (`.gguf` ou `.safetensors` en https), éventuellement choisi comme `image`, `text`, `vision`, `vae` ou `lora`. |
 
-Chaque image est copiée dans `PRISME_OUTPUT_DIR` et montrée à Claude en petit aperçu. Si une création dure plus que `PRISME_TIMEOUT`, l'outil renvoie un `task_id` : Claude appelle ensuite `get_status` pour récupérer l'image.
+Chaque image est copiée dans `PRISME_OUTPUT_DIR` et montrée à Claude en petit aperçu. Si une création dure plus que `PRISME_TIMEOUT`, l'outil renvoie un `task_id` : Claude appelle ensuite `get_status` pour récupérer l'image. Une vidéo prend quelques minutes : `generate_video` renvoie presque toujours un `task_id`, puis `get_status` donne le chemin du fichier `.webm` (Claude n'a pas d'aperçu d'une vidéo).
 
 ### Ton accord pour les licences et les autres modèles
 

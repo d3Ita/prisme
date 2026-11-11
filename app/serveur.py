@@ -581,6 +581,34 @@ class _OperationFichier(ctypes.Structure):
                 ('hNameMappings', ctypes.c_void_p), ('lpszProgressTitle', ctypes.c_wchar_p)]
 
 
+def supprimer_modele(nom):
+    """Supprime definitivement un fichier du dossier models (et son telechargement partiel) pour liberer la place, puis
+    retire ce fichier des reglages qui le choisissaient. Renvoie la place liberee, en octets."""
+    nom = str(nom).replace('\\', '/')
+    fichier = MODELES / nom
+    if not chemin_relatif_sur(nom) or not fichier.is_file() or fichier.suffix.lower() not in EXTENSIONS_MODELES \
+            or LORAS in fichier.parents:
+        raise ValueError('Modèle introuvable dans le dossier models.')
+    with verrou_modeles:
+        if any(t['phase'] in ('attente', 'telechargement', 'verification') and MODELES_PAR_ID[i]['fichier'] == nom
+               for i, t in telechargements_modeles.items() if i in MODELES_PAR_ID):
+            raise RuntimeError('Ce modèle est en cours de téléchargement : arrête d\'abord le téléchargement.')
+    libere = fichier.stat().st_size
+    fichier.unlink()
+    partiel = MODELES / (nom + '.partiel')
+    if partiel.is_file():
+        libere += partiel.stat().st_size
+        partiel.unlink()
+    r = lire_reglages()
+    vides = {cle: '' for cle, valeur in r.items() if isinstance(valeur, str) and valeur == nom and cle in REGLAGES_DEFAUT
+             and REGLAGES_DEFAUT[cle] == ''}
+    if vides:
+        r.update(vides)
+        DONNEES.mkdir(exist_ok=True)
+        FICHIER_REGLAGES.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
+    return libere
+
+
 def mettre_a_la_corbeille(chemin):
     """Met un fichier a la corbeille du systeme, pour qu'il reste recuperable."""
     chemin = Path(chemin)
@@ -1449,7 +1477,9 @@ def etat_modeles_conseilles():
                    for m in MODELES_CONSEILLES]
     MODELES.mkdir(parents=True, exist_ok=True)
     # Le moteur de texte (pour Ameliorer) est propose dans la meme fenetre
-    return {'modeles': modeles, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs(),
+    du_catalogue = {m['fichier'] for m in MODELES_CONSEILLES}
+    autres = [m for m in lister_modeles() if m['nom'] not in du_catalogue]
+    return {'modeles': modeles, 'autres': autres, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs(),
             'profils': profils['profils'], 'suggestion': profils['suggestion'], 'conseille': profils['conseille']}
 
 
@@ -2430,6 +2460,22 @@ class Gestionnaire(BaseHTTPRequestHandler):
                     if ident in telechargements_modeles:
                         telechargements_modeles[ident]['annule'] = True
             self.envoyer(200, {})
+
+        elif chemin == '/api/supprimer-modele':
+            # Seulement depuis la fenetre de Prisme sur le PC : ni le telephone, ni Claude ne suppriment de modele
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme sur le PC.'})
+            with verrou:
+                occupe = etat.get('occupe')
+            if occupe or amelioration_en_cours.locked():
+                return self.envoyer(409, {'erreur': 'Attends la fin du calcul en cours avant de supprimer un modèle.'})
+            try:
+                libere = supprimer_modele(self.lire_json().get('nom') or '')
+            except ValueError as e:
+                return self.envoyer(404, {'erreur': str(e)})
+            except (RuntimeError, OSError) as e:
+                return self.envoyer(409, {'erreur': str(e)})
+            self.envoyer(200, {'libere': libere})
 
         elif chemin == '/api/demander-telechargement':
             # Claude demande un telechargement qui demande l'accord de l'utilisateur dans la fenetre de Prisme

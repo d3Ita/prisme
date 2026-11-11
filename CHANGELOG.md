@@ -4,7 +4,7 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
-These additions are in the Prisme 2.0 beta (`video` branch); the fixes below also go into the next 1.9.x.
+These additions are in the Prisme 2.0 beta (`video` branch).
 
 ### Added
 
@@ -14,9 +14,11 @@ These additions are in the Prisme 2.0 beta (`video` branch); the fixes below als
 - **Remove models from the app**: a delete button for each installed model in the models window (advanced mode), including files added by hand. Deleted for good, after a confirmation, to really free the space.
 - **Claude can make videos** with the new MCP tool `generate_video` (duration, quality, format, optional starting image), followed with `get_status`.
 
+## [1.9.6] - 2026-11-11
+
 ### Fixed
 
-- **The PC no longer freezes during a creation or Improve.** The image engine and the text engine now leave 1.5 GB of the graphics card to the display, which they used to fill up to 0.5 GB. It costs a few seconds (a 720p video: 243 s instead of 235 s). **Settings → Performance → Keep the PC usable** turns it off.
+- **The PC no longer freezes during a creation or Improve.** The image engine and the text engine now leave 1.5 GB of the graphics card to the display, which they used to fill up to 0.5 GB. It costs a few seconds at most (Improve with Qwen-Image 2.1's text model: 3.1 s instead of 1.6 s). **Settings → Performance → Keep the PC usable** turns it off.
 - The **Connect to Claude** and update banners no longer cover the first message of the feed.
 
 ## [1.9.5] - 2026-11-10
@@ -257,7 +259,8 @@ These additions are in the Prisme 2.0 beta (`video` branch); the fixes below als
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.5...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.6...HEAD
+[1.9.6]: https://github.com/d3Ita/prisme/releases/tag/v1.9.6
 [1.9.5]: https://github.com/d3Ita/prisme/releases/tag/v1.9.5
 [1.9.4]: https://github.com/d3Ita/prisme/releases/tag/v1.9.4
 [1.9.3]: https://github.com/d3Ita/prisme/releases/tag/v1.9.3

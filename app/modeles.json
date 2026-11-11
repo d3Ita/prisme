@@ -504,6 +504,36 @@
       "vide": [],
       "reglages": null,
       "edition": null
+    },
+    {
+      "id": "realesrgan-x4plus",
+      "role": "agrandissement",
+      "familles": [
+        "esrgan"
+      ],
+      "nom": "Real-ESRGAN x4plus",
+      "quantification": "",
+      "detail": {
+        "fr": "Agrandit une image terminée 4 fois, en gardant les détails nets",
+        "en": "Enlarges a finished image 4 times, keeping details sharp"
+      },
+      "page": "https://huggingface.co/Comfy-Org/Real-ESRGAN",
+      "url": "https://huggingface.co/Comfy-Org/Real-ESRGAN/resolve/main/RealESRGAN_x4plus.safetensors",
+      "fichier": "RealESRGAN_x4plus.safetensors",
+      "taille": 66857836,
+      "sha256": "37f9a931c215f040aa6d50f711f2cb115f713c46df1d0d6469a8bd7bfe9a60bb",
+      "licence": {
+        "nom": "BSD-3-Clause",
+        "commercial": true,
+        "url": "https://opensource.org/license/bsd-3-clause",
+        "resume": null
+      },
+      "remplit": [
+        "modele_agrandissement"
+      ],
+      "vide": [],
+      "reglages": null,
+      "edition": null
     }
   ],
   "profils": [

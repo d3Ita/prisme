@@ -375,6 +375,25 @@ class RoutesVideoTest(unittest.TestCase):
         self.assertEqual(corbeille, ['video_1.webm'])
         self.assertEqual(list(self.images.iterdir()), [])
 
+    def test_video_servie_par_morceaux(self):
+        # Sans en-tete Range, le navigateur ne peut pas aller a un moment de la video
+        self.images.mkdir()
+        (self.images / 'video_1.webm').write_bytes(bytes(range(100)))
+        connexion = http.client.HTTPConnection('127.0.0.1', self.port, timeout=10)
+
+        def lire(plage=None):
+            connexion.request('GET', '/images/video_1.webm', headers={'Host': f'127.0.0.1:{self.port}', **({'Range': plage} if plage else {})})
+            r = connexion.getresponse()
+            return r.status, r.getheader('Content-Range'), r.getheader('Accept-Ranges'), r.read()
+
+        self.assertEqual(lire(), (200, None, 'bytes', bytes(range(100))))
+        self.assertEqual(lire('bytes=10-19'), (206, 'bytes 10-19/100', 'bytes', bytes(range(10, 20))))
+        self.assertEqual(lire('bytes=90-'), (206, 'bytes 90-99/100', 'bytes', bytes(range(90, 100))))
+        self.assertEqual(lire('bytes=-5'), (206, 'bytes 95-99/100', 'bytes', bytes(range(95, 100))))
+        self.assertEqual(lire('bytes=95-500'), (206, 'bytes 95-99/100', 'bytes', bytes(range(95, 100))))
+        self.assertEqual(lire('bytes=200-')[:2], (416, 'bytes */100'))
+        connexion.close()
+
     def test_echec_du_moteur(self):
         self.installer_modeles()
         self.code_moteur = 1

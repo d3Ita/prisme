@@ -2307,6 +2307,38 @@ class Gestionnaire(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corps)
 
+    def envoyer_video(self, fichier):
+        """Une video, entiere ou par morceaux (en-tete Range) : sans morceaux, le navigateur ne sait pas aller a un
+        moment de la video et la lecture repart du debut quand on deplace le curseur."""
+        taille = fichier.stat().st_size
+        debut, fin, code = 0, taille - 1, 200
+        demande = re.fullmatch(r'bytes=(\d*)-(\d*)', (self.headers.get('Range') or '').strip())
+        if demande and (demande.group(1) or demande.group(2)):
+            if demande.group(1):
+                debut = int(demande.group(1))
+                fin = min(int(demande.group(2)), taille - 1) if demande.group(2) else taille - 1
+            else:  # bytes=-n : les n derniers octets
+                debut = max(0, taille - int(demande.group(2)))
+            if debut > fin or debut >= taille:
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{taille}')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+            code = 206
+        with open(fichier, 'rb') as f:
+            f.seek(debut)
+            corps = f.read(fin - debut + 1)
+        self.send_response(code)
+        self.send_header('Content-Type', 'video/webm')
+        self.send_header('Accept-Ranges', 'bytes')
+        if code == 206:
+            self.send_header('Content-Range', f'bytes {debut}-{fin}/{taille}')
+        self.send_header('Content-Length', str(len(corps)))
+        self.send_header('Cache-Control', 'max-age=31536000, immutable')
+        self.end_headers()
+        self.wfile.write(corps)
+
     def envoyer(self, code, corps, type_contenu='application/json; charset=utf-8', cache=False):
         if not isinstance(corps, bytes):
             corps = json.dumps(corps, ensure_ascii=False).encode('utf-8')
@@ -2456,7 +2488,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if NOM_IMAGE.match(nom) and fichier.exists():
                 self.envoyer(200, fichier.read_bytes(), 'image/png', cache=True)
             elif video.NOM_VIDEO.match(nom) and fichier.exists():
-                self.envoyer(200, fichier.read_bytes(), 'video/webm', cache=True)
+                self.envoyer_video(fichier)
             else:
                 self.envoyer(404, {'erreur': 'Image introuvable'})
         else:

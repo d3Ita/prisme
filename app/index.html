@@ -164,6 +164,8 @@ const EN = {
   'Plus d\'étapes : plus net, plus long (20 conseillé)': 'More steps: sharper, slower (20 recommended)', 'CFG de la vidéo': 'Video CFG',
   'Fidélité à la description (5 conseillé)': 'Faithfulness to the description (5 recommended)',
   'Automatique : fichiers Wan du dossier models': 'Automatic: Wan files in the models folder',
+  'Agrandir l\'image 4 fois (Real-ESRGAN)': 'Enlarge the image 4 times (Real-ESRGAN)', 'Agrandissement de l\'image': 'Enlarging the image',
+  'Agrandissement': 'Upscaling',
   'Améliorer : consigne vidéo': 'Improve: video instruction', 'Améliorer : vidéo depuis une image': 'Improve: video from an image', 'Créer la vidéo': 'Create the video', 'Créer la vidéo (Entrée)': 'Create the video (Enter)',
   'Création de la vidéo': 'Creating the video', 'Assemblage des images': 'Assembling the frames', 'Lire la vidéo': 'Play the video',
   'Décris la vidéo à créer…': 'Describe the video to create…', 'Décris ta vidéo…': 'Describe your video…',
@@ -891,6 +893,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
     <symbol id="i-ok" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
     <symbol id="i-alerte" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></symbol>
     <symbol id="i-carre" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+    <symbol id="i-agrandir" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
     <symbol id="i-corbeille" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></symbol>
     <symbol id="i-quitter" viewBox="0 0 24 24"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/></symbol>
     <symbol id="i-reglages" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
@@ -1356,6 +1359,7 @@ $('#nombre').addEventListener('click', e => {
   majBoutonCreer();
 });
 // ---------- Video ----------
+function majAgrandissement(a) { if (a) etat.agrandissementInfos = a; }
 function majVideo(v) {
   etat.videoPret = !!v?.pret;
   etat.videoProfil = v?.profil || null;
@@ -1566,12 +1570,14 @@ function montrerDemande({ prompt: texte, largeur, hauteur, modification, genre, 
   const video = genre === 'video';
   $('#en-cours-texte').textContent = texte || traduire('Création en cours');
   $('#en-cours-meta').textContent = [video ? tx(`Vidéo de ${dureeLisible(duree)}`, `${dureeLisible(duree)} video`) : '',
+    genre === 'agrandissement' ? tx('Agrandissement ×4', 'Upscaling ×4') : '',
     modification ? (video ? 'À partir d\'une image' : 'Modification d\'une image') : '', largeur ? `${largeur} × ${hauteur}` : ''].filter(Boolean).join(' · ');
   $('#attente').style.aspectRatio = largeur ? `${largeur} / ${hauteur}` : '1';
 }
 
 function majCalcul(e) {
   if (e.genre === 'video') return majCalculVideo(e);
+  if (e.genre === 'agrandissement') return majCalculAgrandissement(e);
   majInterfaceOccupee(true);
   const lot = e.nombre > 1 ? ` · image ${e.index} sur ${e.nombre}` : '';
   const secondes = Math.round(e.ecoule || 0) + ' s';
@@ -1589,6 +1595,17 @@ function majCalcul(e) {
     $('#phase').textContent = e.phase === 'finalisation' ? 'Finalisation…' : 'Préparation…';
     $('#detail').textContent = (e.phase === 'finalisation' ? secondes : 'Chargement des modèles · ' + secondes) + lot;
   }
+}
+
+// Agrandissement : l'image est traitee par morceaux (etape sur total)
+function majCalculAgrandissement(e) {
+  majInterfaceOccupee(true);
+  const secondes = Math.round(e.ecoule || 0) + ' s', anneau = $('#anneau'), part = e.total ? e.etape / e.total : null;
+  anneau.classList.toggle('indetermine', part === null);
+  $('#arc').style.strokeDashoffset = PERIMETRE * (part === null ? .72 : 1 - part);
+  $('#chiffre').textContent = part === null ? '' : Math.round(part * 100) + '%';
+  $('#phase').textContent = part === null ? 'Préparation…' : 'Agrandissement de l\'image';
+  $('#detail').textContent = part === null ? secondes : tx(`Morceau ${e.etape} sur ${e.total} · ${secondes}`, `Part ${e.etape} of ${e.total} · ${secondes}`);
 }
 
 // Video : creation (20 etapes), puis assemblage des images par morceaux ; chacune compte pour moitie
@@ -1634,6 +1651,7 @@ function suivre() {
     majVideo(e.video);
     if (e.phase === 'erreur') note('La création a échoué.\n' + (e.erreur || ''), 'erreur');
     else if (e.phase === 'annule') note('Création arrêtée');
+    else if (e.resultats?.length && e.genre === 'agrandissement') note(tx(`Image agrandie en ${Math.round(e.ecoule)} s`, `Image enlarged in ${Math.round(e.ecoule)} s`));
     else if (e.resultats?.length && e.genre === 'video') note(tx(`Vidéo créée en ${Math.round(e.ecoule)} s`, `Video created in ${Math.round(e.ecoule)} s`));
     else if (e.resultats?.length) note(`${e.resultats.length > 1 ? e.resultats.length + ' images créées' : 'Image créée'} en ${Math.round(e.ecoule)} s`);
     battement();
@@ -1649,6 +1667,7 @@ function battement() {
       majDemandes(e.demandes);
       majConsentements(e.consentements);
       majVideo(e.video);
+      majAgrandissement(e.agrandissement);
       if (e.occupe) { etat.occupe = true; majCalcul(e); suivre(); return; }
     } catch {}
     battement();
@@ -1800,6 +1819,7 @@ function grouper(liste) {
 const ACTIONS = [
   ['modifier', 'crayon', 'Modifier', 'Partir de cette image pour la modifier'],
   ['reutiliser', 'reprendre', 'Réutiliser', 'Reprendre la description et la variante'],
+  ['agrandir', 'agrandir', '', 'Agrandir l\'image 4 fois (Real-ESRGAN)'],
   ['copier', 'copier', 'Copier', 'Copier l\'image'],
   ['enregistrer', 'telecharger', 'Enregistrer', 'Enregistrer sous…'],
   ['dossier', 'dossier', '', 'Afficher dans le dossier'],
@@ -1827,7 +1847,7 @@ function carteImage(img) {
   barre.className = 'actions-image';
   for (const [action, icone, texte, titre] of ACTIONS) {
     if (action === 'copier' && !etat.peutCopier) continue;
-    if (img.video && (action === 'modifier' || action === 'copier')) continue;
+    if (img.video && (action === 'modifier' || action === 'copier' || action === 'agrandir')) continue;
     if (action === 'dossier' && !etat.local) continue;
     const b = document.createElement(action === 'enregistrer' ? 'a' : 'button');
     b.className = 'action-image' + (action === 'supprimer' ? ' danger' : '');
@@ -1912,6 +1932,7 @@ fil.addEventListener('click', e => {
   const action = bouton.dataset.action;
   if (action === 'modifier') modifierImage(img);
   else if (action === 'reutiliser') reutiliserImage(img);
+  else if (action === 'agrandir') agrandirImage(img);
   else if (action === 'copier') copierImage(img);
   else if (action === 'dossier') api('/api/dossier', { nom: img.nom }).catch(err => note(err.message, 'erreur'));
   else if (action === 'supprimer') supprimerImage(img, bouton);
@@ -1921,6 +1942,36 @@ function modifierImage(img) {
   definirSource({ galerie: img.nom, url: urlImage(img), nom: img.nom, largeur: img.largeur, hauteur: img.hauteur });
   prompt.value = ''; ajusterPrompt(); $('#seed').value = ''; prompt.focus();
   note('Image ajoutée : décris le changement voulu');
+}
+
+// Agrandir x4 avec Real-ESRGAN ; au premier usage, le modele (67 Mo) se telecharge en un clic
+async function agrandirImage(img) {
+  if (etat.occupe) return;
+  const infos = etat.agrandissementInfos;
+  if (infos && !infos.pret) {
+    if (!etat.local) { note(tx('Télécharge d\'abord le modèle d\'agrandissement depuis le PC.', 'First download the upscaling model from the PC.'), 'erreur'); return; }
+    if (!confirm(tx(`Pour agrandir les images, Prisme télécharge Real-ESRGAN x4plus (${taille(infos.taille)}, licence ${infos.licence}). Continuer ?`,
+                    `To enlarge images, Prisme downloads Real-ESRGAN x4plus (${taille(infos.taille)}, ${infos.licence} license). Continue?`))) return;
+    try {
+      await api('/api/telecharger-modele', { id: infos.id });
+      note(tx('Téléchargement du modèle d\'agrandissement…', 'Downloading the upscaling model…'));
+      for (let i = 0; i < 600; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        const m = (await api('/api/modeles-conseilles')).modeles.find(x => x.id === infos.id);
+        if (m?.present) break;
+        if (['erreur', 'annule'].includes(m?.telechargement?.phase)) throw new Error(m.telechargement.erreur || tx('Téléchargement arrêté.', 'Download stopped.'));
+      }
+      infos.pret = true;
+    } catch (err) { note(err.message, 'erreur'); return; }
+  }
+  try {
+    const { largeur, hauteur } = await api('/api/agrandir', { nom: img.nom });
+    etat.occupe = true;
+    montrerDemande({ prompt: img.prompt, largeur, hauteur, genre: 'agrandissement' });
+    majCalcul({ genre: 'agrandissement', phase: 'chargement', etape: 0, total: 0, ecoule: 0 });
+    descendre(true);
+    suivre();
+  } catch (err) { note(err.message, 'erreur'); }
 }
 
 function reutiliserImage(img) {
@@ -2890,6 +2941,7 @@ function finChargement() {
     majMoteurs(e.moteurs);
     majAmelioration(e.amelioration);
     majVideo(e.video);
+    majAgrandissement(e.agrandissement);
     majVersion(e.mise_a_jour);
     majEchecMaj(e.maj_echec);
     if (e.local) {

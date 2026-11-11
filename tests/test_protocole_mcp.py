@@ -68,8 +68,9 @@ class ProtocoleOfficielTest(unittest.TestCase):
         ])
         self.assertEqual(champ(init, 'server_info', 'serverInfo').name, 'prisme')
         self.assertIn('Prisme', init.instructions)
-        self.assertEqual({o.name for o in outils.tools}, {'generate_image', 'edit_image', 'list_models', 'list_profiles',
-                                                         'get_status', 'install_engine', 'download_profile', 'download_model'})
+        self.assertEqual({o.name for o in outils.tools}, {'generate_image', 'edit_image', 'generate_video', 'list_models',
+                                                         'list_profiles', 'get_status', 'install_engine', 'download_profile',
+                                                         'download_model'})
         self.assertFalse(en_erreur(statut))
         self.assertEqual(json.loads(statut.content[0].text)['version'], '1.8.5')
         self.assertFalse(en_erreur(creation))

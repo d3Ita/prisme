@@ -290,11 +290,25 @@ class RoutesVideoTest(unittest.TestCase):
         self.assertEqual(self.requete('POST', '/api/video', {'prompt': 'un renard', 'duree': 30})[0], 400)
         self.assertEqual(self.moteurs, [])
 
-    def test_pas_encore_pour_claude(self):
+    def test_video_de_claude_dans_son_dossier(self):
         self.installer_modeles()
-        code, _, _ = self.requete('POST', '/api/video', {'prompt': 'un renard'}, {'X-Prisme-Client': 'mcp'})
-        self.assertEqual(code, 403)
-        self.assertEqual(self.moteurs, [])
+        self.images.mkdir()
+        (self.images / 'image_1.png').write_bytes(b'\x89PNG')
+        claude = Path(self.dossier.name) / 'images-claude'
+        with mock.patch.object(serveur, 'IMAGES_CLAUDE', claude), mock.patch.object(serveur, 'dernier_contact_mcp', 0.0):
+            # Claude ne nomme jamais une image de Prisme : source_nom est ignore
+            code, _, _ = self.requete('POST', '/api/video', {'prompt': 'un renard', 'source_nom': 'image_1.png'},
+                                      {'X-Prisme-Client': 'mcp'})
+            self.assertEqual(code, 200)
+            self.attendre_fin()
+            self.assertNotIn('-i', self.moteurs[0].commande)
+            nom = serveur.etat['resultats'][0]
+            self.assertTrue((claude / nom).is_file() and serveur.etat['claude'])
+            self.assertFalse(self.images.joinpath(nom).exists())
+            code, type_contenu, _ = self.requete('GET', f'/images-claude/{nom}', entetes={'X-Prisme-Client': 'mcp'})
+            self.assertEqual((code, type_contenu), (200, 'video/webm'))
+            # La fenetre de Prisme ne voit pas les videos de Claude
+            self.assertEqual(self.requete('GET', f'/images-claude/{nom}')[0], 403)
 
     def test_une_creation_a_la_fois(self):
         self.installer_modeles()

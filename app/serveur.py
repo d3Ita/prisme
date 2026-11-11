@@ -2005,7 +2005,7 @@ def generer_video(params):
             with os.fdopen(fd, 'wb') as f:
                 f.write(base64.b64decode(donnees))
             source = source_temp = Path(chemin)
-        sortie = video.nouveau_chemin(IMAGES)
+        sortie = video.nouveau_chemin(IMAGES_CLAUDE if params.get('claude') else IMAGES)
 
         def lancer(commande):
             global processus
@@ -2455,7 +2455,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             fichier = (IMAGES_CLAUDE if claude else IMAGES) / nom
             if NOM_IMAGE.match(nom) and fichier.exists():
                 self.envoyer(200, fichier.read_bytes(), 'image/png', cache=True)
-            elif not claude and video.NOM_VIDEO.match(nom) and fichier.exists():
+            elif video.NOM_VIDEO.match(nom) and fichier.exists():
                 self.envoyer(200, fichier.read_bytes(), 'video/webm', cache=True)
             else:
                 self.envoyer(404, {'erreur': 'Image introuvable'})
@@ -2570,9 +2570,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             v, erreur = video.valider(p)
             if erreur:
                 return self.envoyer(400, {'erreur': erreur})
-            # La video se cree d'abord depuis la fenetre de Prisme ; l'outil MCP viendra ensuite
-            if self.vient_du_mcp():
-                return self.envoyer(403, {'erreur': 'La vidéo se crée depuis la fenêtre de Prisme pour l\'instant.'})
+            # Claude cree ses videos dans images-claude, comme ses images, et ne nomme jamais une image de Prisme
+            claude = self.vient_du_mcp()
             r = reglages_video(lire_reglages())
             manquants = video.fichiers_manquants(r, MODELES)
             if manquants:
@@ -2588,8 +2587,9 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 etat.clear()
                 etat.update(occupe=True, genre='video', phase='chargement', etape=0, total=video.etapes(r), total_decodage=0,
                             index=1, nombre=1, seed=seed, seed_base=seed, debut=time.time(), resultats=[], erreur=None,
-                            largeur=v['largeur'], hauteur=v['hauteur'], duree=v['duree'], prompt=v['prompt'], claude=False)
-            params = dict(video=v, seed=seed, reglages=r, source_nom=p.get('source_nom'), source_data=p.get('source_data'))
+                            largeur=v['largeur'], hauteur=v['hauteur'], duree=v['duree'], prompt=v['prompt'], claude=claude)
+            params = dict(video=v, seed=seed, reglages=r, source_nom=None if claude else p.get('source_nom'),
+                          source_data=p.get('source_data'), claude=claude)
             threading.Thread(target=generer_video, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
 

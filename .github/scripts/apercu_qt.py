@@ -17,6 +17,8 @@ from pathlib import Path
 RACINE = Path(tempfile.mkdtemp(prefix='prisme_apercu_'))
 os.environ['PRISME_RACINE'] = str(RACINE)
 os.environ['PRISME_PORT'] = '7899'
+# Interface en francais, comme sur le Mac de l'auteur (la CI est en anglais)
+os.environ['LANG'] = os.environ['LC_ALL'] = 'fr_FR.UTF-8'
 APP = Path(__file__).resolve().parents[2] / 'app'
 sys.path.insert(0, str(APP))
 
@@ -67,7 +69,7 @@ def preparer():
 def main(dossier):
     preparer()
     import serveur
-    from PySide6.QtCore import QEventLoop, QUrl, Qt
+    from PySide6.QtCore import QEventLoop, QUrl
     from PySide6.QtGui import QFont, QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
 
@@ -85,11 +87,11 @@ def main(dossier):
             application.processEvents(QEventLoop.AllEvents, 50)
             time.sleep(0.02)
 
-    def capturer(nom, theme, pendant_creation=False):
-        application.styleHints().setColorScheme(theme)
+    def capturer(nom, apparence, pendant_creation=False):
         moteur = QQmlApplicationEngine()
         moteur.warnings.connect(lambda liste: [print('QML :', e.toString()) for e in liste])
-        moteur.setInitialProperties({'adresse': f'http://127.0.0.1:{serveur.PORT}', 'width': 1280, 'height': 860})
+        moteur.setInitialProperties({'adresse': f'http://127.0.0.1:{serveur.PORT}', 'width': 1280, 'height': 860,
+                                     'apparence': apparence})
         moteur.load(QUrl.fromLocalFile(str(APP / 'qml' / 'Prisme.qml')))
         fenetre = moteur.rootObjects()[0]
         attendre(4)
@@ -109,9 +111,9 @@ def main(dossier):
         moteur.deleteLater()
         attendre(0.5)
 
-    capturer('1-clair', Qt.ColorScheme.Light)
-    capturer('2-sombre', Qt.ColorScheme.Dark)
-    capturer('3-creation-en-cours', Qt.ColorScheme.Light, pendant_creation=True)
+    capturer('1-clair', 'clair')
+    capturer('2-sombre', 'sombre')
+    capturer('3-creation-en-cours', 'clair', pendant_creation=True)
     http.shutdown()
 
 

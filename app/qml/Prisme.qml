@@ -18,7 +18,9 @@ ApplicationWindow {
     title: "Prisme"
     color: c.fond
 
-    readonly property bool sombre: Qt.styleHints.colorScheme === Qt.ColorScheme.Dark
+    // Apparence : "auto" (celle du systeme), "clair" ou "sombre", comme dans la version web
+    property string apparence: "auto"
+    readonly property bool sombre: apparence === "sombre" || (apparence === "auto" && Qt.styleHints.colorScheme === Qt.ColorScheme.Dark)
     readonly property bool francais: Qt.locale().name.startsWith("fr")
     function tx(fr, en) { return francais ? fr : en }
 
@@ -300,6 +302,10 @@ ApplicationWindow {
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
             readonly property real largeurImage: Math.min(width - 72, 620)
+            // Colle en bas comme une messagerie (nouvelle image, creation en cours), sauf si l'on est remonte lire le fil
+            property bool collerEnBas: true
+            onMovementEnded: collerEnBas = atYEnd
+            onContentHeightChanged: if (collerEnBas) Qt.callLater(positionViewAtEnd)
 
             delegate: Column {
                 id: message

@@ -9,7 +9,7 @@ In more detail:
 ```mermaid
 flowchart LR
     subgraph Clients
-        PC["Browser on the PC<br/>app/index.html"]
+        PC["Prisme's window on the PC<br/>app/qml/ (Qt Quick)"]
         TEL["Phone on the same Wi-Fi<br/>(optional, access code)"]
         CLA["Claude Desktop or Code<br/>through Prisme --mcp (optional)"]
     end
@@ -44,7 +44,8 @@ flowchart LR
 
 ## How it works
 
-- **The interface** is a single HTML page (`app/index.html`, no dependency) opened in a browser window. It only talks to the local server, with JSON requests.
+- **The interface** on the computer is a desktop window in Qt Quick (`app/qml/`, opened by `app/fenetre_qt.py`). It runs in the same program as the server and only talks to it, with JSON requests on `127.0.0.1`, like the phone and Claude. The phone uses a web page (`app/index.html`, no dependency), which also serves as the computer's window with `--web`, on Linux, or when Qt cannot start.
+- **Closing the window** only hides it: the server keeps serving the phone, Claude and downloads, then stops according to its settings. Opening Prisme again asks the running Prisme to show its window (`/api/montrer-fenetre`).
 - **The server** (`app/serveur.py`) uses the Python standard library only. It listens on `127.0.0.1:7861` (`PRISME_PORT` changes the port), checks every request (host name, origin, access code for other devices), keeps the settings and drives the engines.
 - **Creating or editing an image** starts `sd-cli` from stable-diffusion.cpp once per image, with the drawing model, the text model, the VAE and, for an edit, the vision file. The server reads its progress from the console output, and `sd-cli` writes a PNG to `images/` with the prompt and seed in its metadata.
 - **Enhance** starts `llama-server` from llama.cpp on a free local port, sends it the description (and the starting image if the model can see), then stops it to free the graphics card. Ollama can be used instead.
@@ -60,9 +61,10 @@ On macOS, `models/`, `images/`, the engines and the settings live in `~/Prisme`.
 
 ![Comment fonctionne Prisme](schemas/fonctionnement-fr.svg)
 
-Le schéma ci-dessus montre les mêmes éléments : le navigateur du PC et, si tu les actives, le téléphone et Claude (MCP) parlent au serveur Python ; le serveur lance les moteurs, qui lisent les modèles et écrivent les images.
+Le schéma ci-dessus montre les mêmes éléments : la fenêtre de Prisme sur le PC et, si tu les actives, le téléphone et Claude (MCP) parlent au serveur Python ; le serveur lance les moteurs, qui lisent les modèles et écrivent les images.
 
-- **L'interface** est une seule page HTML (`app/index.html`, sans dépendance) ouverte dans une fenêtre de navigateur. Elle ne parle qu'au serveur local, par des requêtes JSON.
+- **L'interface** de l'ordinateur est une fenêtre de bureau en Qt Quick (`app/qml/`, ouverte par `app/fenetre_qt.py`). Elle tourne dans le même programme que le serveur et ne parle qu'à lui, par des requêtes JSON sur `127.0.0.1`, comme le téléphone et Claude. Le téléphone utilise une page web (`app/index.html`, sans dépendance), qui sert aussi de fenêtre sur l'ordinateur avec `--web`, sous Linux, ou si Qt ne peut pas démarrer.
+- **Fermer la fenêtre** la cache seulement : le serveur continue pour le téléphone, Claude et les téléchargements, puis s'arrête selon ses réglages. Relancer Prisme demande au Prisme déjà ouvert de montrer sa fenêtre (`/api/montrer-fenetre`).
 - **Le serveur** (`app/serveur.py`) n'utilise que la bibliothèque standard de Python. Il écoute sur `127.0.0.1:7861` (`PRISME_PORT` change le port), contrôle chaque requête (nom d'hôte, origine, code d'accès pour les autres appareils), garde les réglages et pilote les moteurs.
 - **Créer ou modifier une image** lance `sd-cli` (stable-diffusion.cpp) une fois par image, avec le modèle de dessin, le modèle de texte, le VAE et, pour une modification, le fichier de vision. Le serveur suit l'avancement dans la sortie de la console, et `sd-cli` écrit un PNG dans `images/` avec la description et la graine dans ses métadonnées.
 - **Améliorer** lance `llama-server` (llama.cpp) sur un port local libre, lui envoie la description (et l'image de départ si le modèle sait voir), puis l'arrête pour libérer la carte graphique. Ollama peut le remplacer.

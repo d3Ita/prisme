@@ -4,21 +4,23 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
-## [2.0.0-rc.3] - 2026-11-12
-
-Pre-release of Prisme 2, to try before it is offered as an update.
+## [2.0.0] - 2026-11-12
 
 ### Added
 
-- **A real desktop app on Windows and Mac**, in Qt Quick (PySide6) instead of a browser window: its own window and Dock or taskbar icon, light or dark following the system, native file dialogs. The same screens as before: the feed (newest image at the bottom), creating and editing images (choose, drag, paste or **Edit** an image of the feed), **Enhance**, **Enlarge ×4**, the **Models** and **Settings** windows, **Phone** with a QR code made on the computer (no Internet needed), device access requests, Claude's download approvals, and the update and Claude banners.
+- **A real desktop app on Windows and Mac**, in Qt Quick (PySide6) instead of a browser window: its own window and Dock or taskbar icon, light or dark following the system, native file dialogs. All of Prisme 1's screens: the feed (newest image at the bottom, with search), creating and editing images (choose, drag, paste or **Edit** an image of the feed), **Enhance**, **Enlarge ×4**, the **Models** and **Settings** windows, **Phone** with a QR code made on the computer (no Internet needed), device access requests, Claude's download approvals, and the update and Claude banners.
+- **Variant**: a number next to the description; empty means random, and **Reuse** brings back an image's description and variant to redo it while changing a detail.
+- **Copy** an image of the feed to the clipboard, or **Save** it elsewhere.
+- **Language** in **Settings → Application**: Français, English or Automatic, kept on this computer.
 - Closing the window hides it: Prisme keeps serving the phone, Claude and downloads, then stops according to its settings. Opening Prisme again, or clicking its Dock icon, brings the window back.
 
 ### Changed
 
+- **Updating from Prisme 1**: click **Update** as usual. Prisme 2 replaces Prisme 1 and keeps the models, images and settings; the browser window then hands over to the new window and says it can be closed.
 - The phone still uses the web page, and Claude still uses the same local server: the three share one logic.
-- `--web` keeps the browser window; on Linux, the Qt window is opt-in with `--qt` (it needs system libraries that may be missing).
-- After a one-click update, the Qt app restarts with its window.
-- The Windows program is larger (about 150 MB instead of 12 MB), since it carries Qt.
+- `--web` keeps the browser window; on Linux, the desktop window is opt-in with `--qt` (it needs Qt's system libraries).
+- After a one-click update, Prisme 2 restarts with its window.
+- The program is larger, since it carries Qt: about 60 MB on Windows (11 MB before) and 130 MB on a Mac.
 
 ## [1.10.1] - 2026-11-12
 
@@ -282,8 +284,8 @@ Pre-release of Prisme 2, to try before it is offered as an update.
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.0.0-rc.3...HEAD
-[2.0.0-rc.3]: https://github.com/d3Ita/prisme/releases/tag/v2.0.0-rc.3
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/d3Ita/prisme/releases/tag/v2.0.0
 [1.10.1]: https://github.com/d3Ita/prisme/releases/tag/v1.10.1
 [1.10.0]: https://github.com/d3Ita/prisme/releases/tag/v1.10.0
 [1.9.6]: https://github.com/d3Ita/prisme/releases/tag/v1.9.6

@@ -46,7 +46,7 @@
 
 ## Why Prisme?
 
-Most local image tools ask you to install Python, manage dependencies, or wire nodes together. Prisme is a single 11 MB desktop app for Windows, macOS and Linux: download it, let it fetch the engine and the recommended models in a few clicks, and start creating. An internet connection is needed only once, for those downloads: after that, Prisme works offline. Everything runs on your own GPU through [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). No account, no subscription, and your images never leave your PC.
+Most local image tools ask you to install Python, manage dependencies, or wire nodes together. Prisme is a desktop app for Windows, macOS and Linux (about 60 MB on Windows, 130 MB on a Mac): download it, let it fetch the engine and the recommended models in a few clicks, and start creating. An internet connection is needed only once, for those downloads: after that, Prisme works offline. Everything runs on your own GPU through [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp). No account, no subscription, and your images never leave your PC.
 
 | | Prisme | Node-based tools (ComfyUI…) |
 |---|---|---|
@@ -57,7 +57,7 @@ Most local image tools ask you to install Python, manage dependencies, or wire n
 
 Prisme aims to be the simplest way to run image models locally, not the most powerful one: an easy alternative to ComfyUI and to cloud image generators.
 
-![How Prisme works: your browser, phone or Claude talk to Prisme, which drives the engines and models on your computer](docs/schemas/fonctionnement-en.svg)
+![How Prisme works: Prisme's window, your phone or Claude talk to Prisme, which drives the engines and models on your computer](docs/schemas/fonctionnement-en.svg)
 
 ### Who is Prisme for?
 
@@ -68,12 +68,13 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 
 ## Features
 
-- **Create** images from a description, 1 to 4 per run
+- **A real desktop app** (new in 2.0): Prisme has its own window on Windows and Mac, light or dark like the system. Closing it only hides it: Prisme keeps serving your phone, Claude and downloads, then stops according to its settings. Opening Prisme again brings the window back
+- **Create** images from a description, 1 to 4 per run, with a **variant** number to redo an image while changing a detail
 - **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
 - **Edit** an existing image: click **Edit** (Modifier) under a result, or drag, paste or attach any picture
 - **Enlarge** a finished image 4 times with Real-ESRGAN: one click under the image, details stay sharp
 - **Formats**: square, landscape, portrait, or the starting image's proportions
-- **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt and delete to the Recycle Bin or Trash
+- **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt, copy or save an image elsewhere, and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
 - **English and French interface**, following the device's language or chosen in the settings
 - **Settings**: models, LoRA, steps, CFG, sampler, sigmas, memory options
@@ -174,7 +175,7 @@ tar -xzf Prisme-Linux-x64.tar.gz
 ./prisme
 ```
 
-The engines need OpenMP and Vulkan. If Prisme reports missing libraries, install them with `sudo apt install libgomp1 libvulkan1`, plus the Vulkan driver of your GPU (for example `mesa-vulkan-drivers`). Prisme opens as an app window in Chrome, Chromium, Edge or Brave when one is installed, otherwise in your default browser.
+The engines need OpenMP and Vulkan. If Prisme reports missing libraries, install them with `sudo apt install libgomp1 libvulkan1`, plus the Vulkan driver of your GPU (for example `mesa-vulkan-drivers`). On Linux, Prisme opens in a browser window (Chrome, Chromium, Edge or Brave when one is installed, otherwise your default browser). The desktop window is available with `./prisme --qt` once Qt's system libraries are installed (`sudo apt install libxcb-cursor0 libegl1`).
 
 You can also build Prisme yourself or run `app/serveur.py` directly on any system.
 
@@ -279,19 +280,19 @@ The server only talks to Prisme on `127.0.0.1`. Images Claude asks for go to the
 
 ## Build from source
 
-On the system you build for, with Python 3.12 or later, PyInstaller and Pillow installed:
+On the system you build for, with Python 3.12 or later and `pip install pyinstaller pillow PySide6-Essentials==6.8.1 segno==1.6.1` (PySide6 and segno make the desktop window and the phone QR code):
 
 ```bash
 python3 construire.py
 ```
 
-On Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` first creates that environment in `.construction/`. The build runs the tests, then makes `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.dmg` and `.zip` (macOS) or `dist/Prisme-Linux-x64.tar.gz` (Linux). If a test fails, nothing is built. To run without building: `python3 app/serveur.py`.
+On Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` first creates that environment in `.construction/`. The build runs the tests, then makes `Prisme.exe` (Windows), `dist/Prisme-macOS-arm64.dmg` and `.zip` (macOS) or `dist/Prisme-Linux-x64.tar.gz` (Linux). If a test fails, nothing is built. To run without building: `python3 app/serveur.py` (the desktop window if PySide6 is installed, `--web` for the browser window).
 
 How the pieces fit together (interface, server, engines, models and images) is described with a diagram in [docs/architecture.md](docs/architecture.md).
 
 ### Tests
 
-The tests use Python's built-in `unittest`: nothing to install. From the repository folder:
+The tests use Python's built-in `unittest`: nothing to install. The desktop window tests (`tests/test_qt.py`) run only when PySide6 is installed. From the repository folder:
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -308,7 +309,9 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | File | Role |
 |---|---|
 | `app/serveur.py` | Local server, Python standard library only: API, engines, network access |
-| `app/index.html` | The whole interface: HTML, CSS and JavaScript with no dependency |
+| `app/index.html` | The web interface (phone, and the browser window with `--web`): HTML, CSS and JavaScript with no dependency |
+| `app/fenetre_qt.py` | The desktop window (Prisme 2): opens the Qt Quick interface, reads the images to edit, makes the phone QR code |
+| `app/qml/` | The desktop interface in Qt Quick: main screen, Models, Settings, Phone, banners and requests |
 | `app/modeles.json` | Catalog of downloadable models and profiles by hardware |
 | `app/icone.py` | Program icon and splash screen, made from the logo |
 | `app/mcp_prisme.py` | MCP server built into Prisme (`--mcp`), standard library only |
@@ -320,6 +323,7 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | `tests/test_mcp.py` | MCP server tests, against a fake Prisme |
 | `tests/test_protocole_mcp.py` | The MCP server with the official MCP client (run when the `mcp` package is installed) |
 | `tests/test_agrandir.py`, `tests/test_supprimer_modele.py` | Enlarging and model removal, with a fake engine |
+| `tests/test_qt.py` | The desktop window loads without error, and images are read, copied and saved (run when PySide6 is installed) |
 | `docs/architecture.md` | Architecture diagram and explanation |
 
 ## Roadmap
@@ -331,6 +335,7 @@ Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https:/
 - **Faster successive images**: keep the models loaded between two creations instead of loading them each time.
 - ~~**Remove models from the app**~~: done in 1.10.0 (see [Choosing models for your machine](#choosing-models-for-your-machine)).
 - ~~**Upscaling**~~: done in 1.10.0, with Real-ESRGAN x4.
+- ~~**Desktop app**~~: done in 2.0, with Qt Quick, instead of a browser window.
 
 ## FAQ
 
@@ -359,7 +364,13 @@ No. Prompts, models and images stay on your PC. Other devices on your network ca
 Yes, on the same Wi-Fi: see [Phone access](#phone-access).
 
 **Is the interface in English?**
-Yes. Prisme follows your browser's language (English, or French for French browsers), and you can choose it in **Settings → Application → Language**. On a phone, it follows the phone's language.
+Yes. Prisme follows your computer's language (English, or French), and you can choose it in **Settings → Application → Language**. On a phone, it follows the phone's language.
+
+**I use Prisme 1: how do I get Prisme 2?**
+Click **Update** in the notice at the top of Prisme (or **Check** in the settings). Prisme 2 replaces Prisme 1 and keeps your models, images and settings; the browser window then hands over to the new window, and you can close it.
+
+**Can I keep the browser window?**
+Yes: start Prisme with `--web`. The phone always uses the web page.
 
 ## Responsible use
 

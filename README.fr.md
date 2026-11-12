@@ -52,13 +52,14 @@ Application locale pour créer et modifier des images par intelligence artificie
 - **Ceux qui en ont assez des abonnements et des crédits** des générateurs en ligne
 - **Les familles et petites équipes** qui veulent profiter de la carte graphique d'un PC depuis leurs téléphones
 
-![Comment fonctionne Prisme : ton navigateur, ton téléphone ou Claude parlent à Prisme, qui pilote les moteurs et les modèles sur ton ordinateur](docs/schemas/fonctionnement-fr.svg)
+![Comment fonctionne Prisme : la fenêtre de Prisme, ton téléphone ou Claude parlent à Prisme, qui pilote les moteurs et les modèles sur ton ordinateur](docs/schemas/fonctionnement-fr.svg)
 
 C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne : moins de possibilités avancées, beaucoup moins de complexité.
 
 ## Fonctions
 
-- **Création** d'images à partir d'une description, de 1 à 4 images par lancement
+- **Une vraie application de bureau** (nouveau dans la 2.0) : Prisme a sa propre fenêtre sur Windows et Mac, claire ou sombre comme le système. La fermer la cache seulement : Prisme continue pour le téléphone, Claude et les téléchargements, puis s'arrête selon ses réglages. Relancer Prisme fait revenir la fenêtre
+- **Création** d'images à partir d'une description, de 1 à 4 images par lancement, avec un numéro de **variante** pour refaire une image en changeant un détail
 - **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
 - **Installation automatique** des moteurs au premier lancement : CUDA pour les cartes NVIDIA, Vulkan pour les cartes AMD et Intel
 - **Téléchargement des modèles dans l'appli** : un clic récupère les modèles officiels conseillés, reprend si c'est interrompu et vérifie chaque fichier
@@ -66,12 +67,12 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
 - **Agrandissement** ×4 d'une image terminée avec Real-ESRGAN : un clic sous l'image, les détails restent nets
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
-- **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description et mise à la corbeille
+- **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description, copie ou enregistrement d'une image ailleurs, et mise à la corbeille
 - **Thème clair ou sombre**, ou celui du système
 - **Interface en français ou en anglais**, selon la langue de l'appareil ou au choix dans **Réglages → Application → Langue**
 - **Réglages** : choix des modèles, LoRA, étapes, CFG, échantillonneur, sigmas, options mémoire
 - **Téléphone** : utilisation depuis un téléphone sur le même Wi-Fi, protégée par un code d'accès (QR code)
-- **Un seul programme** pour Windows, macOS ou Linux, sans Python à installer
+- **Un seul programme** pour Windows, macOS ou Linux, sans Python à installer (environ 60 Mo sous Windows, 130 Mo sur Mac)
 
 ## Captures
 
@@ -172,7 +173,7 @@ tar -xzf Prisme-Linux-x64.tar.gz
 ./prisme
 ```
 
-Les moteurs ont besoin d'OpenMP et de Vulkan. Si Prisme signale des bibliothèques manquantes, installe-les avec `sudo apt install libgomp1 libvulkan1`, ainsi que le pilote Vulkan de ta carte graphique (par exemple `mesa-vulkan-drivers`). Prisme s'ouvre dans une fenêtre d'application de Chrome, Chromium, Edge ou Brave si l'un d'eux est installé, sinon dans ton navigateur par défaut.
+Les moteurs ont besoin d'OpenMP et de Vulkan. Si Prisme signale des bibliothèques manquantes, installe-les avec `sudo apt install libgomp1 libvulkan1`, ainsi que le pilote Vulkan de ta carte graphique (par exemple `mesa-vulkan-drivers`). Sous Linux, Prisme s'ouvre dans une fenêtre de navigateur (Chrome, Chromium, Edge ou Brave si l'un d'eux est installé, sinon ton navigateur par défaut). La fenêtre de bureau s'ouvre avec `./prisme --qt`, une fois installées les bibliothèques de Qt (`sudo apt install libxcb-cursor0 libegl1`).
 
 Si tu préfères ne pas faire confiance au programme, construis-le toi-même à partir du code (voir plus bas) ou lance directement `app/serveur.py`, sur n'importe quel système.
 
@@ -294,7 +295,7 @@ Le serveur ne parle qu'à Prisme sur `127.0.0.1`. Les images demandées par Clau
 
 ## Construire depuis les sources
 
-Sur le système visé, avec Python 3.12 ou plus récent, PyInstaller et Pillow installés :
+Sur le système visé, avec Python 3.12 ou plus récent et `pip install pyinstaller pillow PySide6-Essentials==6.8.1 segno==1.6.1` (PySide6 et segno font la fenêtre de bureau et le QR code du téléphone) :
 
 ```bash
 python3 construire.py
@@ -308,7 +309,7 @@ Sous Windows, `powershell -ExecutionPolicy Bypass -File .\construire.ps1` crée 
 python3 -m unittest discover -s tests -v
 ```
 
-Les tests utilisent `unittest`, inclus dans Python : rien à installer. Lance-les depuis le dossier du dépôt (sous Windows, tape `py -3` au lieu de `python3`). Pour lancer une seule classe de tests, par exemple celle du catalogue des modèles :
+Les tests utilisent `unittest`, inclus dans Python : rien à installer. Les tests de la fenêtre de bureau (`tests/test_qt.py`) ne se lancent que si PySide6 est installé. Lance-les depuis le dossier du dépôt (sous Windows, tape `py -3` au lieu de `python3`). Pour lancer une seule classe de tests, par exemple celle du catalogue des modèles :
 
 ```bash
 python3 -m unittest tests.test_serveur.ModelesConseillesTest -v
@@ -316,7 +317,7 @@ python3 -m unittest tests.test_serveur.ModelesConseillesTest -v
 
 Les tests vérifient la validation des réglages, la lecture des images, l'installation des moteurs, l'extraction des archives, les téléchargements (nouveaux essais, reprise, empreintes), les liens vers les modèles, les mises à jour et les protections d'accès : requêtes venant d'autres sites, noms d'hôte étrangers, code d'accès, blocage après des codes faux, fichiers hors des dossiers autorisés. Ils travaillent dans un dossier temporaire et ne touchent ni tes réglages, ni tes modèles, ni tes images. GitHub les lance sous Windows et Linux, avec Python 3.12 et 3.13, à chaque envoi, puis construit ces deux versions. La version macOS est construite à la demande.
 
-Pour lancer sans construire :
+Pour lancer sans construire (fenêtre de bureau si PySide6 est installé, `--web` pour la fenêtre du navigateur) :
 
 ```bash
 python3 app/serveur.py
@@ -327,7 +328,9 @@ python3 app/serveur.py
 | Fichier | Rôle |
 |---|---|
 | `app/serveur.py` | Serveur local (bibliothèque standard Python uniquement) : API, moteurs, accès réseau |
-| `app/index.html` | Interface complète : HTML, CSS et JavaScript sans dépendance |
+| `app/index.html` | L'interface web (téléphone, et fenêtre du navigateur avec `--web`) : HTML, CSS et JavaScript sans dépendance |
+| `app/fenetre_qt.py` | La fenêtre de bureau (Prisme 2) : ouvre l'interface Qt Quick, lit les images à modifier, fait le QR code du téléphone |
+| `app/qml/` | L'interface de bureau en Qt Quick : écran principal, Modèles, Réglages, Téléphone, bandeaux et demandes |
 | `app/modeles.json` | Catalogue des modèles téléchargeables et des profils par machine |
 | `app/icone.py` | Icône du programme et écran de démarrage, faits à partir du logo |
 | `app/logo.png`, `docs/logo.png` | Logo de l'application et du README |
@@ -337,6 +340,7 @@ python3 app/serveur.py
 | `tests/test_mcp.py` | Tests du serveur MCP, avec un faux Prisme |
 | `tests/test_protocole_mcp.py` | Le serveur MCP avec le client MCP officiel (lancé si le paquet `mcp` est installé) |
 | `tests/test_agrandir.py`, `tests/test_supprimer_modele.py` | Agrandissement et suppression de modèles, avec un faux moteur |
+| `tests/test_qt.py` | La fenêtre de bureau se charge sans erreur, et les images sont lues, copiées et enregistrées (lancé si PySide6 est installé) |
 | `app/mcp_prisme.py` | Serveur MCP intégré à Prisme (`--mcp`), bibliothèque standard seulement |
 | `app/agrandir.py` | Agrandissement d'une image avec Real-ESRGAN |
 | `mcp/` | README du serveur MCP, et lanceur pour développer |
@@ -356,6 +360,7 @@ Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Di
 - **Images à la suite plus rapides** : garder les modèles chargés entre deux créations au lieu de les recharger à chaque fois.
 - ~~**Supprimer des modèles depuis l'appli**~~ : fait dans la 1.10.0 (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
 - ~~**Agrandissement**~~ : fait dans la 1.10.0, avec Real-ESRGAN ×4.
+- ~~**Application de bureau**~~ : faite dans la 2.0, avec Qt Quick, au lieu d'une fenêtre de navigateur.
 
 ## Questions fréquentes
 
@@ -382,6 +387,12 @@ Non. Les descriptions, les modèles et les images restent sur ton PC. Les autres
 
 **Peut-on l'utiliser depuis un téléphone ?**
 Oui, sur le même Wi-Fi : voir [Téléphone](#téléphone).
+
+**J'ai Prisme 1 : comment passer à Prisme 2 ?**
+Clique sur **Mettre à jour** dans l'avis en haut de Prisme (ou sur **Vérifier** dans les Réglages). Prisme 2 remplace Prisme 1 et garde tes modèles, tes images et tes réglages ; la fenêtre du navigateur passe ensuite la main à la nouvelle fenêtre, et tu peux la fermer.
+
+**Puis-je garder la fenêtre du navigateur ?**
+Oui : lance Prisme avec `--web`. Le téléphone utilise toujours la page web.
 
 ## Usage responsable
 

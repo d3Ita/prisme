@@ -63,15 +63,28 @@ ApplicationWindow {
         minuteurNote.restart()
     }
 
+    // Toutes les images du dossier ; le fil n'en montre que celles qui correspondent a la recherche
+    property var toutesImages: []
+    property string recherche: ""
+
     function chargerImages(descendre) {
         api("/api/images", undefined, function (liste) {
-            images.clear()
-            // Les plus recentes d'abord, comme le serveur les donne : le fil, range de bas en haut, les montre en bas
-            for (const image of liste)
-                images.append({ nom: image.nom, prompt: image.prompt || "", largeur: image.largeur || 0, hauteur: image.hauteur || 0,
-                                seed: image.seed === null || image.seed === undefined ? "" : String(image.seed) })
+            toutesImages = liste
+            afficherImages()
             if (descendre) fil.positionViewAtBeginning()
         }, function (message) { note(message, true) })
+    }
+
+    function afficherImages() {
+        const mots = recherche.trim().toLowerCase()
+        images.clear()
+        // Les plus recentes d'abord, comme le serveur les donne : le fil, range de bas en haut, les montre en bas
+        for (const image of toutesImages) {
+            if (mots && (image.prompt || "").toLowerCase().indexOf(mots) < 0)
+                continue
+            images.append({ nom: image.nom, prompt: image.prompt || "", largeur: image.largeur || 0, hauteur: image.hauteur || 0,
+                            seed: image.seed === null || image.seed === undefined ? "" : String(image.seed) })
+        }
     }
 
     // Claude Desktop ou Claude Code sur cet ordinateur, et Prisme y est-il branche ?
@@ -272,6 +285,12 @@ ApplicationWindow {
                 color: c.danger
                 font.pixelSize: 13
             }
+            Champ {
+                implicitWidth: 230
+                implicitHeight: 32
+                placeholderText: tx("Rechercher dans mes images", "Search my images")
+                onTextChanged: { recherche = text; afficherImages() }
+            }
             BoutonDiscret { text: tx("Téléphone", "Phone"); onClicked: telephone.open() }
             BoutonDiscret { text: tx("Modèles", "Models"); onClicked: modeles.open() }
             BoutonDiscret { text: tx("Réglages", "Settings"); onClicked: reglages.open() }
@@ -452,7 +471,7 @@ ApplicationWindow {
                     BoutonDiscret {
                         text: tx("Corbeille", "Trash")
                         onClicked: api("/api/supprimer", { nom: message.model.nom }, function () {
-                            images.remove(message.index)
+                            chargerImages(false)
                             note(tx("Image mise à la corbeille", "Image moved to the trash"))
                         }, function (m) { note(m, true) })
                     }
@@ -561,7 +580,8 @@ ApplicationWindow {
             Text {
                 anchors.centerIn: parent
                 visible: images.count === 0 && !occupe
-                text: tx("Décris l'image à créer, en bas.", "Describe the image to create, below.")
+                text: recherche.trim() ? tx("Aucune image ne correspond à ta recherche.", "No image matches your search.")
+                                       : tx("Décris l'image à créer, en bas.", "Describe the image to create, below.")
                 color: c.texte3
                 font.pixelSize: 15
             }

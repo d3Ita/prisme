@@ -10,7 +10,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 os.environ.setdefault('QT_QUICK_BACKEND', 'software')
 
 try:
-    from PySide6.QtCore import QEventLoop, QUrl
+    from PySide6.QtCore import QEventLoop, QMetaObject, QObject, QUrl
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
 except ImportError:
@@ -23,6 +23,8 @@ QML = Path(__file__).resolve().parent.parent / 'app' / 'qml' / 'Prisme.qml'
 class FenetreQtTest(unittest.TestCase):
     def test_la_fenetre_se_charge_sans_erreur(self):
         application = QGuiApplication.instance() or QGuiApplication([])
+        application.setApplicationName('Prisme')
+        application.setOrganizationName('Prisme')
         moteur = QQmlApplicationEngine()
         erreurs = []
         moteur.warnings.connect(lambda liste: erreurs.extend(e.toString() for e in liste))
@@ -37,6 +39,16 @@ class FenetreQtTest(unittest.TestCase):
             application.processEvents(QEventLoop.AllEvents, 100)
         self.assertEqual(racine.property('title'), 'Prisme')
         self.assertFalse(racine.property('enLigne'))
+        # Les fenetres Modeles et Reglages s'ouvrent aussi sans erreur, meme sans reponse du serveur
+        for nom in ('modeles', 'reglages'):
+            fenetre = racine.findChild(QObject, nom)
+            self.assertIsNotNone(fenetre, nom)
+            QMetaObject.invokeMethod(fenetre, 'open')
+            limite = time.monotonic() + 1
+            while time.monotonic() < limite:
+                application.processEvents(QEventLoop.AllEvents, 50)
+            self.assertTrue(fenetre.property('opened'), nom)
+            QMetaObject.invokeMethod(fenetre, 'close')
         self.assertEqual(erreurs, [])
 
 

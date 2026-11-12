@@ -1,8 +1,8 @@
 // Prisme 2 : ecran principal en Qt Quick. Il parle au serveur de Prisme par son API locale (adresse), comme le
-// telephone et Claude. Les modeles et les reglages restent pour l'instant dans la version web (bouton en haut).
+// telephone et Claude. Modeles et Reglages s'ouvrent dans leurs fenetres (FenetreModeles.qml, FenetreReglages.qml).
+import QtCore
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Effects
 import QtQuick.Layouts
 import QtQuick.Shapes
 
@@ -18,64 +18,25 @@ ApplicationWindow {
     title: "Prisme"
     color: c.fond
 
-    // Apparence : "auto" (celle du systeme), "clair" ou "sombre", comme dans la version web
-    property string apparence: "auto"
-    readonly property bool sombre: apparence === "sombre" || (apparence === "auto" && Qt.styleHints.colorScheme === Qt.ColorScheme.Dark)
-    readonly property bool francais: Qt.locale().name.startsWith("fr")
-    function tx(fr, en) { return francais ? fr : en }
+    // Apparence choisie dans les Reglages et gardee sur cet ordinateur ; "auto" suit celle du systeme
+    property string apparence: preferences.apparence
+    // Couleurs, langue et appels a l'API : partages par tous les ecrans (Theme.qml)
+    readonly property var c: Theme
+    readonly property bool enLigne: Theme.enLigne
+    function tx(fr, en) { return Theme.tx(fr, en) }
+    function api(chemin, corps, reussite, echec) { Theme.api(chemin, corps, reussite, echec) }
 
-    // Memes couleurs que la version web
-    QtObject {
-        id: c
-        readonly property color fond: sombre ? "#1b1a18" : "#f6f4ef"
-        readonly property color surface: sombre ? "#242320" : "#ffffff"
-        readonly property color surface2: sombre ? "#2a2926" : "#fbfaf7"
-        readonly property color surface3: sombre ? "#34322e" : "#efece5"
-        readonly property color bordure: sombre ? "#383632" : "#e7e3da"
-        readonly property color texte: sombre ? "#f1eee8" : "#1f2430"
-        readonly property color texte2: sombre ? "#bdb8ae" : "#575d6b"
-        readonly property color texte3: sombre ? "#8d887f" : "#858a95"
-        readonly property color accent: sombre ? "#f07a5a" : "#2f5bea"
-        readonly property color surAccent: sombre ? "#2a140d" : "#ffffff"
-        readonly property color bulle: sombre ? "#3a2d27" : "#e8edfb"
-        readonly property color danger: sombre ? "#f26b6b" : "#d64545"
-        readonly property color fondImage: sombre ? "#1f1e1b" : "#ebe8e1"
-    }
+    Settings { id: preferences; category: "fenetre"; property string apparence: "auto" }
+    Binding { target: Theme; property: "apparence"; value: fenetre.apparence }
+    Connections { target: Theme; function onMessage(texte, erreur) { fenetre.note(texte, erreur) } }
 
     // --- Etat de Prisme
     property var etat: ({})
     property bool occupe: etat.occupe === true
     property bool etaitOccupe: false
-    property bool enLigne: true
     property string format: "carre"
     property int nombre: 1
     readonly property var formats: ({ carre: [1024, 1024], paysage: [1280, 720], portrait: [720, 1280] })
-
-    function api(chemin, corps, reussite, echec) {
-        const requete = new XMLHttpRequest()
-        requete.onreadystatechange = function () {
-            if (requete.readyState !== XMLHttpRequest.DONE)
-                return
-            let donnees = {}
-            try { donnees = JSON.parse(requete.responseText || "{}") } catch (e) {}
-            if (requete.status >= 200 && requete.status < 300) {
-                enLigne = true
-                if (reussite) reussite(donnees)
-                return
-            }
-            if (!requete.status) enLigne = false
-            const message = donnees.erreur || (requete.status ? tx("Erreur ", "Error ") + requete.status
-                                                               : tx("Prisme ne répond pas.", "Prisme is not responding."))
-            if (echec) echec(message)
-        }
-        requete.open(corps === undefined ? "GET" : "POST", adresse + chemin)
-        if (corps === undefined) {
-            requete.send()
-        } else {
-            requete.setRequestHeader("Content-Type", "application/json")
-            requete.send(JSON.stringify(corps))
-        }
-    }
 
     function note(texte, erreur) {
         bulleNote.texte = texte
@@ -145,65 +106,15 @@ ApplicationWindow {
 
     Timer {
         interval: occupe ? 700 : 2500
-        running: true
+        running: Theme.adresse !== ""
         repeat: true
         triggeredOnStart: true
         onTriggered: lireEtat()
     }
 
-    Component.onCompleted: chargerImages(true)
-
-    // --- Image aux coins arrondis
-    component ImageArrondie: Item {
-        id: cadre
-        required property QtObject theme
-        property alias source: image.source
-        property real rayon: 14
-        Rectangle { anchors.fill: parent; radius: cadre.rayon; color: cadre.theme.fondImage }
-        Image {
-            id: image
-            anchors.fill: parent
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
-            cache: true
-            // Une image agrandie (5120 px) se decode a la taille affichee : moins de memoire
-            sourceSize.width: 1400
-            visible: false
-            layer.enabled: true
-        }
-        Rectangle {
-            id: masque
-            anchors.fill: parent
-            radius: cadre.rayon
-            visible: false
-            layer.enabled: true
-        }
-        MultiEffect {
-            anchors.fill: image
-            source: image
-            maskEnabled: true
-            maskSource: masque
-        }
-    }
-
-    component BoutonDiscret: Button {
-        id: bouton
-        required property QtObject theme
-        flat: true
-        implicitHeight: 30
-        leftPadding: 10
-        rightPadding: 10
-        font.pixelSize: 13
-        contentItem: Text {
-            text: bouton.text
-            font: bouton.font
-            color: bouton.enabled ? (bouton.hovered ? bouton.theme.texte : bouton.theme.texte2) : bouton.theme.texte3
-            verticalAlignment: Text.AlignVCenter
-        }
-        background: Rectangle {
-            radius: 8
-            color: bouton.hovered ? bouton.theme.surface3 : "transparent"
-        }
+    Component.onCompleted: {
+        Theme.adresse = adresse
+        chargerImages(true)
     }
 
     // --- En-tete
@@ -249,13 +160,8 @@ ApplicationWindow {
                 color: c.danger
                 font.pixelSize: 13
             }
-            BoutonDiscret {
-                theme: c
-                text: tx("Modèles et réglages", "Models and settings")
-                ToolTip.visible: hovered
-                ToolTip.text: tx("S'ouvrent dans la version web pour l'instant", "Open in the web version for now")
-                onClicked: Qt.openUrlExternally(adresse)
-            }
+            BoutonDiscret { text: tx("Modèles", "Models"); onClicked: modeles.open() }
+            BoutonDiscret { text: tx("Réglages", "Settings"); onClicked: reglages.open() }
             Text {
                 text: etat.version ? "v" + etat.version : ""
                 color: c.texte3
@@ -278,6 +184,7 @@ ApplicationWindow {
             radius: 12
             color: c.surface
             border.color: c.bordure
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: modeles.open() }
             Text {
                 id: probleme
                 anchors.fill: parent
@@ -286,7 +193,7 @@ ApplicationWindow {
                 color: c.texte
                 font.pixelSize: 13
                 text: tx("Prisme n'est pas encore prêt : ", "Prisme is not ready yet: ") + (etat.problemes || []).join(" · ")
-                      + tx(". Ouvre « Modèles et réglages » en haut à droite.", ". Open “Models and settings” at the top right.")
+                      + tx(". Clique ici pour ouvrir les modèles.", ". Click here to open the models.")
             }
         }
 
@@ -338,7 +245,6 @@ ApplicationWindow {
 
                 // L'image de Prisme, a gauche
                 ImageArrondie {
-                    theme: c
                     x: 36
                     // Une image en portrait tient dans les trois quarts de la hauteur du fil
                     readonly property real proportion: message.model.largeur ? message.model.hauteur / message.model.largeur : 1
@@ -356,12 +262,10 @@ ApplicationWindow {
                     x: 30
                     spacing: 2
                     BoutonDiscret {
-                        theme: c
                         text: tx("Réutiliser", "Reuse")
                         onClicked: { saisie.text = message.model.prompt; saisie.forceActiveFocus() }
                     }
                     BoutonDiscret {
-                        theme: c
                         text: tx("Agrandir ×4", "Enlarge ×4")
                         enabled: !occupe
                         onClicked: api("/api/agrandir", { nom: message.model.nom }, function () {
@@ -371,12 +275,10 @@ ApplicationWindow {
                         }, function (m) { note(m, true) })
                     }
                     BoutonDiscret {
-                        theme: c
                         text: tx("Dans le dossier", "Show in folder")
                         onClicked: api("/api/dossier", { nom: message.model.nom }, null, function (m) { note(m, true) })
                     }
                     BoutonDiscret {
-                        theme: c
                         text: tx("Corbeille", "Trash")
                         onClicked: api("/api/supprimer", { nom: message.model.nom }, function () {
                             images.remove(message.index)
@@ -563,13 +465,13 @@ ApplicationWindow {
 
                     Rectangle { width: 1; height: 20; color: c.bordure; Layout.leftMargin: 4; Layout.rightMargin: 4 }
 
-                    BoutonDiscret { theme: c; text: "−"; enabled: nombre > 1; onClicked: nombre-- }
+                    BoutonDiscret { text: "−"; enabled: nombre > 1; onClicked: nombre-- }
                     Text {
                         text: nombre + " " + (nombre > 1 ? tx("images", "images") : tx("image", "image"))
                         color: c.texte2
                         font.pixelSize: 13
                     }
-                    BoutonDiscret { theme: c; text: "+"; enabled: nombre < 4; onClicked: nombre++ }
+                    BoutonDiscret { text: "+"; enabled: nombre < 4; onClicked: nombre++ }
 
                     Item { Layout.fillWidth: true }
 
@@ -649,5 +551,18 @@ ApplicationWindow {
             font.pixelSize: 13
         }
         Timer { id: minuteurNote; onTriggered: bulleNote.visible = false }
+    }
+
+    // --- Fenetres des modeles et des reglages
+    FenetreModeles { id: modeles; objectName: "modeles"; onChangement: lireEtat() }
+    FenetreReglages {
+        id: reglages
+        objectName: "reglages"
+        onOuvrirModeles: { reglages.close(); modeles.open() }
+        onEnregistre: lireEtat()
+        onApparenceChoisie: function (choix) {
+            fenetre.apparence = choix
+            preferences.apparence = choix
+        }
     }
 }

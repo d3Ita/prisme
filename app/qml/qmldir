@@ -1,0 +1,13 @@
+singleton Theme 1.0 Theme.qml
+BoutonDiscret 1.0 BoutonDiscret.qml
+BoutonPrincipal 1.0 BoutonPrincipal.qml
+Interrupteur 1.0 Interrupteur.qml
+ListeDeroulante 1.0 ListeDeroulante.qml
+Champ 1.0 Champ.qml
+ImageArrondie 1.0 ImageArrondie.qml
+Panneau 1.0 Panneau.qml
+Section 1.0 Section.qml
+Ligne 1.0 Ligne.qml
+BarreProgression 1.0 BarreProgression.qml
+FenetreModeles 1.0 FenetreModeles.qml
+FenetreReglages 1.0 FenetreReglages.qml

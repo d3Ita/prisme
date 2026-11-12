@@ -14,6 +14,7 @@ def lancer(adresse, ressources):
 
     application = QGuiApplication.instance() or QGuiApplication(sys.argv)
     application.setApplicationName('Prisme')
+    application.setOrganizationName('Prisme')
     application.setWindowIcon(QIcon(str(Path(ressources) / 'logo.png')))
     moteur = QQmlApplicationEngine()
     moteur.setInitialProperties({'adresse': adresse})

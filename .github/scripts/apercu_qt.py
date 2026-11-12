@@ -69,13 +69,15 @@ def preparer():
 def main(dossier):
     preparer()
     import serveur
-    from PySide6.QtCore import QEventLoop, QUrl
+    from PySide6.QtCore import QEventLoop, QMetaObject, QObject, QUrl
     from PySide6.QtGui import QFont, QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
 
     http = serveur.Serveur(('127.0.0.1', serveur.PORT), serveur.Gestionnaire)
     threading.Thread(target=http.serve_forever, daemon=True).start()
     application = QGuiApplication(sys.argv)
+    application.setApplicationName('Prisme')
+    application.setOrganizationName('Prisme')
     # Police proche de celles du Mac et de Windows (le Linux de la CI n'a que DejaVu par defaut)
     application.setFont(QFont('Inter', 10))
     sortie = Path(dossier)
@@ -87,9 +89,11 @@ def main(dossier):
             application.processEvents(QEventLoop.AllEvents, 50)
             time.sleep(0.02)
 
-    def capturer(nom, apparence, pendant_creation=False):
+    erreurs = []
+
+    def capturer(nom, apparence, pendant_creation=False, ouvrir=None):
         moteur = QQmlApplicationEngine()
-        moteur.warnings.connect(lambda liste: [print('QML :', e.toString()) for e in liste])
+        moteur.warnings.connect(lambda liste: erreurs.extend(e.toString() for e in liste))
         moteur.setInitialProperties({'adresse': f'http://127.0.0.1:{serveur.PORT}', 'width': 1280, 'height': 860,
                                      'apparence': apparence})
         moteur.load(QUrl.fromLocalFile(str(APP / 'qml' / 'Prisme.qml')))
@@ -100,6 +104,9 @@ def main(dossier):
                 serveur.etat.update(occupe=True, phase='dessin', etape=13, total=20, index=1, nombre=1, debut=time.time() - 9,
                                     prompt='Un phare sur une falaise pendant une tempête, vagues immenses',
                                     largeur=1024, hauteur=1024, resultats=[], claude=False)
+            attendre(3)
+        if ouvrir:
+            QMetaObject.invokeMethod(fenetre.findChild(QObject, ouvrir), 'open')
             attendre(3)
         # Capture par l'ecran (virtuel) : PySide6 ne voit la fenetre que comme une QWindow
         application.primaryScreen().grabWindow(fenetre.winId()).save(str(sortie / f'{nom}.png'))
@@ -114,7 +121,14 @@ def main(dossier):
     capturer('1-clair', 'clair')
     capturer('2-sombre', 'sombre')
     capturer('3-creation-en-cours', 'clair', pendant_creation=True)
+    capturer('4-modeles', 'clair', ouvrir='modeles')
+    capturer('5-reglages', 'clair', ouvrir='reglages')
+    capturer('6-modeles-sombre', 'sombre', ouvrir='modeles')
     http.shutdown()
+    # Une erreur QML (liaison cassee avec de vraies donnees) fait echouer la CI
+    for e in erreurs:
+        print('QML :', e)
+    sys.exit(1 if erreurs else 0)
 
 
 if __name__ == '__main__':

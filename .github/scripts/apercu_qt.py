@@ -99,7 +99,8 @@ def main(dossier):
                                     prompt='Un phare sur une falaise pendant une tempête, vagues immenses',
                                     largeur=1024, hauteur=1024, resultats=[], claude=False)
             attendre(3)
-        fenetre.grabWindow().save(str(sortie / f'{nom}.png'))
+        # Capture par l'ecran (virtuel) : PySide6 ne voit la fenetre que comme une QWindow
+        application.primaryScreen().grabWindow(fenetre.winId()).save(str(sortie / f'{nom}.png'))
         print('capture', nom)
         with serveur.verrou:
             serveur.etat.clear()

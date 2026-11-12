@@ -2,6 +2,7 @@
 
 Sans ecran (CI) : plateforme offscreen et rendu logiciel."""
 import os
+import socket
 import sys
 import tempfile
 import time
@@ -26,8 +27,12 @@ class FenetreQtTest(unittest.TestCase):
     def test_la_fenetre_se_charge_sans_erreur(self):
         application = fenetre_qt.application()
         erreurs = []
-        # Aucun Prisme sur ce port : la fenetre doit s'afficher quand meme, en signalant qu'il ne repond pas
-        moteur = fenetre_qt.charger('http://127.0.0.1:9', APP, erreurs)
+        # Aucun Prisme sur ce port (tout juste libere, donc ferme) : la fenetre s'affiche quand meme et signale
+        # qu'il ne repond pas
+        with socket.socket() as s:
+            s.bind(('127.0.0.1', 0))
+            port = s.getsockname()[1]
+        moteur = fenetre_qt.charger(f'http://127.0.0.1:{port}', APP, erreurs)
         self.assertTrue(moteur.rootObjects(), erreurs)
         racine = moteur.rootObjects()[0]
         # Sous Windows, une connexion refusee met environ 2 s a echouer

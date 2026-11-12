@@ -214,7 +214,8 @@ ApplicationWindow {
             anchors.rightMargin: 14
             spacing: 10
             Image {
-                source: adresse + "/logo.png"
+                // Fichier local, a cote du dossier qml : le logo s'affiche meme avant que le serveur reponde
+                source: "../logo.png"
                 sourceSize: Qt.size(30, 30)
                 Layout.preferredWidth: 30
                 Layout.preferredHeight: 30

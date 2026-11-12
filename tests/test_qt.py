@@ -2,6 +2,7 @@
 
 Sans ecran (CI) : plateforme offscreen et rendu logiciel."""
 import os
+import time
 import unittest
 from pathlib import Path
 
@@ -9,7 +10,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 os.environ.setdefault('QT_QUICK_BACKEND', 'software')
 
 try:
-    from PySide6.QtCore import QTimer, QUrl
+    from PySide6.QtCore import QEventLoop, QUrl
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
 except ImportError:
@@ -28,10 +29,12 @@ class FenetreQtTest(unittest.TestCase):
         # Aucun Prisme sur ce port : la fenetre doit s'afficher quand meme, en signalant qu'il ne repond pas
         moteur.setInitialProperties({'adresse': 'http://127.0.0.1:9'})
         moteur.load(QUrl.fromLocalFile(str(QML)))
-        QTimer.singleShot(1500, application.quit)
-        application.exec()
         self.assertTrue(moteur.rootObjects(), erreurs)
         racine = moteur.rootObjects()[0]
+        # Sous Windows, une connexion refusee met environ 2 s a echouer
+        limite = time.monotonic() + 10
+        while racine.property('enLigne') and time.monotonic() < limite:
+            application.processEvents(QEventLoop.AllEvents, 100)
         self.assertEqual(racine.property('title'), 'Prisme')
         self.assertFalse(racine.property('enLigne'))
         self.assertEqual(erreurs, [])

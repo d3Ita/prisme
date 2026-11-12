@@ -19,6 +19,7 @@ Panneau {
     signal ouvrirModeles()
     signal enregistre()
     signal apparenceChoisie(string apparence)
+    signal langueChoisie(string langue)
 
     onOpened: lire()
 
@@ -254,6 +255,23 @@ Panneau {
     // --- Application
     Section {
         titre: Theme.tx("Application", "Application")
+        Ligne {
+            nom: Theme.tx("Langue", "Language")
+            aide: Theme.tx("Pour cet ordinateur · Language", "For this computer")
+            Row {
+                spacing: 4
+                Repeater {
+                    model: [["fr", "Français"], ["en", "English"], ["auto", Theme.tx("Automatique", "Automatic")]]
+                    delegate: BoutonPrincipal {
+                        required property var modelData
+                        secondaire: Theme.langue !== modelData[0]
+                        text: modelData[1]
+                        implicitHeight: 32
+                        onClicked: fenetre.langueChoisie(modelData[0])
+                    }
+                }
+            }
+        }
         Ligne {
             nom: Theme.tx("Apparence", "Appearance")
             aide: Theme.tx("Pour cet ordinateur, appliquée tout de suite", "For this computer, applied right away")

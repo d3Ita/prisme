@@ -31,11 +31,14 @@ ApplicationWindow {
         id: preferences
         category: "fenetre"
         property string apparence: "auto"
+        // "fr", "en" ou "auto" (celle du systeme), comme le choix de la version web
+        property string langue: "auto"
         // Bandeaux masques sur cet ordinateur : la version annoncee, et l'invitation a connecter Claude
         property string majMasquee: ""
         property bool claudeMasque: false
     }
     Binding { target: Theme; property: "apparence"; value: fenetre.apparence }
+    Binding { target: Theme; property: "langue"; value: preferences.langue }
     Connections { target: Theme; function onMessage(texte, erreur) { fenetre.note(texte, erreur) } }
 
     // --- Etat de Prisme
@@ -65,7 +68,8 @@ ApplicationWindow {
             images.clear()
             // Les plus recentes d'abord, comme le serveur les donne : le fil, range de bas en haut, les montre en bas
             for (const image of liste)
-                images.append({ nom: image.nom, prompt: image.prompt || "", largeur: image.largeur || 0, hauteur: image.hauteur || 0 })
+                images.append({ nom: image.nom, prompt: image.prompt || "", largeur: image.largeur || 0, hauteur: image.hauteur || 0,
+                                seed: image.seed === null || image.seed === undefined ? "" : String(image.seed) })
             if (descendre) fil.positionViewAtBeginning()
         }, function (message) { note(message, true) })
     }
@@ -142,7 +146,9 @@ ApplicationWindow {
     function lancerCreation() {
         const texte = saisie.text.trim()
         const taille = tailleVoulue()
-        api("/api/generer", avecSource({ prompt: texte, largeur: taille[0], hauteur: taille[1], nombre: nombre }), function () {
+        const corps = avecSource({ prompt: texte, largeur: taille[0], hauteur: taille[1], nombre: nombre })
+        if (variante.text !== "") corps.seed = Number(variante.text)
+        api("/api/generer", corps, function () {
             etat = Object.assign({}, etat, { occupe: true, phase: "chargement", etape: 0, prompt: texte,
                                              largeur: taille[0], hauteur: taille[1], nombre: nombre, index: 1 })
             etaitOccupe = true
@@ -416,7 +422,8 @@ ApplicationWindow {
                     }
                     BoutonDiscret {
                         text: tx("Réutiliser", "Reuse")
-                        onClicked: { saisie.text = message.model.prompt; saisie.forceActiveFocus() }
+                        // La description et la variante : la meme image peut etre refaite en changeant un detail
+                        onClicked: { saisie.text = message.model.prompt; variante.text = message.model.seed; saisie.forceActiveFocus() }
                     }
                     BoutonDiscret {
                         text: tx("Agrandir ×4", "Enlarge ×4")
@@ -426,6 +433,17 @@ ApplicationWindow {
                             lireEtat()
                             fil.positionViewAtBeginning()
                         }, function (m) { note(m, true) })
+                    }
+                    BoutonDiscret {
+                        text: tx("Copier", "Copy")
+                        onClicked: {
+                            const fait = typeof fichiers !== "undefined" && fichiers.copierImage(adresse + "/images/" + encodeURIComponent(message.model.nom))
+                            note(fait ? tx("Image copiée", "Image copied") : tx("Impossible de copier l'image.", "The image cannot be copied."), !fait)
+                        }
+                    }
+                    BoutonDiscret {
+                        text: tx("Enregistrer", "Save")
+                        onClicked: { enregistrement.nom = message.model.nom; enregistrement.open() }
                     }
                     BoutonDiscret {
                         text: tx("Dans le dossier", "Show in folder")
@@ -700,6 +718,18 @@ ApplicationWindow {
                     }
                     BoutonDiscret { text: "+"; enabled: nombre < 4; onClicked: nombre++ }
 
+                    // Variante : vide = au hasard ; meme description et meme variante donnent la meme image
+                    Champ {
+                        id: variante
+                        implicitWidth: 130
+                        implicitHeight: 32
+                        placeholderText: tx("Variante au hasard", "Random variant")
+                        validator: RegularExpressionValidator { regularExpression: /\d{0,10}/ }
+                        ToolTip.visible: hovered
+                        ToolTip.text: tx("Même description et même numéro donnent la même image : pratique pour refaire une image en changeant un détail.",
+                                         "The same description and number give the same image: handy to redo an image while changing a detail.")
+                    }
+
                     Item { Layout.fillWidth: true }
 
                     Button {
@@ -792,6 +822,7 @@ ApplicationWindow {
             fenetre.apparence = choix
             preferences.apparence = choix
         }
+        onLangueChoisie: function (choix) { preferences.langue = choix }
     }
 
     // --- Image de depart : choisie ou glissee sur la fenetre
@@ -916,6 +947,22 @@ ApplicationWindow {
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
             Layout.fillWidth: true
+        }
+    }
+
+    // --- Enregistrer une image du fil ailleurs que dans le dossier de Prisme
+    FileDialog {
+        id: enregistrement
+        property string nom: ""
+        title: tx("Enregistrer l'image", "Save the image")
+        fileMode: FileDialog.SaveFile
+        // Propose le dossier Images, avec le nom de l'image
+        currentFolder: StandardPaths.writableLocation(StandardPaths.PicturesLocation)
+        selectedFile: currentFolder + "/" + nom
+        nameFilters: ["PNG (*.png)"]
+        onAccepted: {
+            const fait = typeof fichiers !== "undefined" && fichiers.enregistrerImage(adresse + "/images/" + encodeURIComponent(nom), selectedFile.toString())
+            note(fait ? tx("Image enregistrée", "Image saved") : tx("Impossible d'enregistrer l'image.", "The image cannot be saved."), !fait)
         }
     }
 }

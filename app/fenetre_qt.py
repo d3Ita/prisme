@@ -4,6 +4,7 @@ Le serveur de Prisme tourne dans ce meme processus. L'interface QML lui parle pa
 (page web) et Claude (serveur MCP) : une seule logique pour les trois. Qt doit tourner dans le fil principal (macOS).
 Seul ce que QML ne sait pas faire passe par Python : lire une image choisie, glissee ou collee."""
 import sys
+import urllib.request
 from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, Qt, QUrl, Signal, Slot
@@ -22,6 +23,17 @@ def image_de_depart(image, nom):
     return {'data': donnees, 'url': donnees, 'nom': nom, 'largeur': image.width(), 'hauteur': image.height()}
 
 
+def lire_locale(adresse):
+    """Une image servie par Prisme sur cet ordinateur (jamais une autre adresse), ou None."""
+    if not adresse.startswith(('http://127.0.0.1:', 'http://localhost:')):
+        return None
+    try:
+        with urllib.request.urlopen(adresse, timeout=30) as reponse:
+            return reponse.read()
+    except OSError:
+        return None
+
+
 class Fichiers(QObject):
     """Lecture d'une image de depart : fichier choisi ou glisse, ou image du presse-papiers."""
 
@@ -37,6 +49,27 @@ class Fichiers(QObject):
     @Slot(str)
     def copier(self, texte):
         QGuiApplication.clipboard().setText(texte)
+
+    @Slot(str, result=bool)
+    def copierImage(self, adresse):
+        """Copie une image du fil dans le presse-papiers (pour la coller ailleurs)."""
+        image = QImage.fromData(lire_locale(adresse) or b'')
+        if image.isNull():
+            return False
+        QGuiApplication.clipboard().setImage(image)
+        return True
+
+    @Slot(str, str, result=bool)
+    def enregistrerImage(self, adresse, destination):
+        """Enregistre une image du fil la ou l'utilisateur l'a choisi."""
+        donnees = lire_locale(adresse)
+        if not donnees:
+            return False
+        try:
+            Path(QUrl(destination).toLocalFile() or destination).write_bytes(donnees)
+        except OSError:
+            return False
+        return True
 
     @Slot(str, result=str)
     def qrCode(self, texte):

@@ -71,5 +71,30 @@ class FenetreQtTest(unittest.TestCase):
         self.assertIsNone(fenetre_qt.Fichiers().lireImage('/introuvable/x.png'))
 
 
+    def test_copier_et_enregistrer_une_image(self):
+        import functools
+        import http.server
+        import threading
+        fenetre_qt.application()
+        image = QImage(20, 10, QImage.Format_RGB32)
+        image.fill(QColor('#f07a5a'))
+        with tempfile.TemporaryDirectory() as dossier:
+            image.save(os.path.join(dossier, 'image_1.png'), 'PNG')
+            gestion = functools.partial(http.server.SimpleHTTPRequestHandler, directory=dossier)
+            serveur = http.server.ThreadingHTTPServer(('127.0.0.1', 0), gestion)
+            threading.Thread(target=serveur.serve_forever, daemon=True).start()
+            self.addCleanup(serveur.shutdown)
+            adresse = f'http://127.0.0.1:{serveur.server_address[1]}/image_1.png'
+            fichiers = fenetre_qt.Fichiers()
+            self.assertTrue(fichiers.copierImage(adresse))
+            self.assertEqual(fenetre_qt.QGuiApplication.clipboard().image().width(), 20)
+            copie = os.path.join(dossier, 'copie.png')
+            self.assertTrue(fichiers.enregistrerImage(adresse, QUrl.fromLocalFile(copie).toString()))
+            with open(copie, 'rb') as a, open(os.path.join(dossier, 'image_1.png'), 'rb') as b:
+                self.assertEqual(a.read(), b.read())
+            # Seulement les images de Prisme sur cet ordinateur
+            self.assertFalse(fichiers.copierImage('https://exemple.org/image.png'))
+
+
 if __name__ == '__main__':
     unittest.main()

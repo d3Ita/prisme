@@ -9,7 +9,9 @@ QtObject {
     // "auto" (celle du systeme), "clair" ou "sombre"
     property string apparence: "auto"
     readonly property bool sombre: apparence === "sombre" || (apparence === "auto" && Qt.styleHints.colorScheme === Qt.ColorScheme.Dark)
-    readonly property bool francais: Qt.locale().name.startsWith("fr")
+    // "fr", "en" ou "auto" (langue du systeme), choisie dans les Reglages
+    property string langue: "auto"
+    readonly property bool francais: langue === "fr" || (langue === "auto" && Qt.locale().name.startsWith("fr"))
 
     readonly property color fond: sombre ? "#1b1a18" : "#f6f4ef"
     readonly property color surface: sombre ? "#242320" : "#ffffff"

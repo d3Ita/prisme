@@ -5,7 +5,7 @@ Mac     : dist/Prisme-macOS-arm64.dmg (a ouvrir, puis glisser Prisme.app dans Ap
           et dist/Prisme-macOS-arm64.zip (pour la mise a jour en un clic)
 Linux   : dist/Prisme-Linux-x64.tar.gz (programme prisme)
 
-Prerequis : pip install pyinstaller pillow PySide6==6.8.1 segno==1.6.1
+Prerequis : pip install pyinstaller pillow PySide6-Essentials==6.8.1 segno==1.6.1
 """
 
 import os

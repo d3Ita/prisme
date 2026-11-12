@@ -62,7 +62,9 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 - **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
 - **Installation automatique** des moteurs au premier lancement : CUDA pour les cartes NVIDIA, Vulkan pour les cartes AMD et Intel
 - **Téléchargement des modèles dans l'appli** : un clic récupère les modèles officiels conseillés, reprend si c'est interrompu et vérifie chaque fichier
+- **Suppression des modèles dans l'appli** : libérer de la place depuis la fenêtre des modèles, sans ouvrir le dossier `models`
 - **Modification** d'une image existante : glisser, coller ou choisir une image de départ
+- **Agrandissement** ×4 d'une image terminée avec Real-ESRGAN : un clic sous l'image, les détails restent nets
 - **Formats** carré, paysage, portrait, ou proportions de l'image de départ
 - **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description et mise à la corbeille
 - **Thème clair ou sombre**, ou celui du système
@@ -114,6 +116,7 @@ Prisme pilote les modèles qui fonctionnent avec un modèle de diffusion, un enc
 | La même carte avec le moteur Vulkan | 32 Go | Mêmes modèles | Environ 50 s pour une création, chargement compris |
 | NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | FLUX.2 klein 4B Q8_0, Qwen3 4B Q8_0 (profil Carte de 12 Go) | Création 8 à 10 s, modification 10 à 12 s en 1024 × 768 |
 | Apple M3, 18 Go de mémoire unifiée (Metal, macOS) | 18 Go (partagés) | Ensemble complet (avant les versions légères conseillées sur Mac) | Environ 5 minutes pour une création, chargement compris |
+| NVIDIA RTX 4070 SUPER, 12 Go (CUDA, Windows 11) | 32 Go | Real-ESRGAN x4plus | Agrandissement de 1280 × 704 en 5120 × 2816 : 14 s |
 
 Les autres cartes n'ont pas encore été mesurées. Pour se repérer : avec 8 Go de mémoire vidéo, choisis le modèle de dessin Q4_K et le modèle de texte Q4_K_M, et laisse **Décharger sur le processeur** activé ; 16 Go de mémoire vive ou plus aident, car une partie des modèles y attend son tour. Prévois environ 16 Go libres sur le disque pour le moteur et les modèles conseillés. Tes résultats sur d'autres machines sont les bienvenus dans les [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
@@ -203,6 +206,10 @@ Le profil **Carte de 12 Go** est testé : création en 8 à 10 s et modification
 
 Avant de télécharger un profil Qwen-Image, Prisme te demande d'accepter sa licence ; sans cela, le serveur refuse le téléchargement. Le catalogue, avec le lien, la taille, l'empreinte SHA-256 et la licence de chaque fichier, est dans [`app/modeles.json`](app/modeles.json).
 
+**L'agrandissement** utilise [Real-ESRGAN x4plus](https://huggingface.co/Comfy-Org/Real-ESRGAN) (67 Mo, BSD-3-Clause), téléchargé au premier clic sur **Agrandir** sous une image.
+
+**Supprimer un modèle** : dans la fenêtre des modèles, **Choisir ou supprimer les modèles un par un (mode avancé)** affiche un bouton de suppression à côté de chaque fichier installé, y compris ceux ajoutés à la main. Le fichier est supprimé définitivement (pas mis à la corbeille, pour que la place soit vraiment libérée), après confirmation.
+
 ### Qwen-Image 2.1 Turbo à la main
 
 Si tu préfères télécharger Qwen-Image 2.1 Turbo toi-même (après avoir lu [sa licence](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE)) :
@@ -229,6 +236,7 @@ Tu peux renommer le fichier du VAE (par exemple `qwen-image-vae.safetensors`) po
 |---|---|
 | Créer une image | Écrire une description en bas, puis `Entrée` ou **Créer** (`Maj` + `Entrée` pour aller à la ligne) |
 | Modifier une image | **Modifier** sur une image du fil, ou glisser, coller ou joindre une image avec le bouton **Image** |
+| Agrandir une image | Bouton **Agrandir** (flèches) sous l'image : une nouvelle image 4 fois plus grande arrive dans le fil |
 | Changer de modèle | **Réglages → Modèles**, puis **Enregistrer** |
 | Ajouter un LoRA | Le placer dans `models/loras`, puis **Réglages → LoRA → Actualiser** |
 | Utiliser le téléphone | Taper l'adresse affichée par **Téléphone**, puis **Autoriser** sur le PC (ou scanner le QR code) |
@@ -328,7 +336,9 @@ python3 app/serveur.py
 | `tests/test_serveur.py` | Tests du serveur (bibliothèque standard uniquement) |
 | `tests/test_mcp.py` | Tests du serveur MCP, avec un faux Prisme |
 | `tests/test_protocole_mcp.py` | Le serveur MCP avec le client MCP officiel (lancé si le paquet `mcp` est installé) |
+| `tests/test_agrandir.py`, `tests/test_supprimer_modele.py` | Agrandissement et suppression de modèles, avec un faux moteur |
 | `app/mcp_prisme.py` | Serveur MCP intégré à Prisme (`--mcp`), bibliothèque standard seulement |
+| `app/agrandir.py` | Agrandissement d'une image avec Real-ESRGAN |
 | `mcp/` | README du serveur MCP, et lanceur pour développer |
 | `docs/architecture.md` | Schéma et explication de l'architecture |
 | `.github/workflows/` | Tests et construction sur GitHub |
@@ -344,8 +354,8 @@ Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Di
 - ~~**Profils de modèles par config**~~ : fait dans la 1.9.0 (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
 - ~~**Serveur MCP pour Claude**~~ : fait dans la 1.9.0 (voir [Utiliser Prisme avec Claude via MCP](#utiliser-prisme-avec-claude-via-mcp)).
 - **Images à la suite plus rapides** : garder les modèles chargés entre deux créations au lieu de les recharger à chaque fois.
-- **Supprimer des modèles depuis l'appli** : libérer de la place sans ouvrir le dossier `models`.
-- **Agrandissement** : agrandir une image terminée.
+- ~~**Supprimer des modèles depuis l'appli**~~ : fait, dans la prochaine version (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
+- ~~**Agrandissement**~~ : fait, dans la prochaine version, avec Real-ESRGAN ×4.
 
 ## Questions fréquentes
 

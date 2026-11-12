@@ -71,6 +71,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Create** images from a description, 1 to 4 per run
 - **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
 - **Edit** an existing image: click **Edit** (Modifier) under a result, or drag, paste or attach any picture
+- **Enlarge** a finished image 4 times with Real-ESRGAN: one click under the image, details stay sharp
 - **Formats**: square, landscape, portrait, or the starting image's proportions
 - **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
@@ -79,6 +80,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Phone access** on the same Wi-Fi: type the address, approve the device on the PC
 - **Automatic engine install** on first launch, from pinned official releases verified by SHA-256: CUDA for NVIDIA cards, Vulkan for AMD and Intel
 - **Model downloads in the app**: one click fetches the recommended official models, resumes if interrupted and checks each file
+- **Remove models in the app**: free disk space from the models window, without opening the `models` folder
 
 ## Screenshots
 
@@ -123,6 +125,7 @@ Prisme drives models that use a diffusion model, an LLM text encoder (`--llm`), 
 | Same card with the Vulkan engine | 32 GB | Same models | About 50 s for a creation, model loading included |
 | NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | FLUX.2 klein 4B Q8_0, Qwen3 4B Q8_0 (12 GB card profile) | Creation 8 to 10 s, edit 10 to 12 s at 1024 × 768 |
 | Apple M3, 18 GB of unified memory (Metal, macOS) | 18 GB (shared) | Full set (before light versions were recommended on Mac) | About 5 minutes for a creation, model loading included |
+| NVIDIA RTX 4070 SUPER, 12 GB (CUDA, Windows 11) | 32 GB | Real-ESRGAN x4plus | Enlarging 1280 × 704 to 5120 × 2816: 14 s |
 
 Other cards have not been measured yet. As a guide: with 8 GB of video memory, pick the Q4_K drawing model and the Q4_K_M text model and keep **Offload to the CPU** (Décharger sur le processeur) on; 16 GB of system memory or more helps, since parts of the models wait there. Plan about 16 GB of free disk space for the engine and the recommended models. Results on other hardware are welcome in [Discussions](https://github.com/d3Ita/prisme/discussions/categories/show-and-tell).
 
@@ -204,6 +207,10 @@ The **12 GB card** profile is tested: creation in 8 to 10 s and edit in 10 to 12
 | Qwen-Image · 8 GB, 12 GB, 16 GB | Qwen-Image 2.1 Turbo: very good quality, tested (25 to 50 s per image on an RTX 4070 SUPER) | 10.7, 14.7 or 18.1 GB | [Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE): research or evaluation only, no commercial use of the models or the images |
 
 Before downloading a Qwen-Image profile, Prisme asks you to accept its license; the server refuses the download otherwise. The catalog, with every file's link, size, SHA-256 and license, is in [`app/modeles.json`](app/modeles.json).
+
+**Enlarging** uses [Real-ESRGAN x4plus](https://huggingface.co/Comfy-Org/Real-ESRGAN) (67 MB, BSD-3-Clause), downloaded the first time you click **Enlarge** under an image.
+
+**Removing a model**: in the models window, **Choose or delete models one by one (advanced mode)** shows a delete button next to each installed file, including the ones you added by hand. The file is deleted for good (not moved to the trash, so the space is really freed), after a confirmation.
 
 ### Qwen-Image 2.1 Turbo by hand
 
@@ -305,12 +312,14 @@ The tests cover settings validation, image metadata, engine installation, archiv
 | `app/modeles.json` | Catalog of downloadable models and profiles by hardware |
 | `app/icone.py` | Program icon and splash screen, made from the logo |
 | `app/mcp_prisme.py` | MCP server built into Prisme (`--mcp`), standard library only |
+| `app/agrandir.py` | Enlarging an image with Real-ESRGAN |
 | `mcp/` | MCP README, and a launcher for developers |
 | `construire.py` | Builds Prisme for the current system |
 | `construire.ps1` | Prepares a Python environment on Windows, then runs `construire.py` |
 | `tests/test_serveur.py` | Server tests |
 | `tests/test_mcp.py` | MCP server tests, against a fake Prisme |
 | `tests/test_protocole_mcp.py` | The MCP server with the official MCP client (run when the `mcp` package is installed) |
+| `tests/test_agrandir.py`, `tests/test_supprimer_modele.py` | Enlarging and model removal, with a fake engine |
 | `docs/architecture.md` | Architecture diagram and explanation |
 
 ## Roadmap
@@ -320,8 +329,8 @@ Planned, in no fixed order. Ideas and votes are welcome in [Discussions](https:/
 - ~~**Model profiles by hardware**~~: done in 1.9.0 (see [Choosing models for your machine](#choosing-models-for-your-machine)).
 - ~~**MCP server for Claude**~~: done in 1.9.0 (see [Using Prisme with Claude via MCP](#using-prisme-with-claude-via-mcp)).
 - **Faster successive images**: keep the models loaded between two creations instead of loading them each time.
-- **Remove models from the app**: free disk space without opening the `models` folder.
-- **Upscaling**: enlarge a finished image.
+- ~~**Remove models from the app**~~: done, in the next version (see [Choosing models for your machine](#choosing-models-for-your-machine)).
+- ~~**Upscaling**~~: done, in the next version, with Real-ESRGAN x4.
 
 ## FAQ
 

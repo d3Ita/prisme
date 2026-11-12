@@ -4,6 +4,11 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **Enlarge**: a finished image ×4 with Real-ESRGAN x4plus (BSD-3-Clause, 67 MB, downloaded at the first click), in a new image that keeps the description and variant. 1280 × 704 to 5120 × 2816 in 14 s on an RTX 4070 SUPER. Refused from Claude, which keeps no access to Prisme's images.
+- **Remove models from the app**: a delete button for each installed model in the models window (advanced mode), including files added by hand. Deleted for good, after a confirmation, to really free the space. Refused from the phone and from Claude, during a creation, and while that file downloads.
+
 ## [1.9.6] - 2026-11-11
 
 ### Fixed

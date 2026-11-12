@@ -73,7 +73,7 @@ class Pont(QObject):
     montrer = Signal()
 
 
-def lancer(adresse, ressources, quand_prete=None):
+def lancer(adresse, ressources, quand_prete=None, visible=True):
     """Ouvre la fenetre ; rend la main quand l'utilisateur quitte Prisme (0), ou tout de suite si elle ne se charge pas (1).
     quand_prete(montrer) recoit une fonction, appelable depuis n'importe quel fil, qui fait reapparaitre la fenetre."""
     appli = application()
@@ -81,7 +81,8 @@ def lancer(adresse, ressources, quand_prete=None):
     # Fermer la fenetre la cache seulement : Prisme continue pour le telephone, Claude ou un telechargement, puis
     # s'arrete selon ses reglages, comme avec la fenetre web
     appli.setQuitOnLastWindowClosed(False)
-    moteur = charger(adresse, ressources)
+    # Cachee au depart apres une mise a jour (--sans-fenetre) : elle apparait quand la page web lui passe la main
+    moteur = charger(adresse, ressources, visible=visible)
     if not moteur.rootObjects():
         return 1
     fenetre = moteur.rootObjects()[0]

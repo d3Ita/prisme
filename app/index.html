@@ -2681,6 +2681,20 @@ addEventListener('pagehide', () => {
   fetch('/api/fermeture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', keepalive: true }).catch(() => {});
 });
 
+async function passerALaFenetre() {
+  try { await api('/api/montrer-fenetre', {}); } catch {}
+  // Pas de nouvelles de cette page : Prisme ne la compte plus comme fenetre ouverte
+  etat.arrete = true;
+  clearTimeout(etat.minuteur);
+  document.title = 'Prisme';
+  document.body.innerHTML = '';
+  const message = document.createElement('div');
+  message.style.cssText = 'min-height:100vh;display:grid;place-items:center;text-align:center;padding:24px;font:16px/1.5 system-ui,sans-serif;';
+  message.textContent = tx('Prisme s\'ouvre maintenant dans sa propre fenêtre. Tu peux fermer celle-ci.',
+                           'Prisme now opens in its own window. You can close this one.');
+  document.body.append(message);
+}
+
 function finChargement() {
   $('#chargement').classList.add('fini');
 }
@@ -2697,6 +2711,8 @@ function finChargement() {
   try {
     const e = await api('/api/etat');
     etat.local = e.local;
+    // Prisme 2 sur le PC : sa propre fenetre remplace cette page (par exemple juste apres la mise a jour depuis Prisme 1)
+    if (e.local && ['qt', 'qt-chargement'].includes(e.fenetre)) return passerALaFenetre();
     $('#telephone').hidden = !e.local;
     $('#ouvrir-reglages').hidden = !e.local;
     $('#quitter').hidden = !e.local;

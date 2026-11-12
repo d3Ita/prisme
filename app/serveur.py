@@ -2882,15 +2882,20 @@ def connecter_claude_code(retirer=False):
         raise RuntimeError('Claude Code a refusé la connexion : ' + (fin.stderr or fin.stdout).strip()[:300])
 
 
-# Fenetre affichee : 'web' (navigateur) ou 'qt' (Prisme 2). Avec Qt, MONTRER_FENETRE la fait reapparaitre.
+# Fenetre de Prisme : 'web' (navigateur), 'qt-chargement' puis 'qt' (Prisme 2). Avec Qt, MONTRER_FENETRE la montre ;
+# une demande arrivee pendant le chargement attend qu'elle soit prete (MONTRER_A_LA_FIN)
 FENETRE = 'web'
 MONTRER_FENETRE = None
+MONTRER_A_LA_FIN = False
 
 
 def afficher_fenetre():
-    """Montre la fenetre de Prisme : la fenetre Qt cachee reapparait, sinon une fenetre web s'ouvre."""
+    """Montre la fenetre de Prisme : la fenetre Qt (cachee, ou encore en chargement) apparait, sinon une fenetre web s'ouvre."""
+    global MONTRER_A_LA_FIN
     if MONTRER_FENETRE:
         MONTRER_FENETRE()
+    elif FENETRE == 'qt-chargement':
+        MONTRER_A_LA_FIN = True
     else:
         ouvrir_fenetre()
 
@@ -3057,11 +3062,15 @@ def main():
         return deja_lance()
     # Prisme 2 : fenetre Qt Quick sous Windows et Mac (--web garde la fenetre du navigateur). Sous Linux, --qt seulement :
     # sans certaines bibliotheques du systeme, Qt arreterait Prisme au lieu de rendre la main
+    # Avec --sans-fenetre (relance apres une mise a jour), la fenetre Qt se charge cachee : la fenetre web de Prisme 1,
+    # rechargee par la mise a jour, lui passe la main (/api/montrer-fenetre)
     fenetre_qt = None
+    global FENETRE
     voulu = '--qt' in sys.argv or (not sys.platform.startswith('linux') and '--web' not in sys.argv)
-    if voulu and '--sans-fenetre' not in sys.argv:
+    if voulu:
         try:
             import fenetre_qt
+            FENETRE = 'qt-chargement'
         except ImportError:
             pass  # PySide6 absent : fenetre web
     fermer_demarrage(1.5 if '--sans-fenetre' not in sys.argv else 0)
@@ -3071,11 +3080,13 @@ def main():
     if fenetre_qt:
         # Qt garde le fil principal (obligatoire sur Mac) ; le serveur repond a cote, pour la fenetre, le telephone et Claude
         threading.Thread(target=serveur.serve_forever, daemon=True).start()
-        if fenetre_qt.lancer(f'http://127.0.0.1:{PORT}', RESSOURCES, quand_prete) == 0:
+        if fenetre_qt.lancer(f'http://127.0.0.1:{PORT}', RESSOURCES, quand_prete, '--sans-fenetre' not in sys.argv) == 0:
             # L'utilisateur a quitte (Cmd + Q, menu) : les moteurs s'arretent avec Prisme
             return arreter()
         # La fenetre Qt n'a pas pu se charger : la fenetre web prend le relais
-        ouvrir_fenetre()
+        FENETRE = 'web'
+        if '--sans-fenetre' not in sys.argv or MONTRER_A_LA_FIN:
+            ouvrir_fenetre()
         threading.Event().wait()
     if '--sans-fenetre' not in sys.argv:
         ouvrir_fenetre()
@@ -3086,6 +3097,8 @@ def quand_prete(montrer):
     """La fenetre Qt est chargee : Prisme la montre a la demande, et se relance avec elle apres une mise a jour."""
     global FENETRE, MONTRER_FENETRE, OPTION_RELANCE
     FENETRE, MONTRER_FENETRE, OPTION_RELANCE = 'qt', montrer, '--qt'
+    if MONTRER_A_LA_FIN:
+        montrer()
 
 
 if __name__ == '__main__':

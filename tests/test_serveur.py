@@ -1488,6 +1488,14 @@ class SecuriteHttpTest(unittest.TestCase):
             self.assertEqual(self.poster('/api/montrer-fenetre', '{}', {'X-Prisme-Client': 'mcp'})[0], 403)
             self.assertEqual(self.distant('/api/montrer-fenetre', serveur.CODE, 'POST')[0], 403)
         self.assertEqual(montrees, [1])
+        # Fenetre Qt encore en chargement (relance apres une mise a jour) : elle apparaitra des qu'elle sera prete
+        with mock.patch.object(serveur, 'FENETRE', 'qt-chargement'), mock.patch.object(serveur, 'MONTRER_A_LA_FIN', False), \
+                mock.patch.object(serveur, 'ouvrir_fenetre') as ouvrir, mock.patch.object(serveur, 'MONTRER_FENETRE', None), \
+                mock.patch.object(serveur, 'OPTION_RELANCE', '--sans-fenetre'):
+            self.assertEqual(self.poster('/api/montrer-fenetre')[0], 200)
+            ouvrir.assert_not_called()
+            serveur.quand_prete(lambda: montrees.append(2))
+            self.assertEqual((serveur.FENETRE, montrees[-1]), ('qt', 2))
         # Sans fenetre Qt, une fenetre web s'ouvre
         with mock.patch.object(serveur, 'ouvrir_fenetre') as ouvrir:
             self.assertEqual(self.poster('/api/montrer-fenetre')[0], 200)

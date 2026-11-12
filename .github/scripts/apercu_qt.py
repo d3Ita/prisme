@@ -54,8 +54,8 @@ def preparer():
     (RACINE / 'sd' / 'sd-cli').write_bytes(b'')
     (RACINE / 'models').mkdir()
     reglages = {'modele_diffusion': 'flux-2-klein-4b-Q8_0.gguf', 'modele_texte': 'Qwen3-4B-Q8_0.gguf',
-                'vae': 'flux2-vae.safetensors'}
-    for fichier in reglages.values():
+                'vae': 'flux2-vae.safetensors', 'amelioration_modele_local': 'Qwen3-4B-Q8_0.gguf'}
+    for fichier in set(reglages.values()):
         (RACINE / 'models' / fichier).write_bytes(b'')
     (RACINE / 'app').mkdir()
     (RACINE / 'app' / 'reglages.json').write_text(json.dumps(reglages), encoding='utf-8')
@@ -69,15 +69,13 @@ def preparer():
 def main(dossier):
     preparer()
     import serveur
-    from PySide6.QtCore import QEventLoop, QMetaObject, QObject, QUrl
-    from PySide6.QtGui import QFont, QGuiApplication
-    from PySide6.QtQml import QQmlApplicationEngine
+    from PySide6.QtCore import QEventLoop, QMetaObject, QObject
+    from PySide6.QtGui import QFont
 
     http = serveur.Serveur(('127.0.0.1', serveur.PORT), serveur.Gestionnaire)
     threading.Thread(target=http.serve_forever, daemon=True).start()
-    application = QGuiApplication(sys.argv)
-    application.setApplicationName('Prisme')
-    application.setOrganizationName('Prisme')
+    import fenetre_qt
+    application = fenetre_qt.application()
     # Police proche de celles du Mac et de Windows (le Linux de la CI n'a que DejaVu par defaut)
     application.setFont(QFont('Inter', 10))
     sortie = Path(dossier)
@@ -91,12 +89,8 @@ def main(dossier):
 
     erreurs = []
 
-    def capturer(nom, apparence, pendant_creation=False, ouvrir=None):
-        moteur = QQmlApplicationEngine()
-        moteur.warnings.connect(lambda liste: erreurs.extend(e.toString() for e in liste))
-        moteur.setInitialProperties({'adresse': f'http://127.0.0.1:{serveur.PORT}', 'width': 1280, 'height': 860,
-                                     'apparence': apparence})
-        moteur.load(QUrl.fromLocalFile(str(APP / 'qml' / 'Prisme.qml')))
+    def capturer(nom, apparence, pendant_creation=False, ouvrir=None, modification=False):
+        moteur = fenetre_qt.charger(f'http://127.0.0.1:{serveur.PORT}', APP, erreurs, width=1280, height=860, apparence=apparence)
         if not moteur.rootObjects():
             sys.exit('La fenêtre ne se charge pas :\n' + '\n'.join(erreurs))
         fenetre = moteur.rootObjects()[0]
@@ -110,6 +104,13 @@ def main(dossier):
         if ouvrir:
             QMetaObject.invokeMethod(fenetre.findChild(QObject, ouvrir), 'open')
             attendre(3)
+        if modification:
+            # Une image du fil choisie avec Modifier : elle devient l'image de depart, format Original
+            nom_image = 'image_20261112_100000.png'
+            fenetre.setProperty('source', {'galerie': nom_image, 'nom': nom_image, 'largeur': 640, 'hauteur': 640,
+                                           'url': f'http://127.0.0.1:{serveur.PORT}/images/{nom_image}'})
+            fenetre.setProperty('format', 'source')
+            attendre(2)
         # Capture par l'ecran (virtuel) : PySide6 ne voit la fenetre que comme une QWindow
         application.primaryScreen().grabWindow(fenetre.winId()).save(str(sortie / f'{nom}.png'))
         print('capture', nom)
@@ -126,6 +127,7 @@ def main(dossier):
     capturer('4-modeles', 'clair', ouvrir='modeles')
     capturer('5-reglages', 'clair', ouvrir='reglages')
     capturer('6-modeles-sombre', 'sombre', ouvrir='modeles')
+    capturer('7-modification', 'clair', modification=True)
     http.shutdown()
     # Une erreur QML (liaison cassee avec de vraies donnees) fait echouer la CI
     for e in erreurs:

@@ -3,6 +3,7 @@
 import QtCore
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtQuick.Shapes
 
@@ -36,6 +37,12 @@ ApplicationWindow {
     property bool etaitOccupe: false
     property string format: "carre"
     property int nombre: 1
+    // Image de depart : { galerie } pour une image du fil, { data } pour un fichier ou une image collee
+    property var source: null
+    property bool ameliorant: false
+    property string texteOriginal: ""
+    property string texteAmeliore: ""
+    readonly property bool ameliorationPossible: !!(etat.amelioration && etat.amelioration.modele)
     readonly property var formats: ({ carre: [1024, 1024], paysage: [1280, 720], portrait: [720, 1280] })
 
     function note(texte, erreur) {
@@ -71,18 +78,81 @@ ApplicationWindow {
         })
     }
 
+    function definirSource(s) {
+        source = s
+        if (s) format = "source"
+        else if (format === "source") format = "carre"
+        saisie.forceActiveFocus()
+    }
+
+    function lireFichier(adresse) {
+        if (occupe) return
+        const image = typeof fichiers !== "undefined" ? fichiers.lireImage(adresse) : null
+        if (image) definirSource(image)
+        else note(tx("Impossible de lire cette image.", "This image cannot be read."), true)
+    }
+
+    // Comme la version web : 1024 x 1024 pixels en tout, aux proportions de l'image de depart
+    function tailleVoulue() {
+        if (format === "source" && source && source.largeur && source.hauteur) {
+            const e = Math.sqrt(1024 * 1024 / (source.largeur * source.hauteur))
+            const arrondi = v => Math.min(2048, Math.max(256, Math.round(v * e / 16) * 16))
+            return [arrondi(source.largeur), arrondi(source.hauteur)]
+        }
+        return formats[format] || formats.carre
+    }
+
+    function avecSource(corps) {
+        if (source && source.galerie) corps.source_nom = source.galerie
+        else if (source) corps.source_data = source.data
+        return corps
+    }
+
     function creer() {
         const texte = saisie.text.trim()
-        if (occupe || !texte)
+        if (occupe || ameliorant || !texte)
             return
-        const taille = formats[format]
-        api("/api/generer", { prompt: texte, largeur: taille[0], hauteur: taille[1], nombre: nombre }, function () {
+        // Amelioration automatique (Reglages), sauf si le texte vient deja d'etre ameliore
+        if (etat.amelioration && etat.amelioration.auto && ameliorationPossible && texte !== texteAmeliore)
+            ameliorer(lancerCreation)
+        else
+            lancerCreation()
+    }
+
+    function lancerCreation() {
+        const texte = saisie.text.trim()
+        const taille = tailleVoulue()
+        api("/api/generer", avecSource({ prompt: texte, largeur: taille[0], hauteur: taille[1], nombre: nombre }), function () {
             etat = Object.assign({}, etat, { occupe: true, phase: "chargement", etape: 0, prompt: texte,
                                              largeur: taille[0], hauteur: taille[1], nombre: nombre, index: 1 })
             etaitOccupe = true
             saisie.text = ""
+            texteAmeliore = ""
+            definirSource(null)
             Qt.callLater(fil.positionViewAtEnd)
         }, function (message) { note(message, true) })
+    }
+
+    // Reecrit la description (ou, avec une image de depart, une consigne de modification) ; suite() ensuite
+    function ameliorer(suite) {
+        const texte = saisie.text.trim()
+        if (!texte) {
+            note(tx("Écris d'abord une description à améliorer.", "Write a description to enhance first."), true)
+            return
+        }
+        ameliorant = true
+        api("/api/ameliorer", avecSource({ prompt: texte }), function (r) {
+            ameliorant = false
+            texteOriginal = texte
+            texteAmeliore = r.prompt
+            saisie.text = r.prompt
+            if (suite) suite()
+        }, function (message) {
+            ameliorant = false
+            note(message, true)
+            // Sans amelioration, la creation part avec la description telle quelle
+            if (suite) suite()
+        })
     }
 
     function avancement() {
@@ -262,6 +332,13 @@ ApplicationWindow {
                     x: 30
                     spacing: 2
                     BoutonDiscret {
+                        text: tx("Modifier", "Edit")
+                        enabled: !occupe
+                        onClicked: definirSource({ galerie: message.model.nom, nom: message.model.nom,
+                                                   url: adresse + "/images/" + encodeURIComponent(message.model.nom),
+                                                   largeur: message.model.largeur, hauteur: message.model.hauteur })
+                    }
+                    BoutonDiscret {
                         text: tx("Réutiliser", "Reuse")
                         onClicked: { saisie.text = message.model.prompt; saisie.forceActiveFocus() }
                     }
@@ -413,12 +490,43 @@ ApplicationWindow {
                 anchors.margins: 12
                 spacing: 8
 
+                RowLayout {
+                    visible: !!source
+                    Layout.fillWidth: true
+                    spacing: 10
+                    ImageArrondie {
+                        Layout.preferredWidth: 52
+                        Layout.preferredHeight: 52
+                        rayon: 10
+                        source: fenetre.source ? fenetre.source.url : ""
+                    }
+                    ColumnLayout {
+                        spacing: 1
+                        Layout.fillWidth: true
+                        Text {
+                            text: fenetre.source ? tx("Image de départ · ", "Starting image · ") + fenetre.source.nom : ""
+                            color: c.texte
+                            font.pixelSize: 13
+                            elide: Text.ElideMiddle
+                            Layout.fillWidth: true
+                        }
+                        Text {
+                            text: fenetre.source ? fenetre.source.largeur + " × " + fenetre.source.hauteur : ""
+                            color: c.texte3
+                            font.pixelSize: 12
+                        }
+                    }
+                    BoutonDiscret { text: tx("Retirer", "Remove"); onClicked: definirSource(null) }
+                }
+
                 ScrollView {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.min(Math.max(saisie.implicitHeight, 44), 160)
                     TextArea {
                         id: saisie
-                        placeholderText: tx("Décris ton image…", "Describe your image…")
+                        placeholderText: source ? tx("Décris le changement à faire sur cette image…", "Describe the change to make to this image…")
+                                                : tx("Décris ton image…", "Describe your image…")
+                        enabled: !ameliorant
                         placeholderTextColor: c.texte3
                         color: c.texte
                         wrapMode: TextArea.Wrap
@@ -431,6 +539,17 @@ ApplicationWindow {
                             creer()
                         }
                         Keys.onEnterPressed: creer()
+                        // Une image dans le presse-papiers devient l'image de depart ; sinon, collage du texte
+                        Keys.onPressed: function (evenement) {
+                            if (!evenement.matches(StandardKey.Paste) || occupe || typeof fichiers === "undefined")
+                                return
+                            const image = fichiers.collerImage()
+                            if (image) {
+                                definirSource(image)
+                                note(tx("Image collée comme image de départ", "Image pasted as the starting image"))
+                                evenement.accepted = true
+                            }
+                        }
                     }
                 }
 
@@ -438,13 +557,43 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 6
 
+                    BoutonDiscret {
+                        text: tx("Image", "Image")
+                        enabled: !occupe
+                        ToolTip.visible: hovered
+                        ToolTip.text: tx("Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)",
+                                         "Add an image to edit (you can also drag or paste it here)")
+                        onClicked: choixImage.open()
+                    }
+                    BoutonDiscret {
+                        visible: ameliorationPossible
+                        enabled: !ameliorant && !occupe && saisie.text.trim().length > 0
+                        text: ameliorant ? (source ? tx("Analyse de l'image…", "Looking at the image…") : tx("Amélioration…", "Enhancing…"))
+                                         : tx("Améliorer", "Enhance")
+                        ToolTip.visible: hovered
+                        ToolTip.text: tx("Réécrire la description en plus détaillé avec ", "Rewrite the description in more detail with ") + (etat.amelioration ? etat.amelioration.modele : "")
+                        onClicked: ameliorer(null)
+                    }
+                    BoutonDiscret {
+                        visible: texteAmeliore !== "" && saisie.text === texteAmeliore
+                        text: tx("Rétablir", "Undo")
+                        ToolTip.visible: hovered
+                        ToolTip.text: tx("Revenir au texte que tu avais écrit", "Go back to the text you wrote")
+                        onClicked: { saisie.text = texteOriginal; texteAmeliore = ""; saisie.forceActiveFocus() }
+                    }
+
+                    Rectangle { width: 1; height: 20; color: c.bordure; Layout.leftMargin: 4; Layout.rightMargin: 4 }
+
                     Repeater {
-                        model: [["carre", tx("Carré", "Square")], ["paysage", tx("Paysage", "Landscape")], ["portrait", tx("Portrait", "Portrait")]]
+                        model: [["carre", tx("Carré", "Square")], ["paysage", tx("Paysage", "Landscape")], ["portrait", tx("Portrait", "Portrait")],
+                                ["source", tx("Original", "Original")]]
                         delegate: Button {
                             id: choixFormat
                             required property var modelData
                             readonly property bool actif: format === modelData[0]
                             text: modelData[1]
+                            // Original : les proportions de l'image de depart
+                            visible: modelData[0] !== "source" || !!source
                             implicitHeight: 32
                             font.pixelSize: 13
                             onClicked: format = modelData[0]
@@ -477,8 +626,9 @@ ApplicationWindow {
 
                     Button {
                         id: boutonCreer
-                        text: occupe ? tx("Arrêter", "Stop") : (nombre > 1 ? tx("Créer " + nombre + " images", "Create " + nombre + " images") : tx("Créer", "Create"))
-                        enabled: occupe || saisie.text.trim().length > 0
+                        text: occupe ? tx("Arrêter", "Stop") : source ? tx("Modifier", "Edit")
+                              : (nombre > 1 ? tx("Créer " + nombre + " images", "Create " + nombre + " images") : tx("Créer", "Create"))
+                        enabled: occupe || (!ameliorant && saisie.text.trim().length > 0)
                         implicitHeight: 38
                         leftPadding: 20
                         rightPadding: 20
@@ -563,6 +713,24 @@ ApplicationWindow {
         onApparenceChoisie: function (choix) {
             fenetre.apparence = choix
             preferences.apparence = choix
+        }
+    }
+
+    // --- Image de depart : choisie ou glissee sur la fenetre
+    FileDialog {
+        id: choixImage
+        title: tx("Image à modifier", "Image to edit")
+        nameFilters: [tx("Images", "Images") + " (*.png *.jpg *.jpeg *.webp *.bmp *.gif *.tif *.tiff)"]
+        onAccepted: lireFichier(selectedFile.toString())
+    }
+    DropArea {
+        anchors.fill: parent
+        keys: ["text/uri-list"]
+        onDropped: function (depot) {
+            if (depot.hasUrls) {
+                lireFichier(depot.urls[0].toString())
+                depot.accept()
+            }
         }
     }
 }

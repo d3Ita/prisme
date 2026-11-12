@@ -340,8 +340,10 @@ ApplicationWindow {
                 ImageArrondie {
                     theme: c
                     x: 36
-                    width: fil.largeurImage
-                    height: message.model.largeur ? width * message.model.hauteur / message.model.largeur : width
+                    // Une image en portrait tient dans les trois quarts de la hauteur du fil
+                    readonly property real proportion: message.model.largeur ? message.model.hauteur / message.model.largeur : 1
+                    width: Math.min(fil.largeurImage, fil.height * 0.75 / proportion)
+                    height: width * proportion
                     source: adresse + "/images/" + encodeURIComponent(message.model.nom)
                     MouseArea {
                         anchors.fill: parent

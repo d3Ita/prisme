@@ -89,7 +89,9 @@ def main(dossier):
 
     erreurs = []
 
-    def capturer(nom, apparence, pendant_creation=False, ouvrir=None, modification=False):
+    def capturer(nom, apparence, pendant_creation=False, ouvrir=None, modification=False, preparer=None):
+        if preparer:
+            preparer()
         moteur = fenetre_qt.charger(f'http://127.0.0.1:{serveur.PORT}', APP, erreurs, width=1280, height=860, apparence=apparence)
         if not moteur.rootObjects():
             sys.exit('La fenêtre ne se charge pas :\n' + '\n'.join(erreurs))
@@ -117,6 +119,9 @@ def main(dossier):
         with serveur.verrou:
             serveur.etat.clear()
             serveur.etat['occupe'] = False
+        serveur.demandes.clear()
+        serveur.consentements.clear()
+        serveur.mise_a_jour.clear()
         fenetre.close()
         moteur.deleteLater()
         attendre(0.5)
@@ -128,6 +133,24 @@ def main(dossier):
     capturer('5-reglages', 'clair', ouvrir='reglages')
     capturer('6-modeles-sombre', 'sombre', ouvrir='modeles')
     capturer('7-modification', 'clair', modification=True)
+    capturer('8-telephone', 'clair', ouvrir='telephone')
+
+    def demande_acces():
+        serveur.demandes['essai'] = {'ip': '192.168.1.24', 'appareil': 'iPhone', 'code': '4817', 'etat': 'attente', 'cree': time.time()}
+
+    def accord_claude():
+        serveur.consentements['essai'] = {
+            'genre': 'externe', 'etat': 'attente', 'cree': time.time(), 'telechargements': [],
+            'details': {'url': 'https://huggingface.co/exemple/modele/resolve/main/style-aquarelle.safetensors',
+                        'hote': 'huggingface.co', 'fichier': 'loras/style-aquarelle.safetensors', 'taille': 228_000_000,
+                        'sha256': None, 'role': 'lora'}}
+
+    def nouvelle_version():
+        serveur.mise_a_jour.update(version='2.0.0', url=serveur.PAGE_VERSIONS, fichier=None, auto=True)
+
+    capturer('9-demande-telephone', 'clair', preparer=demande_acces)
+    capturer('10-accord-claude', 'sombre', preparer=accord_claude)
+    capturer('11-nouvelle-version', 'clair', preparer=nouvelle_version)
     http.shutdown()
     # Une erreur QML (liaison cassee avec de vraies donnees) fait echouer la CI
     for e in erreurs:

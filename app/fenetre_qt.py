@@ -34,6 +34,20 @@ class Fichiers(QObject):
     def collerImage(self):
         return image_de_depart(QGuiApplication.clipboard().image(), 'Image collée')
 
+    @Slot(str)
+    def copier(self, texte):
+        QGuiApplication.clipboard().setText(texte)
+
+    @Slot(str, result=str)
+    def qrCode(self, texte):
+        """QR code du lien du telephone, en image SVG (segno, sans Internet) ; vide si segno manque."""
+        try:
+            import segno
+        except ImportError:
+            return ''
+        # Toujours sombre sur clair : les telephones lisent mal un QR code inverse
+        return segno.make(texte, error='m').svg_data_uri(scale=6, border=2, dark='#1f2430', light='#ffffff')
+
 
 def application():
     """L'application Qt ; son nom range l'apparence choisie (Settings) a part des autres programmes."""

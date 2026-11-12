@@ -1579,6 +1579,9 @@ ECHEC_ATTENTE = 'Prisme ne s\'est pas arrêté à temps pour être mis à jour.'
 ECHEC_REMPLACEMENT = ('Le nouveau programme n\'a pas pu remplacer l\'ancien : un antivirus ou un autre programme '
                       'l\'utilise peut-être.')
 echec_maj = None
+# Option du Prisme relance apres une mise a jour : sans fenetre pour la version web (la fenetre ouverte se recharge
+# toute seule), --qt pour l'application Qt, dont la fenetre se ferme avec l'ancienne version
+OPTION_RELANCE = '--sans-fenetre'
 
 
 def script_remplacement(nouveau, cible, pids, temporaires=(), moteurs=(), essais=60, attente=120, relance=None):
@@ -1601,7 +1604,7 @@ def script_powershell(nouveau, cible, pids, temporaires, moteurs, essais, attent
         f'$pids = @({", ".join(str(p) for p in pids)})',
         "$ancien = $cible + '.ancien-' + (Get-Date -Format 'yyyyMMddHHmmss')",
         "function Noter($texte) { Add-Content -LiteralPath $journal -Value ((Get-Date -Format s) + ' ' + $texte) -Encoding UTF8 }",
-        'function Lancer { ' + (relance or "Start-Process -FilePath $cible -ArgumentList '--sans-fenetre'") + ' }',
+        'function Lancer { ' + (relance or f"Start-Process -FilePath $cible -ArgumentList '{OPTION_RELANCE}'") + ' }',
         'function Echouer($raison) {',
         "  Noter ('echec : ' + $raison)",
         '  Set-Content -LiteralPath $echec -Value $raison -Encoding UTF8',
@@ -1644,11 +1647,11 @@ def script_powershell(nouveau, cible, pids, temporaires, moteurs, essais, attent
 def script_sh(nouveau, cible, pids, temporaires, moteurs, essais, attente, relance):
     q = lambda texte: shlex.quote(str(texte))
     if MAC:
-        lancer = f'open {q(cible)} --args --sans-fenetre'
+        lancer = f'open {q(cible)} --args {OPTION_RELANCE}'
         remplacer = (f'rm -rf {q(str(cible) + ".ancien")}; mv {q(cible)} {q(str(cible) + ".ancien")} && '
                      f'{{ mv {q(nouveau)} {q(cible)} || {{ mv {q(str(cible) + ".ancien")} {q(cible)}; false; }}; }}')
     else:
-        lancer = f'nohup {q(cible)} --sans-fenetre >/dev/null 2>&1 &'
+        lancer = f'nohup {q(cible)} {OPTION_RELANCE} >/dev/null 2>&1 &'
         remplacer = f'mv -f {q(nouveau)} {q(cible)} && chmod 755 {q(cible)}'
     vivants = ' || '.join([f'kill -0 {pid} 2>/dev/null' for pid in pids]
                           + [f'pgrep -f -- {q(str(d) + "/")} >/dev/null 2>&1' for d in moteurs]) or 'false'
@@ -3039,6 +3042,8 @@ def main():
     if not fenetre_qt:
         return serveur.serve_forever()
     # Qt garde le fil principal (obligatoire sur Mac) ; le serveur repond a cote, pour la fenetre, le telephone et Claude
+    global OPTION_RELANCE
+    OPTION_RELANCE = '--qt'
     threading.Thread(target=serveur.serve_forever, daemon=True).start()
     fenetre_qt.lancer(f'http://127.0.0.1:{PORT}', RESSOURCES)
     # Fenetre fermee : meme regle que la fenetre web (arret, sauf si Claude ou un telechargement a besoin de Prisme)

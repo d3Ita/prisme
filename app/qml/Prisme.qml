@@ -27,7 +27,14 @@ ApplicationWindow {
     function tx(fr, en) { return Theme.tx(fr, en) }
     function api(chemin, corps, reussite, echec) { Theme.api(chemin, corps, reussite, echec) }
 
-    Settings { id: preferences; category: "fenetre"; property string apparence: "auto" }
+    Settings {
+        id: preferences
+        category: "fenetre"
+        property string apparence: "auto"
+        // Bandeaux masques sur cet ordinateur : la version annoncee, et l'invitation a connecter Claude
+        property string majMasquee: ""
+        property bool claudeMasque: false
+    }
     Binding { target: Theme; property: "apparence"; value: fenetre.apparence }
     Connections { target: Theme; function onMessage(texte, erreur) { fenetre.note(texte, erreur) } }
 
@@ -63,9 +70,24 @@ ApplicationWindow {
         }, function (message) { note(message, true) })
     }
 
+    // Claude Desktop ou Claude Code sur cet ordinateur, et Prisme y est-il branche ?
+    property var claude: null
+    readonly property var maj: etat.mise_a_jour || null
+    readonly property var installationMaj: maj ? maj.installation : null
+    readonly property bool majEnCours: !!installationMaj && ["telechargement", "installation", "redemarrage"].indexOf(installationMaj.phase) >= 0
+    readonly property bool bandeauMaj: !!etat.maj_echec || (!!maj && (maj.version !== preferences.majMasquee || majEnCours))
+    readonly property bool bandeauClaude: !!claude && (claude.desktop || claude.code) && !bandeauMaj && !preferences.claudeMasque
+        && (!((!claude.desktop || claude.desktop_connecte) && (!claude.code || claude.code_connecte)) || claude.desktop_a_mettre_a_jour)
+    property string erreurMajVue: ""
+
     function lireEtat() {
         api("/api/etat", undefined, function (e) {
             etat = e
+            const installation = e.mise_a_jour ? e.mise_a_jour.installation : null
+            if (installation && installation.phase === "erreur" && installation.erreur !== erreurMajVue) {
+                erreurMajVue = installation.erreur
+                note(installation.erreur, true)
+            }
             if (etaitOccupe && !e.occupe) {
                 chargerImages(true)
                 if (e.phase === "erreur") note(tx("La création a échoué.\n", "The creation failed.\n") + (e.erreur || ""), true)
@@ -173,7 +195,7 @@ ApplicationWindow {
     ListModel { id: images }
 
     Timer {
-        interval: occupe ? 700 : 2500
+        interval: occupe || majEnCours ? 700 : 2500
         running: Theme.adresse !== ""
         repeat: true
         triggeredOnStart: true
@@ -183,6 +205,18 @@ ApplicationWindow {
     Component.onCompleted: {
         Theme.adresse = adresse
         chargerImages(true)
+        api("/api/claude", undefined, function (c) { claude = c }, function () {})
+    }
+
+    function connecterClaude() {
+        api("/api/connecter-claude", { retirer: false }, function (r) {
+            claude = r.claude
+            const noms = r.faits.map(f => f === "desktop" ? "Claude Desktop" : "Claude Code").join(tx(" et ", " and "))
+            if (r.faits.length)
+                note(tx("Prisme est connecté à " + noms + ". Relance Claude, puis demande-lui de créer une image.",
+                        "Prisme is connected to " + noms + ". Restart Claude, then ask it to create an image."))
+            if (r.erreurs.length) note(r.erreurs.join("\n"), true)
+        })
     }
 
     // --- En-tete
@@ -228,6 +262,7 @@ ApplicationWindow {
                 color: c.danger
                 font.pixelSize: 13
             }
+            BoutonDiscret { text: tx("Téléphone", "Phone"); onClicked: telephone.open() }
             BoutonDiscret { text: tx("Modèles", "Models"); onClicked: modeles.open() }
             BoutonDiscret { text: tx("Réglages", "Settings"); onClicked: reglages.open() }
             Text {
@@ -241,7 +276,43 @@ ApplicationWindow {
     // --- Fil des images
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        spacing: 8
+
+        // Nouvelle version (mise a jour en un clic, ou a telecharger), ou mise a jour echouee
+        Bandeau {
+            visible: bandeauMaj
+            masquable: !majEnCours && !etat.maj_echec
+            texte: etat.maj_echec ? etat.maj_echec.message + tx(" Télécharge la nouvelle version à la main.", " Download the new version by hand.")
+                : !maj ? ""
+                : installationMaj && installationMaj.phase === "telechargement"
+                    ? tx("Téléchargement de Prisme ", "Downloading Prisme ") + maj.version + " : " + Math.floor(installationMaj.fait / Math.max(1, installationMaj.total) * 100) + " %"
+                : installationMaj && installationMaj.phase === "installation" ? tx("Installation de la mise à jour…", "Installing the update…")
+                : installationMaj && installationMaj.phase === "redemarrage" ? tx("Mise à jour vers Prisme ", "Updating to Prisme ") + maj.version + tx("… Prisme redémarre.", "… Prisme is restarting.")
+                : "Prisme " + maj.version + tx(" est disponible.", " is available.") + (maj.raison ? " " + maj.raison : "")
+            onMasquer: preferences.majMasquee = maj ? maj.version : ""
+            BoutonPrincipal {
+                visible: !!maj && maj.auto && !majEnCours && !etat.maj_echec
+                text: tx("Mettre à jour", "Update")
+                implicitHeight: 32
+                onClicked: api("/api/mettre-a-jour", {}, lireEtat)
+            }
+            BoutonPrincipal {
+                visible: (!!maj && !maj.auto) || !!etat.maj_echec
+                secondaire: true
+                text: tx("Télécharger", "Download")
+                implicitHeight: 32
+                onClicked: Qt.openUrlExternally(etat.maj_echec ? etat.maj_echec.url : maj.url)
+            }
+        }
+
+        // Claude est sur cet ordinateur mais Prisme n'y est pas branche (ou a change de place)
+        Bandeau {
+            visible: bandeauClaude
+            texte: claude && claude.desktop_a_mettre_a_jour ? tx("Prisme a changé de place : reconnecte-le à Claude.", "Prisme has moved: connect it to Claude again.")
+                                                            : tx("Claude est installé : il peut créer des images avec Prisme.", "Claude is installed: it can create images with Prisme.")
+            onMasquer: preferences.claudeMasque = true
+            BoutonPrincipal { text: tx("Connecter à Claude", "Connect to Claude"); implicitHeight: 32; onClicked: connecterClaude() }
+        }
 
         Rectangle {
             Layout.fillWidth: true
@@ -734,6 +805,113 @@ ApplicationWindow {
                 lireFichier(depot.urls[0].toString())
                 depot.accept()
             }
+        }
+    }
+
+    FenetreTelephone { id: telephone; objectName: "telephone" }
+
+    // --- Un appareil demande l'acces : le PC l'autorise en comparant le code
+    property string demandeRepondue: ""
+    readonly property var demandeAcces: (etat.demandes || []).find(d => d.id !== demandeRepondue) || null
+    Demande {
+        objectName: "demandeAcces"
+        visible: !!demandeAcces
+        titre: tx("Un appareil veut utiliser Prisme", "A device wants to use Prisme")
+        onReponse: function (accepte) {
+            const id = demandeAcces.id
+            demandeRepondue = id
+            api("/api/repondre-demande", { id: id, accepter: accepte }, function () {
+                note(accepte ? tx("Appareil autorisé", "Device approved") : tx("Demande refusée", "Request refused"))
+                lireEtat()
+            })
+        }
+        Text {
+            text: demandeAcces ? demandeAcces.appareil + " · " + demandeAcces.ip : ""
+            color: Theme.texte2
+            font.pixelSize: 13
+            Layout.alignment: Qt.AlignHCenter
+        }
+        Text {
+            text: demandeAcces ? demandeAcces.code : ""
+            color: Theme.accent
+            font.pixelSize: 40
+            font.weight: Font.DemiBold
+            font.letterSpacing: 10
+            Layout.alignment: Qt.AlignHCenter
+        }
+        Text {
+            text: tx("Autorise seulement si ce code est celui affiché sur ton appareil.", "Only approve if this code is the one shown on your device.")
+            color: Theme.texte3
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            Layout.fillWidth: true
+        }
+    }
+
+    // --- Claude demande un telechargement : licence non commerciale, ou modele hors du catalogue de Prisme
+    property string accordRepondu: ""
+    readonly property var accord: (etat.consentements || []).find(d => d.id !== accordRepondu) || null
+    Demande {
+        objectName: "accordClaude"
+        visible: !!accord
+        titre: tx("Claude demande un téléchargement", "Claude is asking for a download")
+        accepter: tx("Accepter et télécharger", "Accept and download")
+        onReponse: function (accepte) {
+            const id = accord.id
+            accordRepondu = id
+            api("/api/repondre-consentement", { id: id, accepter: accepte }, function () {
+                note(accepte ? tx("Téléchargement accepté", "Download accepted") : tx("Demande refusée", "Request refused"))
+                lireEtat()
+                modeles.lire()
+            })
+        }
+        Text {
+            readonly property var d: accord ? accord.details : null
+            text: !d ? "" : (accord.genre === "profil" ? Theme.enLangue(d.nom) : d.fichier.split("/").pop()) + " · " + Theme.taille(d.taille)
+            color: Theme.texte
+            font.pixelSize: 15
+            font.weight: Font.DemiBold
+            wrapMode: Text.WrapAnywhere
+            horizontalAlignment: Text.AlignHCenter
+            Layout.fillWidth: true
+        }
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: avertissement.implicitHeight + 20
+            radius: 10
+            color: Theme.surface2
+            border.color: Theme.bordureForte
+            Text {
+                id: avertissement
+                readonly property var d: accord ? accord.details : null
+                x: 12
+                y: 10
+                width: parent.width - 24
+                textFormat: Text.StyledText
+                linkColor: Theme.accent
+                onLinkActivated: lien => Qt.openUrlExternally(lien)
+                text: !d ? "" : accord.genre === "profil"
+                      ? tx("Ces modèles sont sous ", "These models are under the ") + "<a href=\"" + d.licence.url + "\">" + d.licence.nom + "</a> : "
+                        + Theme.enLangue(d.licence.resume) + tx(" En acceptant, c'est toi qui acceptes cette licence.", " By accepting, you accept this license yourself.")
+                      : tx("Attention : ce modèle ne fait pas partie de ceux proposés par Prisme. Ni sa licence ni son contenu ne sont vérifiés : vérifie sa page avant d'accepter, ",
+                           "Warning: this model is not one of those offered by Prisme. Neither its license nor its content is checked: check its page before accepting, ")
+                        + "<a href=\"" + d.url + "\">" + d.hote + "</a>."
+                color: Theme.texte
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+            }
+        }
+        Text {
+            readonly property var d: accord ? accord.details : null
+            text: !d ? "" : accord.genre === "profil" ? tx("Téléchargés depuis Hugging Face et vérifiés par leur empreinte.", "Downloaded from Hugging Face and checked against their checksum.")
+                  : d.sha256 ? tx("Le fichier sera vérifié par l'empreinte annoncée par le site.", "The file will be checked against the checksum given by the site.")
+                  : tx("Le site ne donne pas d'empreinte : seule la taille du fichier sera vérifiée.", "The site gives no checksum: only the file size will be checked.")
+            color: Theme.texte3
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            Layout.fillWidth: true
         }
     }
 }

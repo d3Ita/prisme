@@ -927,6 +927,9 @@ class VersionTest(unittest.TestCase):
                 for pid in ('4242', '4343'):
                     self.assertIn(pid, script)
                 self.assertIn('--sans-fenetre', script)
+                # L'application Qt se relance avec sa fenetre
+                with mock.patch.object(serveur, 'OPTION_RELANCE', '--qt'):
+                    self.assertIn('--qt', serveur.script_remplacement(nouveau, cible, [4242], [nouveau], []))
                 # Cause A : plus jamais de retour silencieux a l'ancienne version apres les essais
                 self.assertNotIn('goto lancer', script)
                 self.assertIn(str(serveur.FICHIER_ECHEC_MAJ), script)

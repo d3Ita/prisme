@@ -11,3 +11,6 @@ Ligne 1.0 Ligne.qml
 BarreProgression 1.0 BarreProgression.qml
 FenetreModeles 1.0 FenetreModeles.qml
 FenetreReglages 1.0 FenetreReglages.qml
+FenetreTelephone 1.0 FenetreTelephone.qml
+Demande 1.0 Demande.qml
+Bandeau 1.0 Bandeau.qml

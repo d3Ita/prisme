@@ -36,8 +36,8 @@ class FenetreQtTest(unittest.TestCase):
             application.processEvents(QEventLoop.AllEvents, 100)
         self.assertEqual(racine.property('title'), 'Prisme')
         self.assertFalse(racine.property('enLigne'))
-        # Les fenetres Modeles et Reglages s'ouvrent aussi sans erreur, meme sans reponse du serveur
-        for nom in ('modeles', 'reglages'):
+        # Les fenetres Modeles, Reglages et Telephone s'ouvrent aussi sans erreur, meme sans reponse du serveur
+        for nom in ('modeles', 'reglages', 'telephone'):
             fenetre = racine.findChild(QObject, nom)
             self.assertIsNotNone(fenetre, nom)
             QMetaObject.invokeMethod(fenetre, 'open')

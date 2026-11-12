@@ -47,7 +47,8 @@ def main():
         # L'ecran de demarrage n'existe pas sous Mac ; sous Linux, il demanderait Tk sur la machine
         options += ['--onefile', '--splash', demarrage, '--distpath', RACINE]
     elif MAC:
-        options += ['--onedir', '--distpath', TRAVAIL / 'dist']
+        # Puces Apple seulement : les bibliotheques Qt, livrees pour Intel et Apple, sont reduites a la partie Apple
+        options += ['--onedir', '--target-arch', 'arm64', '--distpath', TRAVAIL / 'dist']
     else:
         options += ['--onefile', '--distpath', TRAVAIL / 'dist']
     lancer(sys.executable, '-m', 'PyInstaller', *options, RACINE / 'app' / 'serveur.py')

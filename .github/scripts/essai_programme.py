@@ -47,23 +47,25 @@ processus.wait(timeout=30)
 print('arret propre, code', processus.returncode)
 
 if not sys.platform.startswith('linux'):
-    # Prisme 2 : la fenetre Qt Quick du programme construit (PySide6 et QML embarques) se charge
-    debut = time.monotonic()
-    processus = subprocess.Popen([os.path.abspath(sys.argv[1])], env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})
-    fenetre = None
-    for _ in range(120):
-        try:
-            with urllib.request.urlopen('http://127.0.0.1:7861/api/etat', timeout=2) as reponse:
-                fenetre = json.load(reponse).get('fenetre')
-            if fenetre == 'qt':
-                break
-        except OSError:
-            pass
-        time.sleep(0.5)
-    print('fenetre', fenetre, f'| prete en {time.monotonic() - debut:.1f} s')
-    assert fenetre == 'qt', 'La fenetre Qt ne se charge pas dans le programme construit'
-    demande = urllib.request.Request('http://127.0.0.1:7861/api/quitter', data=b'{}', method='POST',
-                                     headers={'Content-Type': 'application/json'})
-    urllib.request.urlopen(demande, timeout=5).close()
-    processus.wait(timeout=30)
-    print('arret propre, code', processus.returncode)
+    # Prisme 2 : la fenetre Qt Quick du programme construit (PySide6 et QML embarques) se charge. Deux lancements :
+    # le premier compte aussi les verifications du systeme (macOS examine chaque bibliotheque nouvelle)
+    for lancement in ('premier', 'deuxieme'):
+        debut = time.monotonic()
+        processus = subprocess.Popen([os.path.abspath(sys.argv[1])], env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})
+        fenetre = None
+        for _ in range(240):
+            try:
+                with urllib.request.urlopen('http://127.0.0.1:7861/api/etat', timeout=2) as reponse:
+                    fenetre = json.load(reponse).get('fenetre')
+                if fenetre == 'qt':
+                    break
+            except OSError:
+                pass
+            time.sleep(0.25)
+        print('fenetre', fenetre, f'| {lancement} lancement : prete en {time.monotonic() - debut:.1f} s')
+        assert fenetre == 'qt', 'La fenetre Qt ne se charge pas dans le programme construit'
+        demande = urllib.request.Request('http://127.0.0.1:7861/api/quitter', data=b'{}', method='POST',
+                                         headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(demande, timeout=5).close()
+        processus.wait(timeout=30)
+        print('arret propre, code', processus.returncode)

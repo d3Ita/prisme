@@ -279,6 +279,10 @@ ApplicationWindow {
             readonly property real largeurImage: Math.min(width - 72, 620)
             // Comme une messagerie : la plus recente en bas, sans calcul de defilement quand une image arrive
             verticalLayoutDirection: ListView.BottomToTop
+            // La zone d'ecriture grandit (image de depart, texte long) : le bas du fil reste visible, sauf si l'on est remonte
+            property bool enBas: true
+            onMovementEnded: enBas = atYEnd
+            onHeightChanged: if (enBas) positionViewAtBeginning()
 
             delegate: Column {
                 id: message

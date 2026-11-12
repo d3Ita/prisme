@@ -4,6 +4,14 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- **Closing the window no longer stops a download.** Prisme used to stop a few seconds after its window closed, or 10 minutes after Claude's last request, even in the middle of a model, engine or update download. It now stays open until the download ends.
+- **Saving the Settings no longer undoes a model choice.** If a download chose a model while the Settings window was open, **Save** put the old one back; Prisme now asks to reopen the Settings. The settings file is also written in one go, so a power cut can no longer reset it.
+- **An unexpected error no longer looks like a crash.** It used to cut the connection, and the window showed "The server is not responding"; it now shows the error.
+- **Improve** and **Create** started at the same moment (from Claude or the phone) can no longer run together and overload the graphics card.
+- Two requests for the same model at the same moment no longer download it twice.
+
 ## [1.10.0] - 2026-11-12
 
 ### Added

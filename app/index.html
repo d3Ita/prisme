@@ -140,6 +140,8 @@ const EN = {
   'Chercher les nouvelles versions': 'Check for new versions', 'Une fois au lancement, sur GitHub': 'Once at launch, on GitHub',
   'Mise à jour': 'Update', 'Chercher une nouvelle version tout de suite': 'Look for a new version right now', 'Vérifier': 'Check',
   'Vérification…': 'Checking…',
+  'Les réglages ont changé pendant que la fenêtre était ouverte (un modèle a été choisi ou supprimé) : rouvre les Réglages.':
+    'The settings changed while this window was open (a model was chosen or deleted): open the Settings again.',
   'macOS fait tourner Prisme depuis une copie temporaire : quitte Prisme, glisse Prisme.app dans le dossier Applications, puis relance-le.':
     'macOS is running Prisme from a temporary copy: quit Prisme, drag Prisme.app into the Applications folder, then open it again.', 'GitHub ne répond pas. Vérifie ta connexion, puis réessaie.': 'GitHub is not answering. Check your connection, then try again.',
   'Arrêter à la fermeture': 'Stop when closed', 'Quand la fenêtre de Prisme se ferme sur le PC': 'When the Prisme window closes on the PC',
@@ -215,6 +217,7 @@ const EN = {
 };
 // Textes qui contiennent des valeurs : le premier motif qui correspond donne la traduction
 const MOTIFS_EN = [
+  [/^Erreur inattendue dans Prisme : (.+)$/, 'Unexpected error in Prisme: $1'],
   [/^Étape (\d+) sur (\d+)$/, 'Step $1 of $2'], [/^image (\d+) sur (\d+)$/, 'image $1 of $2'],
   [/^Créer (\d+) images$/, 'Create $1 images'], [/^(\d+) images créées en (\d+) s$/, '$1 images created in $2 s'],
   [/^Image créée en (\d+) s$/, 'Image created in $1 s'], [/^Prisme (.+) est disponible\.$/, 'Prisme $1 is available.'], [/^Prisme est à jour \(v(.+)\)\.$/, 'Prisme is up to date (v$1).'],
@@ -2632,7 +2635,8 @@ function lireFormulaire() {
 $('#form-reglages').addEventListener('submit', async e => {
   e.preventDefault();
   try {
-    const { reglages } = await api('/api/reglages', lireFormulaire());
+    // La version evite d'ecraser un modele choisi par un telechargement pendant que la fenetre etait ouverte
+    const { reglages } = await api('/api/reglages', { ...lireFormulaire(), version: infosReglages.version });
     majBadge(reglages.modele_diffusion);
     api('/api/etat').then(e => { majLorasActifs(e.loras_actifs); majProblemes(e.problemes, e.local); majAmelioration(e.amelioration); }).catch(() => {});
     $('#modale-reglages').classList.remove('ouverte');

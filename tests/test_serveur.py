@@ -12,6 +12,7 @@ import struct
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import zlib
 from pathlib import Path
@@ -1080,6 +1081,20 @@ class ArretAutomatiqueTest(unittest.TestCase):
         self.assertFalse(self.situation(fermeture_il_y_a=60, occupe=True))
         self.assertFalse(self.situation(contact_il_y_a=10_000, occupe=True))
 
+    def test_telechargement_en_cours_jamais_interrompu(self):
+        # Fenetre fermee pendant le telechargement d'un profil, d'un moteur ou d'une mise a jour : Prisme reste ouvert
+        for suivi, cle in ((serveur.telechargements_modeles, 'essai'), (serveur.installations, 'image')):
+            with self.subTest(suivi=cle):
+                suivi[cle] = {'phase': 'telechargement'}
+                self.assertFalse(self.situation(fermeture_il_y_a=60))
+                self.assertFalse(self.situation(contact_il_y_a=10_000))
+                suivi[cle] = {'phase': 'termine'}
+                self.assertTrue(self.situation(fermeture_il_y_a=60))
+                del suivi[cle]
+        serveur.mise_a_jour['installation'] = {'phase': 'telechargement'}
+        self.addCleanup(serveur.mise_a_jour.pop, 'installation', None)
+        self.assertFalse(self.situation(fermeture_il_y_a=60))
+
     def test_inactivite_trop_longue(self):
         self.assertTrue(self.situation(contact_il_y_a=31 * 60))
         self.assertFalse(self.situation(contact_il_y_a=29 * 60))
@@ -1477,6 +1492,30 @@ class SecuriteHttpTest(unittest.TestCase):
         # Un rechargement de la page relance des requetes : la fermeture est oubliee
         self.requete('GET', '/api/etat')
         self.assertIsNone(serveur.fermeture_demandee)
+
+    def test_reglages_changes_pendant_la_fenetre(self):
+        serveur.ecrire_reglages({**serveur.REGLAGES_DEFAUT, **BASE})
+        self.addCleanup(serveur.FICHIER_REGLAGES.unlink, missing_ok=True)
+        version = json.loads(self.requete('GET', '/api/reglages')[2])['version']
+        # Un telechargement choisit un autre modele pendant que la fenetre Reglages est ouverte
+        time.sleep(0.01)
+        serveur.ecrire_reglages({**serveur.REGLAGES_DEFAUT, **BASE, 'modele_diffusion': 'nouveau.gguf'})
+        code, _, corps = self.poster('/api/reglages', json.dumps({**BASE, 'version': version}))
+        self.assertEqual(code, 409)
+        self.assertEqual(serveur.lire_reglages()['modele_diffusion'], 'nouveau.gguf')
+        # Rouverte, elle enregistre normalement ; l'ecriture ne laisse pas de fichier provisoire
+        version = json.loads(self.requete('GET', '/api/reglages')[2])['version']
+        self.assertEqual(self.poster('/api/reglages', json.dumps({**BASE, 'etapes': 9, 'version': version}))[0], 200)
+        self.assertEqual(serveur.lire_reglages()['etapes'], 9)
+        self.assertEqual(list(serveur.DONNEES.glob('*.provisoire')), [])
+
+    def test_erreur_imprevue_recoit_une_reponse(self):
+        from unittest import mock
+        # Une image supprimee dans le Finder pendant que Prisme liste la galerie
+        with mock.patch.object(serveur, 'lister_images', side_effect=FileNotFoundError('image disparue')):
+            code, _, corps = self.requete('GET', '/api/images')
+        self.assertEqual(code, 500)
+        self.assertIn('image disparue', json.loads(corps)['erreur'])
 
     def test_reglages_reserves_au_pc(self):
         self.assertEqual(self.distant('/api/reglages', serveur.CODE)[0], 403)

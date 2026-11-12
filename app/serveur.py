@@ -417,7 +417,7 @@ REGLAGES_DEFAUT = {
 METHODES = ['euler', 'euler_a', 'heun', 'dpm2', 'dpm++2s_a', 'dpm++2m', 'dpm++2mv2', 'ipndm', 'ipndm_v', 'lcm',
             'ddim_trailing', 'tcd', 'res_multistep', 'res_2s', 'er_sde', 'euler_cfg_pp', 'euler_a_cfg_pp', 'euler_ge',
             'dpm++2m_sde', 'dpm++2m_sde_bt', 'lms']
-EXTENSIONS_MODELES = ('.gguf', '.safetensors', '.ckpt', '.pt', '.bin')
+EXTENSIONS_MODELES = ('.gguf', '.safetensors')
 EXTENSIONS_LORA = ('.safetensors', '.gguf')
 # sd-cli lit les LoRA dans la description sous la forme <lora:nom:force>
 BALISE_LORA = re.compile(r'<lora:([^:>]+):([^>]+)>')
@@ -429,7 +429,6 @@ TAILLE_MAX_REQUETE = 64 * 1024 * 1024
 ESSAIS_MAX, FENETRE_ESSAIS = 10, 15 * 60
 # Connexion d'un appareil en tapant seulement l'adresse : il demande l'acces, le PC l'autorise
 DUREE_DEMANDE, DEMANDES_MAX_PAR_APPAREIL = 120, 3
-PAS = re.compile(r'(\d+)/(\d+)\s*-\s*[\d.,]+\s*(?:s/it|it/s)')
 
 verrou = threading.Lock()
 dernier_contact = time.time()
@@ -468,6 +467,26 @@ def chemin_relatif_sur(nom):
     """Vrai si le chemin reste dans son dossier, en appliquant les regles de Windows et des autres systemes."""
     nom = str(nom).replace('\\', '/')
     return bool(nom) and not (PureWindowsPath(nom).anchor or PurePosixPath(nom).anchor or '..' in PurePosixPath(nom).parts)
+
+
+verrou_reglages = threading.RLock()
+
+
+def ecrire_reglages(r):
+    """Ecrit les reglages d'un coup (fichier provisoire, puis renomme) : une coupure ne laisse jamais un fichier a moitie
+    ecrit, que Prisme relirait comme des reglages par defaut."""
+    DONNEES.mkdir(exist_ok=True)
+    provisoire = FICHIER_REGLAGES.with_name(FICHIER_REGLAGES.name + '.provisoire')
+    provisoire.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
+    provisoire.replace(FICHIER_REGLAGES)
+
+
+def version_reglages():
+    """Change a chaque ecriture : la fenetre Reglages la renvoie pour ne pas ecraser un choix fait entre-temps."""
+    try:
+        return FICHIER_REGLAGES.stat().st_mtime_ns
+    except OSError:
+        return 0
 
 
 def lire_reglages():
@@ -603,13 +622,13 @@ def supprimer_modele(nom):
     if partiel.is_file():
         libere += partiel.stat().st_size
         partiel.unlink()
-    r = lire_reglages()
-    vides = {cle: '' for cle, valeur in r.items() if isinstance(valeur, str) and valeur == nom and cle in REGLAGES_DEFAUT
-             and REGLAGES_DEFAUT[cle] == ''}
-    if vides:
-        r.update(vides)
-        DONNEES.mkdir(exist_ok=True)
-        FICHIER_REGLAGES.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
+    with verrou_reglages:
+        r = lire_reglages()
+        vides = {cle: '' for cle, valeur in r.items() if isinstance(valeur, str) and valeur == nom and cle in REGLAGES_DEFAUT
+                 and REGLAGES_DEFAUT[cle] == ''}
+        if vides:
+            r.update(vides)
+            ecrire_reglages(r)
     return libere
 
 
@@ -1229,19 +1248,19 @@ def reglages_generation_automatiques(r):
 
 def utiliser_modele(modele):
     """Choisit le modele telecharge dans les reglages : on le telecharge pour s'en servir."""
-    r = lire_reglages()
-    avant = dict(r)
-    for cle in modele['remplit']:
-        r[cle] = modele['fichier']
-    # Un modele de texte sans vision retire la vision d'un autre modele, qui ne marcherait pas avec lui
-    for cle in modele.get('vide', []):
-        r[cle] = ''
-    # Reglages propres au modele de dessin (Turbo : 8 etapes), sauf si l'utilisateur a regle les siens
-    if modele.get('reglages') and 'modele_diffusion' in modele['remplit'] and reglages_generation_automatiques(avant):
-        r.update(modele['reglages'])
-    if r != avant:
-        DONNEES.mkdir(exist_ok=True)
-        FICHIER_REGLAGES.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
+    with verrou_reglages:
+        r = lire_reglages()
+        avant = dict(r)
+        for cle in modele['remplit']:
+            r[cle] = modele['fichier']
+        # Un modele de texte sans vision retire la vision d'un autre modele, qui ne marcherait pas avec lui
+        for cle in modele.get('vide', []):
+            r[cle] = ''
+        # Reglages propres au modele de dessin (Turbo : 8 etapes), sauf si l'utilisateur a regle les siens
+        if modele.get('reglages') and 'modele_diffusion' in modele['remplit'] and reglages_generation_automatiques(avant):
+            r.update(modele['reglages'])
+        if r != avant:
+            ecrire_reglages(r)
 
 
 def telecharger_modele(modele):
@@ -1312,7 +1331,6 @@ def telecharger_modele(modele):
 
 
 MODELES_EXTERNES = {}
-EXTENSIONS_MODELES = ('.gguf', '.safetensors')
 ROLES_EXTERNES = {'image': ['modele_diffusion'], 'texte': ['modele_texte'], 'edition': ['modele_vision'], 'vae': ['vae'],
                   'lora': [], None: []}
 
@@ -1432,21 +1450,22 @@ def traiter_file_modeles():
 def demander_modele(ident):
     global travailleur_modeles
     modele = trouver_modele(ident)
+    final = MODELES / modele['fichier']
+    # Verification et mise en file d'un seul tenant : deux demandes au meme instant ne telechargent pas deux fois
     with verrou_modeles:
         if telechargements_modeles.get(ident, {}).get('phase') in ('attente', 'telechargement', 'verification'):
             return
-    final = MODELES / modele['fichier']
-    if final.is_file() and final.stat().st_size == modele['taille']:
+        present = final.is_file() and final.stat().st_size == modele['taille']
+        if not present:
+            telechargements_modeles[ident] = {'phase': 'attente', 'fait': 0, 'total': modele['taille'], 'erreur': None}
+            file_modeles.append(ident)
+            if travailleur_modeles is None:
+                travailleur_modeles = threading.Thread(target=traiter_file_modeles, daemon=True)
+                travailleur_modeles.start()
+    if present:
         utiliser_modele(modele)
         with verrou_modeles:
             telechargements_modeles[ident] = {'phase': 'termine', 'fait': modele['taille'], 'total': modele['taille'], 'erreur': None}
-        return
-    with verrou_modeles:
-        telechargements_modeles[ident] = {'phase': 'attente', 'fait': 0, 'total': modele['taille'], 'erreur': None}
-        file_modeles.append(ident)
-        if travailleur_modeles is None:
-            travailleur_modeles = threading.Thread(target=traiter_file_modeles, daemon=True)
-            travailleur_modeles.start()
 
 
 def etat_profils():
@@ -1934,7 +1953,7 @@ def generer(params):
                 for ligne in lignes:
                     if ligne.strip():
                         journal.append(ligne)
-                    pas = PAS.findall(ligne)
+                    pas = agrandir.PAS.findall(ligne)
                     if pas:
                         fait, total = map(int, pas[-1])
                         with verrou:
@@ -1958,13 +1977,19 @@ def generer(params):
         with verrou:
             etat['erreur'] = str(e)
     finally:
-        processus = None
         if source_temp:
             source_temp.unlink(missing_ok=True)
-        with verrou:
-            etat['occupe'] = False
-            etat['phase'] = 'annule' if annule else ('erreur' if etat.get('erreur') else 'termine')
-            etat['fin'] = time.time()
+        terminer_calcul()
+
+
+def terminer_calcul():
+    """Fin d'une creation ou d'un agrandissement : Prisme redevient libre."""
+    global processus
+    processus = None
+    with verrou:
+        etat['occupe'] = False
+        etat['phase'] = 'annule' if annule else ('erreur' if etat.get('erreur') else 'termine')
+        etat['fin'] = time.time()
 
 
 # Agrandissement : le modele choisi dans les reglages, ou celui du catalogue s'il est dans le dossier models
@@ -2006,11 +2031,7 @@ def generer_agrandissement(params):
         with verrou:
             etat['erreur'] = str(e)
     finally:
-        processus = None
-        with verrou:
-            etat['occupe'] = False
-            etat['phase'] = 'annule' if annule else ('erreur' if etat.get('erreur') else 'termine')
-            etat['fin'] = time.time()
+        terminer_calcul()
 
 
 # Permet d'installer Prisme comme une application (ecran d'accueil du telephone, fenetre du PC) avec son logo
@@ -2206,6 +2227,22 @@ class Gestionnaire(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corps)
 
+    def send_response(self, *args, **kwargs):
+        self.repondu = True
+        super().send_response(*args, **kwargs)
+
+    def proteger(self, traitement):
+        """Une erreur imprevue recoit quand meme une reponse : sans elle, la fenetre croirait Prisme plante."""
+        self.repondu = False
+        try:
+            traitement()
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # l'appareil est parti avant la reponse
+        except Exception as e:
+            if self.repondu:
+                raise
+            self.envoyer(500, {'erreur': f'Erreur inattendue dans Prisme : {e}'})
+
     def envoyer(self, code, corps, type_contenu='application/json; charset=utf-8', cache=False):
         if not isinstance(corps, bytes):
             corps = json.dumps(corps, ensure_ascii=False).encode('utf-8')
@@ -2231,6 +2268,9 @@ class Gestionnaire(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(taille) or b'{}')
 
     def do_GET(self):
+        self.proteger(self.traiter_get)
+
+    def traiter_get(self):
         global dernier_contact
         if not self.controler():
             return
@@ -2267,7 +2307,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             reglages = lire_reglages()
-            self.envoyer(200, {'reglages': reglages, 'edition_possible': mode_edition(reglages) is not None,
+            self.envoyer(200, {'reglages': reglages, 'version': version_reglages(),
+                               'edition_possible': mode_edition(reglages) is not None,
                                'defauts': REGLAGES_DEFAUT, 'modeles': lister_modeles(),
                                'methodes': METHODES, 'dossier': str(MODELES),
                                'loras': lister_loras(), 'dossier_loras': str(LORAS)})
@@ -2357,6 +2398,9 @@ class Gestionnaire(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.corps_lu = False
+        self.proteger(self.traiter_requete_post)
+
+    def traiter_requete_post(self):
         if not self.controler():
             return
         if not self.origine_autorisee():
@@ -2472,7 +2516,9 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if not amelioration_active(r):
                 return self.envoyer(400, {'erreur': 'Choisis un modèle d\'amélioration dans les Réglages.'})
             # Le modele de langage et la generation ne tiennent pas ensemble en memoire video
-            if etat.get('occupe') or not amelioration_en_cours.acquire(blocking=False):
+            with verrou:
+                libre = not etat.get('occupe') and amelioration_en_cours.acquire(blocking=False)
+            if not libre:
                 return self.envoyer(409, {'erreur': 'Attends la fin du calcul en cours.'})
             try:
                 self.envoyer(200, {'prompt': ameliorer_description(r, texte, image), 'modification': image is not None})
@@ -2663,12 +2709,16 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 donnees = self.lire_json()
             except ValueError:
                 return self.envoyer(400, {'erreur': 'Données invalides.'})
-            r, erreur = valider_reglages(donnees)
-            if erreur:
-                return self.envoyer(400, {'erreur': erreur})
-            DONNEES.mkdir(exist_ok=True)
-            FICHIER_REGLAGES.write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding='utf-8')
-            self.envoyer(200, {'reglages': r})
+            with verrou_reglages:
+                # Un telechargement ou une suppression a change les modeles pendant que la fenetre Reglages etait ouverte
+                if donnees.get('version') is not None and donnees['version'] != version_reglages():
+                    return self.envoyer(409, {'erreur': 'Les réglages ont changé pendant que la fenêtre était ouverte '
+                                                        '(un modèle a été choisi ou supprimé) : rouvre les Réglages.'})
+                r, erreur = valider_reglages(donnees)
+                if erreur:
+                    return self.envoyer(400, {'erreur': erreur})
+                ecrire_reglages(r)
+            self.envoyer(200, {'reglages': r, 'version': version_reglages()})
 
         elif chemin in ('/api/dossier-modeles', '/api/dossier-loras'):
             if not self.est_local():
@@ -2842,9 +2892,21 @@ def arreter():
     os._exit(0)
 
 
+def telechargement_en_cours():
+    """Modele, moteur ou mise a jour en train de se telecharger ou de s'installer : Prisme doit rester ouvert."""
+    with verrou_modeles:
+        if any(t['phase'] in ('attente', 'telechargement', 'verification') for t in telechargements_modeles.values()):
+            return True
+    with verrou_installations:
+        if any(i.get('phase') in ('telechargement', 'extraction') for i in installations.values()):
+            return True
+    with verrou_maj:
+        return (mise_a_jour.get('installation') or {}).get('phase') in ('telechargement', 'installation')
+
+
 def doit_s_arreter(maintenant, reglages):
     """Vrai si le serveur doit s'arreter : inactivite trop longue, ou fenetre du PC fermee et pas rouverte."""
-    if etat.get('occupe') or amelioration_en_cours.locked():
+    if etat.get('occupe') or amelioration_en_cours.locked() or telechargement_en_cours():
         return False
     if maintenant - dernier_contact > reglages['arret_auto_minutes'] * 60:
         return True

@@ -366,6 +366,8 @@ ApplicationWindow {
                 width: fil.width
                 visible: occupe
                 height: occupe ? implicitHeight + 26 : 0
+                // Une creation commence (ici, depuis le telephone ou Claude) : le fil descend pour la montrer
+                onHeightChanged: if (occupe) fil.positionViewAtBeginning()
                 topPadding: 26
                 spacing: 10
 

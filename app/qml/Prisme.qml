@@ -283,6 +283,8 @@ ApplicationWindow {
             property bool collerEnBas: true
             onMovementEnded: collerEnBas = atYEnd
             onContentHeightChanged: if (collerEnBas) Qt.callLater(positionViewAtEnd)
+            // La zone d'ecriture change de taille (image de depart, texte sur plusieurs lignes) : le fil suit
+            onHeightChanged: if (collerEnBas) Qt.callLater(positionViewAtEnd)
 
             delegate: Column {
                 id: message

@@ -316,9 +316,10 @@ ApplicationWindow {
                 // L'image de Prisme, a gauche
                 ImageArrondie {
                     x: 36
-                    // Une image en portrait tient dans les trois quarts de la hauteur du fil
+                    // Une image en portrait ne depasse pas 560 px de haut ; une hauteur fixe (et non celle du fil) garde
+                    // la taille des images stable quand la fenetre ou la zone d'ecriture change
                     readonly property real proportion: message.model.largeur ? message.model.hauteur / message.model.largeur : 1
-                    width: Math.min(fil.largeurImage, fil.height * 0.75 / proportion)
+                    width: Math.min(fil.largeurImage, 560 / proportion)
                     height: width * proportion
                     source: adresse + "/images/" + encodeURIComponent(message.model.nom)
                     MouseArea {

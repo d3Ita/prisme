@@ -4,7 +4,7 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
-## [2.0.0-rc.1] - 2026-11-12
+## [2.0.0-rc.2] - 2026-11-12
 
 Pre-release of Prisme 2, to try before it is offered as an update.
 
@@ -282,8 +282,8 @@ Pre-release of Prisme 2, to try before it is offered as an update.
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.0.0-rc.1...HEAD
-[2.0.0-rc.1]: https://github.com/d3Ita/prisme/releases/tag/v2.0.0-rc.1
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.0.0-rc.2...HEAD
+[2.0.0-rc.2]: https://github.com/d3Ita/prisme/releases/tag/v2.0.0-rc.2
 [1.10.1]: https://github.com/d3Ita/prisme/releases/tag/v1.10.1
 [1.10.0]: https://github.com/d3Ita/prisme/releases/tag/v1.10.0
 [1.9.6]: https://github.com/d3Ita/prisme/releases/tag/v1.9.6

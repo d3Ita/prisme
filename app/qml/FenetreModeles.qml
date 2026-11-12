@@ -234,7 +234,7 @@ Panneau {
             y: 12
             width: parent.width - 24
             spacing: 4
-            Text { text: Theme.enLangue(carte.modelData.nom); color: Theme.texte; font.pixelSize: 13.5; font.weight: Font.DemiBold; width: parent.width; wrapMode: Text.WordWrap }
+            Text { text: Theme.enLangue(carte.modelData.nom); color: Theme.texte; font.pixelSize: 14; font.weight: Font.DemiBold; width: parent.width; wrapMode: Text.WordWrap }
             Text { text: Theme.enLangue(carte.modelData.materiel); color: Theme.texte2; font.pixelSize: 12; width: parent.width; wrapMode: Text.WordWrap }
             Text {
                 text: carte.modelData.installe ? Theme.tx("Déjà téléchargé", "Already downloaded") : Theme.taille(carte.modelData.taille_totale)
@@ -321,11 +321,11 @@ Panneau {
             }
             Text {
                 text: resume.p ? Theme.tx("Modèles : ", "Models: ") + resume.p.modeles.map(m => m.quantification ? m.nom + " " + m.quantification : m.nom).join(", ") : ""
-                color: Theme.texte2; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                color: Theme.texte2; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
             Text {
                 text: resume.p ? Theme.tx("Vitesse : ", "Speed: ") + Theme.enLangue(resume.p.vitesse) : ""
-                color: Theme.texte2; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                color: Theme.texte2; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
             Text {
                 readonly property var licences: resume.p ? resume.p.modeles.map(m => m.licence).filter((l, i, t) => t.findIndex(x => x.nom === l.nom) === i) : []
@@ -334,7 +334,7 @@ Panneau {
                 textFormat: Text.StyledText
                 linkColor: Theme.accent
                 onLinkActivated: lien => Qt.openUrlExternally(lien)
-                color: Theme.texte2; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                color: Theme.texte2; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
             Text {
                 readonly property real reste: fenetre.restant()
@@ -342,13 +342,13 @@ Panneau {
                 text: Theme.tx("À télécharger : ", "To download: ") + Theme.taille(reste)
                       + (fenetre.moteurTexteAInstaller() ? Theme.tx(" (moteur de texte compris)", " (text engine included)") : "")
                       + (fenetre.infos ? " · " + Theme.taille(fenetre.infos.libre) + Theme.tx(" libres sur le disque", " free on disk") : "")
-                color: Theme.texte2; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                color: Theme.texte2; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
             Text {
                 readonly property real manque: fenetre.infos ? fenetre.restant() + 200 * Math.pow(2, 20) - fenetre.infos.libre : 0
                 visible: fenetre.restant() > 0 && manque > 0
                 text: Theme.tx("Pas assez de place : libère au moins ", "Not enough space: free at least ") + Theme.taille(manque) + Theme.tx(" sur le disque.", " on the disk.")
-                color: Theme.danger; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                color: Theme.danger; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
             // Licence non commerciale : l'utilisateur l'accepte lui-meme avant le telechargement
             RowLayout {
@@ -369,7 +369,7 @@ Panneau {
                     textFormat: Text.StyledText
                     linkColor: Theme.accent
                     onLinkActivated: lien => Qt.openUrlExternally(lien)
-                    color: Theme.texte; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                    color: Theme.texte; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
                 }
             }
             // Avancement de l'ensemble du profil
@@ -381,7 +381,7 @@ Panneau {
                 spacing: 4
                 Text {
                     text: Theme.tx("Téléchargement : ", "Downloading: ") + Theme.taille(parent.fait) + Theme.tx(" sur ", " of ") + Theme.taille(resume.p ? resume.p.taille_restante : 0)
-                    color: Theme.texte2; font.pixelSize: 12.5
+                    color: Theme.texte2; font.pixelSize: 13
                 }
                 BarreProgression { Layout.fillWidth: true; part: resume.p ? parent.fait / Math.max(1, resume.p.taille_restante) : 0 }
             }
@@ -389,7 +389,7 @@ Panneau {
                 visible: !!resume.p && fenetre.restant() === 0
                 text: resume.p && resume.p.actif ? Theme.tx("Ce profil est utilisé dans les réglages.", "This profile is used in the settings.")
                       : Theme.tx("Tout est téléchargé : « Utiliser ce profil » le choisit dans les réglages.", "Everything is downloaded: \"Use this profile\" selects it in the settings.")
-                color: Theme.texte2; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                color: Theme.texte2; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
         }
     }

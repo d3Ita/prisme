@@ -101,7 +101,7 @@ Panneau {
         Layout.fillWidth: true
         Layout.preferredHeight: 92
         wrapMode: TextArea.Wrap
-        font.pixelSize: 12.5
+        font.pixelSize: 13
         color: Theme.texte
         selectByMouse: true
         background: Rectangle { radius: 10; color: Theme.surface2; border.color: parent.activeFocus ? Theme.accent : Theme.bordure }
@@ -204,9 +204,9 @@ Panneau {
             aide: Theme.tx("Avant chaque génération", "Before each generation")
             Interrupteur { id: amelioAuto }
         }
-        Text { text: Theme.tx("Consigne de création", "Creation instruction"); color: Theme.texte; font.pixelSize: 13.5 }
+        Text { text: Theme.tx("Consigne de création", "Creation instruction"); color: Theme.texte; font.pixelSize: 14 }
         Consigne { id: consigne }
-        Text { text: Theme.tx("Consigne de modification", "Edit instruction"); color: Theme.texte; font.pixelSize: 13.5 }
+        Text { text: Theme.tx("Consigne de modification", "Edit instruction"); color: Theme.texte; font.pixelSize: 14 }
         Consigne { id: consigneModif }
     }
 

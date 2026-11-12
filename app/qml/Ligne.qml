@@ -16,7 +16,7 @@ RowLayout {
         Text {
             text: ligne.nom
             color: Theme.texte
-            font.pixelSize: 13.5
+            font.pixelSize: 14
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }

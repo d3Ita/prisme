@@ -97,6 +97,8 @@ def main(dossier):
         moteur.setInitialProperties({'adresse': f'http://127.0.0.1:{serveur.PORT}', 'width': 1280, 'height': 860,
                                      'apparence': apparence})
         moteur.load(QUrl.fromLocalFile(str(APP / 'qml' / 'Prisme.qml')))
+        if not moteur.rootObjects():
+            sys.exit('La fenêtre ne se charge pas :\n' + '\n'.join(erreurs))
         fenetre = moteur.rootObjects()[0]
         attendre(4)
         if pendant_creation:

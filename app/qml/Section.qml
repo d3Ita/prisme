@@ -25,7 +25,7 @@ ColumnLayout {
         visible: section.description !== ""
         text: section.description
         color: Theme.texte2
-        font.pixelSize: 12.5
+        font.pixelSize: 13
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
     }

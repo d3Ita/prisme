@@ -8,7 +8,7 @@ Button {
     implicitHeight: 36
     leftPadding: 18
     rightPadding: 18
-    font.pixelSize: 13.5
+    font.pixelSize: 14
     font.weight: Font.DemiBold
     contentItem: Text {
         text: bouton.text

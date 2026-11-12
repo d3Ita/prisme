@@ -7,7 +7,7 @@ Panneau {
     id: fenetre
     titre: Theme.tx("Utiliser sur ton téléphone", "Use on your phone")
     width: Math.min(parent ? parent.width - 48 : 520, 520)
-    height: Math.min(parent ? parent.height - 48 : 760, 760)
+    height: Math.min(parent ? parent.height - 48 : 640, 640)
     property var acces: null
     property string qr: ""
 

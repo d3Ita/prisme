@@ -31,7 +31,7 @@ Popup {
             ColumnLayout {
                 spacing: 2
                 Layout.fillWidth: true
-                Text { text: panneau.titre; color: Theme.texte; font.pixelSize: 20; font.weight: Font.DemiBold }
+                Text { text: panneau.titre; color: Theme.texte; font.pixelSize: 20; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 Text {
                     visible: panneau.sousTitre !== ""
                     text: panneau.sousTitre

@@ -5,7 +5,7 @@ Mac     : dist/Prisme-macOS-arm64.dmg (a ouvrir, puis glisser Prisme.app dans Ap
           et dist/Prisme-macOS-arm64.zip (pour la mise a jour en un clic)
 Linux   : dist/Prisme-Linux-x64.tar.gz (programme prisme)
 
-Prerequis : pip install pyinstaller pillow
+Prerequis : pip install pyinstaller pillow PySide6==6.8.1 segno==1.6.1
 """
 
 import os
@@ -40,6 +40,8 @@ def main():
                '--add-data', f'{RACINE / "app" / "index.html"}{os.pathsep}.',
                '--add-data', f'{RACINE / "app" / "logo.png"}{os.pathsep}.',
                '--add-data', f'{RACINE / "app" / "modeles.json"}{os.pathsep}.',
+               # Prisme 2 : la fenetre Qt Quick (PySide6 et segno doivent etre installes pour la construction)
+               '--add-data', f'{RACINE / "app" / "qml"}{os.pathsep}qml',
                '--workpath', TRAVAIL / 'build', '--specpath', TRAVAIL]
     if WINDOWS:
         # L'ecran de demarrage n'existe pas sous Mac ; sous Linux, il demanderait Tk sur la machine

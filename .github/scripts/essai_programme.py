@@ -1,10 +1,18 @@
-"""Lance le programme construit, verifie qu'il repond et qu'il sait installer son moteur (telechargement https), puis l'arrete."""
+"""Lance le programme construit, verifie qu'il repond et qu'il sait installer son moteur (telechargement https), puis l'arrete.
+Sous Windows et Mac, le relance avec sa fenetre Qt (sans ecran) et verifie qu'elle se charge, et le temps qu'il met."""
 import json
 import os
 import subprocess
 import sys
 import time
 import urllib.request
+from pathlib import Path
+
+# Taille du programme : l'exe (Windows, Linux) ou tout le paquet Prisme.app (Mac)
+programme = Path(sys.argv[1]).resolve()
+paquet = next((p for p in programme.parents if p.suffix == '.app'), None)
+octets = sum(f.stat().st_size for f in paquet.rglob('*') if f.is_file()) if paquet else programme.stat().st_size
+print(f'taille {octets / 1e6:.0f} Mo')
 
 processus = subprocess.Popen([os.path.abspath(sys.argv[1]), '--sans-fenetre'])
 etat = None
@@ -37,3 +45,25 @@ demande = urllib.request.Request('http://127.0.0.1:7861/api/quitter', data=b'{}'
 urllib.request.urlopen(demande, timeout=5).close()
 processus.wait(timeout=30)
 print('arret propre, code', processus.returncode)
+
+if not sys.platform.startswith('linux'):
+    # Prisme 2 : la fenetre Qt Quick du programme construit (PySide6 et QML embarques) se charge
+    debut = time.monotonic()
+    processus = subprocess.Popen([os.path.abspath(sys.argv[1])], env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})
+    fenetre = None
+    for _ in range(120):
+        try:
+            with urllib.request.urlopen('http://127.0.0.1:7861/api/etat', timeout=2) as reponse:
+                fenetre = json.load(reponse).get('fenetre')
+            if fenetre == 'qt':
+                break
+        except OSError:
+            pass
+        time.sleep(0.5)
+    print('fenetre', fenetre, f'| prete en {time.monotonic() - debut:.1f} s')
+    assert fenetre == 'qt', 'La fenetre Qt ne se charge pas dans le programme construit'
+    demande = urllib.request.Request('http://127.0.0.1:7861/api/quitter', data=b'{}', method='POST',
+                                     headers={'Content-Type': 'application/json'})
+    urllib.request.urlopen(demande, timeout=5).close()
+    processus.wait(timeout=30)
+    print('arret propre, code', processus.returncode)

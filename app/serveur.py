@@ -1400,7 +1400,7 @@ def creer_consentement(genre, details):
         consentements[ident] = {'genre': genre, 'details': details, 'etat': 'attente', 'cree': maintenant, 'telechargements': []}
     # La demande doit etre vue : si aucune fenetre de Prisme n'est ouverte, on en ouvre une
     if time.time() - dernier_contact_fenetre > 8:
-        threading.Thread(target=ouvrir_fenetre, daemon=True).start()
+        threading.Thread(target=afficher_fenetre, daemon=True).start()
     return ident
 
 
@@ -2354,6 +2354,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             r = lire_reglages()
             copie['modele'] = r['modele_diffusion']
             copie['version'] = VERSION
+            copie['fenetre'] = FENETRE
             copie['problemes'] = problemes_configuration(r)
             copie['amelioration'] = {'modele': amelioration_active(r), 'auto': r['amelioration_auto']}
             copie['moteurs'] = etat_moteurs()
@@ -2544,6 +2545,13 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 with verrou_echecs:
                     echecs.setdefault(demande['ip'], []).append(time.time())
             self.envoyer(200, {'etat': demande['etat']})
+
+        elif chemin == '/api/montrer-fenetre':
+            # Prisme relance alors qu'il tourne deja : sa fenetre reapparait au lieu d'en ouvrir une seconde
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            afficher_fenetre()
+            self.envoyer(200, {})
 
         elif chemin == '/api/verifier-mise-a-jour':
             if not self.est_local():
@@ -2874,6 +2882,19 @@ def connecter_claude_code(retirer=False):
         raise RuntimeError('Claude Code a refusé la connexion : ' + (fin.stderr or fin.stdout).strip()[:300])
 
 
+# Fenetre affichee : 'web' (navigateur) ou 'qt' (Prisme 2). Avec Qt, MONTRER_FENETRE la fait reapparaitre.
+FENETRE = 'web'
+MONTRER_FENETRE = None
+
+
+def afficher_fenetre():
+    """Montre la fenetre de Prisme : la fenetre Qt cachee reapparait, sinon une fenetre web s'ouvre."""
+    if MONTRER_FENETRE:
+        MONTRER_FENETRE()
+    else:
+        ouvrir_fenetre()
+
+
 def ouvrir_fenetre():
     adresse = f'http://127.0.0.1:{PORT}/'
     navigateur = navigateur_application()
@@ -2988,9 +3009,14 @@ def liberer_instance():
 
 
 def deja_lance():
-    """Un autre Prisme tient deja ce dossier : rouvre sa fenetre, sauf lancement sans fenetre (mise a jour)."""
+    """Un autre Prisme tient deja ce dossier : il montre sa fenetre (sauf lancement sans fenetre, apres une mise a jour)."""
     if '--sans-fenetre' not in sys.argv:
-        ouvrir_fenetre()
+        try:
+            requete = urllib.request.Request(f'http://127.0.0.1:{PORT}/api/montrer-fenetre', data=b'{}',
+                                             headers={'Content-Type': 'application/json'})
+            urllib.request.urlopen(requete, timeout=5).close()
+        except OSError:
+            ouvrir_fenetre()
     fermer_demarrage(0)
 
 
@@ -3026,30 +3052,37 @@ def main():
         # Port tenu par un Prisme qui ne s'est pas encore arrete (ou par un autre programme)
         liberer_instance()
         return deja_lance()
-    # Prisme 2 (en developpement) : fenetre Qt Quick avec --qt ; sans PySide6, la fenetre web prend le relais
+    # Prisme 2 : fenetre Qt Quick sous Windows et Mac (--web garde la fenetre du navigateur). Sous Linux, --qt seulement :
+    # sans certaines bibliotheques du systeme, Qt arreterait Prisme au lieu de rendre la main
     fenetre_qt = None
-    if '--qt' in sys.argv and '--sans-fenetre' not in sys.argv:
+    voulu = '--qt' in sys.argv or (not sys.platform.startswith('linux') and '--web' not in sys.argv)
+    if voulu and '--sans-fenetre' not in sys.argv:
         try:
             import fenetre_qt
         except ImportError:
-            pass
-    if '--sans-fenetre' not in sys.argv and not fenetre_qt:
-        ouvrir_fenetre()
+            pass  # PySide6 absent : fenetre web
     fermer_demarrage(1.5 if '--sans-fenetre' not in sys.argv else 0)
     threading.Thread(target=surveiller, daemon=True).start()
     if lire_reglages()['verifier_mises_a_jour'] and not os.environ.get('PRISME_RACINE'):
         threading.Thread(target=verifier_mise_a_jour, daemon=True).start()
-    if not fenetre_qt:
-        return serveur.serve_forever()
-    # Qt garde le fil principal (obligatoire sur Mac) ; le serveur repond a cote, pour la fenetre, le telephone et Claude
-    global OPTION_RELANCE
-    OPTION_RELANCE = '--qt'
-    threading.Thread(target=serveur.serve_forever, daemon=True).start()
-    fenetre_qt.lancer(f'http://127.0.0.1:{PORT}', RESSOURCES)
-    # Fenetre fermee : meme regle que la fenetre web (arret, sauf si Claude ou un telechargement a besoin de Prisme)
-    global fermeture_demandee
-    fermeture_demandee = time.time()
-    threading.Event().wait()
+    if fenetre_qt:
+        # Qt garde le fil principal (obligatoire sur Mac) ; le serveur repond a cote, pour la fenetre, le telephone et Claude
+        threading.Thread(target=serveur.serve_forever, daemon=True).start()
+        if fenetre_qt.lancer(f'http://127.0.0.1:{PORT}', RESSOURCES, quand_prete) == 0:
+            # L'utilisateur a quitte (Cmd + Q, menu) : les moteurs s'arretent avec Prisme
+            return arreter()
+        # La fenetre Qt n'a pas pu se charger : la fenetre web prend le relais
+        ouvrir_fenetre()
+        threading.Event().wait()
+    if '--sans-fenetre' not in sys.argv:
+        ouvrir_fenetre()
+    serveur.serve_forever()
+
+
+def quand_prete(montrer):
+    """La fenetre Qt est chargee : Prisme la montre a la demande, et se relance avec elle apres une mise a jour."""
+    global FENETRE, MONTRER_FENETRE, OPTION_RELANCE
+    FENETRE, MONTRER_FENETRE, OPTION_RELANCE = 'qt', montrer, '--qt'
 
 
 if __name__ == '__main__':

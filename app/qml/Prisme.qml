@@ -196,11 +196,15 @@ ApplicationWindow {
 
     Timer {
         interval: occupe || majEnCours ? 700 : 2500
-        running: Theme.adresse !== ""
+        // Fenetre cachee : plus de nouvelles, pour que Prisme puisse s'arreter selon ses reglages
+        running: Theme.adresse !== "" && fenetre.visible
         repeat: true
         triggeredOnStart: true
         onTriggered: lireEtat()
     }
+
+    // Fermer la fenetre la cache (Prisme continue pour le telephone et Claude) et previent le serveur, comme la page web
+    onClosing: api("/api/fermeture", {})
 
     Component.onCompleted: {
         Theme.adresse = adresse

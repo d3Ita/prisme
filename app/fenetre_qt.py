@@ -6,7 +6,7 @@ Seul ce que QML ne sait pas faire passe par Python : lire une image choisie, gli
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QBuffer, QIODevice, QObject, QUrl, Slot
+from PySide6.QtCore import QBuffer, QIODevice, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QGuiApplication, QIcon, QImage
 from PySide6.QtQml import QQmlApplicationEngine
 
@@ -68,11 +68,33 @@ def charger(adresse, ressources, erreurs=None, **proprietes):
     return moteur
 
 
-def lancer(adresse, ressources):
-    """Ouvre la fenetre et rend la main quand elle se ferme. Renvoie le code de sortie de Qt."""
+class Pont(QObject):
+    """Fait reapparaitre la fenetre depuis un autre fil (serveur) : le signal est livre dans le fil de Qt."""
+    montrer = Signal()
+
+
+def lancer(adresse, ressources, quand_prete=None):
+    """Ouvre la fenetre ; rend la main quand l'utilisateur quitte Prisme (0), ou tout de suite si elle ne se charge pas (1).
+    quand_prete(montrer) recoit une fonction, appelable depuis n'importe quel fil, qui fait reapparaitre la fenetre."""
     appli = application()
     appli.setWindowIcon(QIcon(str(Path(ressources) / 'logo.png')))
+    # Fermer la fenetre la cache seulement : Prisme continue pour le telephone, Claude ou un telechargement, puis
+    # s'arrete selon ses reglages, comme avec la fenetre web
+    appli.setQuitOnLastWindowClosed(False)
     moteur = charger(adresse, ressources)
     if not moteur.rootObjects():
         return 1
+    fenetre = moteur.rootObjects()[0]
+
+    def montrer():
+        fenetre.show()
+        fenetre.raise_()
+        fenetre.requestActivate()
+
+    pont = Pont()
+    pont.montrer.connect(montrer, Qt.QueuedConnection)
+    # Sur Mac, un clic sur l'icone du Dock rend Prisme actif : sa fenetre cachee reapparait
+    appli.applicationStateChanged.connect(lambda etat: etat == Qt.ApplicationActive and not fenetre.isVisible() and montrer())
+    if quand_prete:
+        quand_prete(pont.montrer.emit)
     return appli.exec()

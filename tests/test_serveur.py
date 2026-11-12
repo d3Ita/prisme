@@ -1479,6 +1479,20 @@ class SecuriteHttpTest(unittest.TestCase):
             with self.subTest(chemin=chemin):
                 self.assertEqual(self.distant(chemin, serveur.CODE, 'POST')[0], 403)
 
+    def test_prisme_relance_montre_sa_fenetre(self):
+        from unittest import mock
+        montrees = []
+        # Fenetre Qt chargee : elle reapparait ; Claude et le telephone ne peuvent pas la faire apparaitre
+        with mock.patch.object(serveur, 'MONTRER_FENETRE', lambda: montrees.append(1)):
+            self.assertEqual(self.poster('/api/montrer-fenetre')[0], 200)
+            self.assertEqual(self.poster('/api/montrer-fenetre', '{}', {'X-Prisme-Client': 'mcp'})[0], 403)
+            self.assertEqual(self.distant('/api/montrer-fenetre', serveur.CODE, 'POST')[0], 403)
+        self.assertEqual(montrees, [1])
+        # Sans fenetre Qt, une fenetre web s'ouvre
+        with mock.patch.object(serveur, 'ouvrir_fenetre') as ouvrir:
+            self.assertEqual(self.poster('/api/montrer-fenetre')[0], 200)
+        ouvrir.assert_called_once()
+
     def test_quitter_arrete_le_serveur(self):
         arrete = threading.Event()
         original = serveur.arreter

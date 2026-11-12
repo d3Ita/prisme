@@ -11,7 +11,7 @@ if (-not (Test-Path $python)) {
     New-Item -ItemType Directory -Force $travail | Out-Null
     & py -3 -m venv $venv
     & $python -m pip install --quiet --upgrade pip
-    & $python -m pip install --quiet pyinstaller pillow
+    & $python -m pip install --quiet pyinstaller pillow PySide6==6.8.1 segno==1.6.1
     if ($LASTEXITCODE -ne 0) { throw 'Installation de PyInstaller impossible' }
 }
 

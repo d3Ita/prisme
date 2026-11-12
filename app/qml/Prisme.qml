@@ -56,12 +56,10 @@ ApplicationWindow {
     function chargerImages(descendre) {
         api("/api/images", undefined, function (liste) {
             images.clear()
-            // Le serveur donne les plus recentes d'abord ; le fil se lit de haut en bas, comme une conversation
-            for (let i = liste.length - 1; i >= 0; i--) {
-                const image = liste[i]
+            // Les plus recentes d'abord, comme le serveur les donne : le fil, range de bas en haut, les montre en bas
+            for (const image of liste)
                 images.append({ nom: image.nom, prompt: image.prompt || "", largeur: image.largeur || 0, hauteur: image.hauteur || 0 })
-            }
-            if (descendre) Qt.callLater(fil.positionViewAtEnd)
+            if (descendre) fil.positionViewAtBeginning()
         }, function (message) { note(message, true) })
     }
 
@@ -129,7 +127,7 @@ ApplicationWindow {
             saisie.text = ""
             texteAmeliore = ""
             definirSource(null)
-            Qt.callLater(fil.positionViewAtEnd)
+            fil.positionViewAtBeginning()
         }, function (message) { note(message, true) })
     }
 
@@ -279,12 +277,8 @@ ApplicationWindow {
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
             readonly property real largeurImage: Math.min(width - 72, 620)
-            // Colle en bas comme une messagerie (nouvelle image, creation en cours), sauf si l'on est remonte lire le fil
-            property bool collerEnBas: true
-            onMovementEnded: collerEnBas = atYEnd
-            onContentHeightChanged: if (collerEnBas) Qt.callLater(positionViewAtEnd)
-            // La zone d'ecriture change de taille (image de depart, texte sur plusieurs lignes) : le fil suit
-            onHeightChanged: if (collerEnBas) Qt.callLater(positionViewAtEnd)
+            // Comme une messagerie : la plus recente en bas, sans calcul de defilement quand une image arrive
+            verticalLayoutDirection: ListView.BottomToTop
 
             delegate: Column {
                 id: message
@@ -350,7 +344,7 @@ ApplicationWindow {
                         onClicked: api("/api/agrandir", { nom: message.model.nom }, function () {
                             etaitOccupe = true
                             lireEtat()
-                            Qt.callLater(fil.positionViewAtEnd)
+                            fil.positionViewAtBeginning()
                         }, function (m) { note(m, true) })
                     }
                     BoutonDiscret {
@@ -367,8 +361,8 @@ ApplicationWindow {
                 }
             }
 
-            // Creation en cours, a la suite du fil
-            footer: Column {
+            // Creation en cours, en bas du fil (debut de la liste rangee de bas en haut)
+            header: Column {
                 width: fil.width
                 visible: occupe
                 height: occupe ? implicitHeight + 26 : 0

@@ -2950,6 +2950,9 @@ def surveiller():
 
 def fermer_demarrage(delai=0.0):
     """Ferme l'ecran de demarrage de l'exe, apres un court delai pour laisser la fenetre apparaitre."""
+    # Seul l'exe Windows en a un ; ailleurs, importer pyi_splash affiche une erreur inutile
+    if not (WINDOWS and EXE):
+        return
     try:
         import pyi_splash
     except ImportError:

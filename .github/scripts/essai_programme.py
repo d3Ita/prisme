@@ -11,7 +11,8 @@ from pathlib import Path
 # Taille du programme : l'exe (Windows, Linux) ou tout le paquet Prisme.app (Mac)
 programme = Path(sys.argv[1]).resolve()
 paquet = next((p for p in programme.parents if p.suffix == '.app'), None)
-octets = sum(f.stat().st_size for f in paquet.rglob('*') if f.is_file()) if paquet else programme.stat().st_size
+# Les frameworks Qt du Mac ont des raccourcis (Versions/Current) : chaque fichier ne compte qu'une fois
+octets = sum(f.stat().st_size for f in paquet.rglob('*') if f.is_file() and not f.is_symlink()) if paquet else programme.stat().st_size
 print(f'taille {octets / 1e6:.0f} Mo')
 
 processus = subprocess.Popen([os.path.abspath(sys.argv[1]), '--sans-fenetre'])

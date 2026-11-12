@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-12
+
 ### Added
 
 - **Enlarge**: a finished image ×4 with Real-ESRGAN x4plus (BSD-3-Clause, 67 MB, downloaded at the first click), in a new image that keeps the description and variant. 1280 × 704 to 5120 × 2816 in 14 s on an RTX 4070 SUPER. Refused from Claude, which keeps no access to Prisme's images.
@@ -254,7 +256,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.9.6...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/d3Ita/prisme/releases/tag/v1.10.0
 [1.9.6]: https://github.com/d3Ita/prisme/releases/tag/v1.9.6
 [1.9.5]: https://github.com/d3Ita/prisme/releases/tag/v1.9.5
 [1.9.4]: https://github.com/d3Ita/prisme/releases/tag/v1.9.4

@@ -354,8 +354,8 @@ Prévu, sans ordre fixe. Les idées et les votes sont les bienvenus dans les [Di
 - ~~**Profils de modèles par config**~~ : fait dans la 1.9.0 (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
 - ~~**Serveur MCP pour Claude**~~ : fait dans la 1.9.0 (voir [Utiliser Prisme avec Claude via MCP](#utiliser-prisme-avec-claude-via-mcp)).
 - **Images à la suite plus rapides** : garder les modèles chargés entre deux créations au lieu de les recharger à chaque fois.
-- ~~**Supprimer des modèles depuis l'appli**~~ : fait, dans la prochaine version (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
-- ~~**Agrandissement**~~ : fait, dans la prochaine version, avec Real-ESRGAN ×4.
+- ~~**Supprimer des modèles depuis l'appli**~~ : fait dans la 1.10.0 (voir [Choisir ses modèles selon sa machine](#choisir-ses-modèles-selon-sa-machine)).
+- ~~**Agrandissement**~~ : fait dans la 1.10.0, avec Real-ESRGAN ×4.
 
 ## Questions fréquentes
 

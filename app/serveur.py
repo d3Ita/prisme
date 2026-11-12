@@ -3023,13 +3023,28 @@ def main():
         # Port tenu par un Prisme qui ne s'est pas encore arrete (ou par un autre programme)
         liberer_instance()
         return deja_lance()
-    if '--sans-fenetre' not in sys.argv:
+    # Prisme 2 (en developpement) : fenetre Qt Quick avec --qt ; sans PySide6, la fenetre web prend le relais
+    fenetre_qt = None
+    if '--qt' in sys.argv and '--sans-fenetre' not in sys.argv:
+        try:
+            import fenetre_qt
+        except ImportError:
+            pass
+    if '--sans-fenetre' not in sys.argv and not fenetre_qt:
         ouvrir_fenetre()
     fermer_demarrage(1.5 if '--sans-fenetre' not in sys.argv else 0)
     threading.Thread(target=surveiller, daemon=True).start()
     if lire_reglages()['verifier_mises_a_jour'] and not os.environ.get('PRISME_RACINE'):
         threading.Thread(target=verifier_mise_a_jour, daemon=True).start()
-    serveur.serve_forever()
+    if not fenetre_qt:
+        return serveur.serve_forever()
+    # Qt garde le fil principal (obligatoire sur Mac) ; le serveur repond a cote, pour la fenetre, le telephone et Claude
+    threading.Thread(target=serveur.serve_forever, daemon=True).start()
+    fenetre_qt.lancer(f'http://127.0.0.1:{PORT}', RESSOURCES)
+    # Fenetre fermee : meme regle que la fenetre web (arret, sauf si Claude ou un telechargement a besoin de Prisme)
+    global fermeture_demandee
+    fermeture_demandee = time.time()
+    threading.Event().wait()
 
 
 if __name__ == '__main__':

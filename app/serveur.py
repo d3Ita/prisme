@@ -34,7 +34,7 @@ from http.cookies import SimpleCookie
 import agrandir
 from urllib.parse import parse_qs, unquote, urlparse
 
-VERSION = '1.10.0'
+VERSION = '1.10.1'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
 PORT = int(os.environ.get('PRISME_PORT') or 7861)
 # Dans l'exe, les fichiers de l'interface sont extraits a part ; les donnees restent a cote de l'exe

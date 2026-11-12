@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-11-12
+
 ### Fixed
 
 - **Closing the window no longer stops a download.** Prisme used to stop a few seconds after its window closed, or 10 minutes after Claude's last request, even in the middle of a model, engine or update download. It now stays open until the download ends.
@@ -264,7 +266,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v1.10.1...HEAD
+[1.10.1]: https://github.com/d3Ita/prisme/releases/tag/v1.10.1
 [1.10.0]: https://github.com/d3Ita/prisme/releases/tag/v1.10.0
 [1.9.6]: https://github.com/d3Ita/prisme/releases/tag/v1.9.6
 [1.9.5]: https://github.com/d3Ita/prisme/releases/tag/v1.9.5

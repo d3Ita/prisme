@@ -8,9 +8,23 @@ import urllib.request
 from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, Qt, QUrl, Signal, Slot
-from PySide6.QtGui import QGuiApplication, QIcon, QImage
+from PySide6.QtGui import QColor, QFontDatabase, QGuiApplication, QIcon, QImage
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickWindow
+
+WINDOWS = sys.platform == 'win32'
+# Police moderne de Windows 11, plus proche de celle du Mac que Segoe UI (gardee si elle manque, sous Windows 10)
+POLICE_WINDOWS = 'Segoe UI Variable'
+# Attributs de DwmSetWindowAttribute : barre sombre (19 avant Windows 10 20H1), puis couleurs du bord, de la barre et
+# de son texte (Windows 11 ; ignores par Windows 10)
+DWM_SOMBRE, DWM_SOMBRE_ANCIEN, DWM_BORD, DWM_BARRE, DWM_TEXTE = 20, 19, 34, 35, 36
+
+
+def couleur_windows(couleur):
+    """'#rrggbb' en COLORREF (0x00BBGGRR), l'ordre des couleurs de l'API de Windows."""
+    c = QColor(couleur)
+    return c.red() | c.green() << 8 | c.blue() << 16
 
 
 def image_de_depart(image, nom):
@@ -109,11 +123,44 @@ class Reseau(QObject):
         self.reponse.emit(numero, int(statut), texte)
 
 
+class Cadre(QObject):
+    """Barre de titre de Windows aux couleurs de Prisme : sombre avec le theme sombre (Windows 10 et 11), et sous
+    Windows 11 de la couleur exacte du fond, comme sur Mac ou elle se fond deja dans la fenetre. Sans effet ailleurs."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fenetre = None
+
+    @Slot(str, str, str, bool)
+    def teinter(self, fond, texte, bord, sombre):
+        if not WINDOWS or self.fenetre is None:
+            return
+        import ctypes
+        fenetre = ctypes.c_void_p(int(self.fenetre.winId()))
+
+        def regler(attribut, valeur):
+            v = ctypes.c_int(valeur)
+            return ctypes.windll.dwmapi.DwmSetWindowAttribute(fenetre, attribut, ctypes.byref(v), ctypes.sizeof(v)) == 0
+
+        if not regler(DWM_SOMBRE, int(sombre)):
+            regler(DWM_SOMBRE_ANCIEN, int(sombre))
+        regler(DWM_BARRE, couleur_windows(fond))
+        regler(DWM_TEXTE, couleur_windows(texte))
+        regler(DWM_BORD, couleur_windows(bord))
+
+
 def application():
     """L'application Qt ; son nom range l'apparence choisie (Settings) a part des autres programmes."""
+    if WINDOWS and not QGuiApplication.instance():
+        # Texte dessine par Windows (aligne sur les pixels) : celui de Qt Quick y est plus flou que sur Mac
+        QQuickWindow.setTextRenderType(QQuickWindow.TextRenderType.NativeTextRendering)
     appli = QGuiApplication.instance() or QGuiApplication(sys.argv)
     appli.setApplicationName('Prisme')
     appli.setOrganizationName('Prisme')
+    if WINDOWS and POLICE_WINDOWS in QFontDatabase.families():
+        police = appli.font()
+        police.setFamily(POLICE_WINDOWS)
+        appli.setFont(police)
     return appli
 
 
@@ -124,8 +171,13 @@ def charger(adresse, ressources, erreurs=None, **proprietes):
         moteur.warnings.connect(lambda liste: erreurs.extend(e.toString() for e in liste))
     moteur.rootContext().setContextProperty('fichiers', Fichiers(moteur))
     moteur.rootContext().setContextProperty('requetes', Reseau(moteur))
+    cadre = Cadre(moteur)
+    moteur.rootContext().setContextProperty('cadre', cadre)
     moteur.setInitialProperties({'adresse': adresse, **proprietes})
     moteur.load(QUrl.fromLocalFile(str(Path(ressources) / 'qml' / 'Prisme.qml')))
+    if moteur.rootObjects():
+        # La fenetre la teinte des qu'elle est prete, puis a chaque changement de theme
+        cadre.fenetre = moteur.rootObjects()[0]
     return moteur
 
 

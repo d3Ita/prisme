@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- **Prisme 2 looks as finished on Windows as on macOS.** The window's title bar now takes Prisme's colors instead of staying white, and follows the light or dark theme (exact colors on Windows 11, dark bar on Windows 10). Text is drawn by Windows, sharper than before, with Windows 11's modern font (Segoe UI Variable) when it is installed.
+
 ## [2.1.1] - 2026-11-13
 
 ### Changed

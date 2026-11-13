@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-13
+
 ### Added
 
 - **Image details** in Prisme 2: a "Details" button under each image shows how it was made (description, variant, size, date, steps, CFG, method, models, LoRA), read from the image file itself.
@@ -300,7 +302,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/d3Ita/prisme/releases/tag/v2.1.0
 [2.0.1]: https://github.com/d3Ita/prisme/releases/tag/v2.0.1
 [2.0.0]: https://github.com/d3Ita/prisme/releases/tag/v2.0.0
 [1.10.1]: https://github.com/d3Ita/prisme/releases/tag/v1.10.1

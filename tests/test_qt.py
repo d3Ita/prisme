@@ -65,11 +65,13 @@ class FenetreQtTest(unittest.TestCase):
                          'un phare|7|repris|832x1216|4')
         # Ce que recoit /api/generer : les reglages de l'image, les LoRA choisis et le projet montre
         evaluer('lorasDispo = [{nom: "style.safetensors", force: 0.8, actif: true}, {nom: "autre.safetensors", force: 1, actif: false}]; '
-                'basculerLora(lorasDispo[1]); projetActif = "Phares"')
+                'basculerLora(lorasDispo[1]); changerForce(lorasDispo[0], "0,5"); projetActif = "Phares"')
+        # Une intensite hors de -2 a 2 est refusee et ne change rien
+        self.assertFalse(evaluer('changerForce(lorasDispo[1], "7")'))
         self.assertEqual(evaluer('JSON.stringify(corpsCreation())'), json.dumps({
             'prompt': 'un phare', 'largeur': 832, 'hauteur': 1216, 'nombre': 1, 'seed': 7,
             'parametres': {'etapes': 4, 'cfg': 1, 'methode': 'euler', 'modele_diffusion': 'flux/dessin.gguf',
-                           'loras': [{'nom': 'style.safetensors', 'force': 0.8}, {'nom': 'autre.safetensors', 'force': 1}]},
+                           'loras': [{'nom': 'autre.safetensors', 'force': 1}, {'nom': 'style.safetensors', 'force': 0.5}]},
             'projet': 'Phares'}, separators=(',', ':')))
         evaluer('oublierReprise()')
         self.assertEqual(evaluer('format + (reprise === null)'), 'carretrue')

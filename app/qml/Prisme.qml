@@ -166,6 +166,25 @@ ApplicationWindow {
     }
 
     // Sans amelioration automatique : les modeles comparent la description telle qu'elle est ecrite
+    function forceLora(nom) {
+        const choisi = lorasChoisis ? lorasChoisis.find(l => l.nom === nom) : null
+        return choisi ? choisi.force : (lorasDispo.find(l => l.nom === nom) || { force: 1.0 }).force
+    }
+
+    // Intensite d'un LoRA pour les prochaines creations ; le LoRA est alors utilise
+    function changerForce(l, texte) {
+        const force = Math.round(Number(String(texte).replace(",", ".")) * 100) / 100
+        if (String(texte).trim() === "" || isNaN(force) || force < -2 || force > 2) {
+            note(tx("L'intensité d'un LoRA va de -2 à 2.", "A LoRA's strength goes from -2 to 2."), true)
+            return false
+        }
+        if (force === forceLora(l.nom) && loraCoche(l.nom)) return true
+        const actuels = (lorasChoisis || lorasDispo.filter(x => x.actif).map(x => ({ nom: x.nom, force: x.force })))
+            .filter(x => x.nom !== l.nom)
+        lorasChoisis = actuels.concat([{ nom: l.nom, force: force }])
+        return true
+    }
+
     function comparer(profils) {
         comparaisonDemandee = profils
         lancerCreation()
@@ -850,8 +869,30 @@ ApplicationWindow {
                                         required property var modelData
                                         spacing: 10
                                         Interrupteur { checked: loraCoche(modelData.nom); onToggled: basculerLora(modelData) }
-                                        Text { text: modelData.nom.replace(/\.(safetensors|gguf)$/i, "") + " · " + modelData.force; color: c.texte; font.pixelSize: 13 }
+                                        Text {
+                                            text: modelData.nom.replace(/\.(safetensors|gguf)$/i, "")
+                                            color: c.texte
+                                            font.pixelSize: 13
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 140
+                                        }
+                                        // Intensite pour ces creations, de -2 a 2
+                                        Champ {
+                                            implicitWidth: 64
+                                            implicitHeight: 30
+                                            text: String(forceLora(modelData.nom))
+                                            horizontalAlignment: TextInput.AlignHCenter
+                                            ToolTip.visible: hovered
+                                            ToolTip.text: tx("Intensité, de -2 à 2", "Strength, from -2 to 2")
+                                            onEditingFinished: if (!changerForce(modelData, text)) text = String(forceLora(modelData.nom))
+                                        }
                                     }
+                                }
+                                Text {
+                                    text: tx("Pour les prochaines créations seulement : les Réglages ne changent pas.",
+                                             "For the next creations only: the Settings don't change.")
+                                    color: c.texte3
+                                    font.pixelSize: 12
                                 }
                                 BoutonDiscret {
                                     visible: !!lorasChoisis

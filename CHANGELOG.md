@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-11-13
+
 ### Fixed
 
 - **Models can be chosen freely again, one by one.** The advanced mode of the Models window only offered to download or delete: a model added by hand (a Qwen-Image 2.1 variant, for example) could not be used from there. The window now shows "Your setup" at the top, with a list for each role (drawing model, text model, vision, VAE) that offers every file of the models folder; it says whether the setup comes from a profile or is custom. In advanced mode, each installed model has a "Use" button, and each file added by hand a "Use as…" list. Before a profile replaces a custom setup, Prisme says so. Same in the web version. Machine profiles stay as they are.
@@ -324,7 +326,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.1.2...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.1.3...HEAD
+[2.1.3]: https://github.com/d3Ita/prisme/releases/tag/v2.1.3
 [2.1.2]: https://github.com/d3Ita/prisme/releases/tag/v2.1.2
 [2.1.1]: https://github.com/d3Ita/prisme/releases/tag/v2.1.1
 [2.1.0]: https://github.com/d3Ita/prisme/releases/tag/v2.1.0

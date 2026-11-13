@@ -23,10 +23,13 @@ Item {
         corbeille: "M4 7 h16 M10 11 v6 M14 11 v6 M6 7 l1 12 a2 2 0 0 0 2 2 h6 a2 2 0 0 0 2 -2 l1 -12 M9 7 V4 h6 v3",
         // Zone d'ecriture
         image: "M5 4 h14 a2 2 0 0 1 2 2 v12 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 V6 a2 2 0 0 1 2 -2 z M9 7.5 a1.5 1.5 0 1 1 0 3 a1.5 1.5 0 1 1 0 -3 M21 15 l-5 -5 L5 20",
-        ameliorer: "M11 3 l1.6 4.4 L17 9 l-4.4 1.6 L11 15 l-1.6 -4.4 L5 9 l4.4 -1.6 z M18.5 14 l0.8 2.2 l2.2 0.8 l-2.2 0.8 l-0.8 2.2 l-0.8 -2.2 l-2.2 -0.8 l2.2 -0.8 z",
+        // Baguette magique : reecrire la description en mieux
+        ameliorer: "M4 20 L15 9 M13.5 7.5 l3 3 M18 3 v4 M16 5 h4 M20.5 11 v2 M19.5 12 h2 M9 3.5 v2 M8 4.5 h2",
         retablir: "M9 14 L4 9 l5 -5 M4 9 h10.5 a5.5 5.5 0 0 1 0 11 H11",
-        lora: "M12 3 l9 4.5 l-9 4.5 l-9 -4.5 z M3 12 l9 4.5 l9 -4.5 M3 16.5 l9 4.5 l9 -4.5",
-        comparer: "M5 4 h4 a1 1 0 0 1 1 1 v14 a1 1 0 0 1 -1 1 H5 a1 1 0 0 1 -1 -1 V5 a1 1 0 0 1 1 -1 z M15 4 h4 a1 1 0 0 1 1 1 v14 a1 1 0 0 1 -1 1 h-4 a1 1 0 0 1 -1 -1 V5 a1 1 0 0 1 1 -1 z",
+        // Piece de puzzle : un LoRA est un module de style qu'on ajoute au modele
+        lora: "M4 7.5 h4.9 a2.3 2.3 0 1 1 3.6 0 H17 v4.5 a2.3 2.3 0 1 1 0 3.6 V20.5 H4 z",
+        // Une image coupee en deux : les memes images cote a cote
+        comparer: "M5 4 h14 a2 2 0 0 1 2 2 v12 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 V6 a2 2 0 0 1 2 -2 z M12 4 v16 M6.5 15 l2 -3 l1.5 2 M14 15 l2 -3 l2.5 3.5",
         carre: "M7 5 h10 a2 2 0 0 1 2 2 v10 a2 2 0 0 1 -2 2 H7 a2 2 0 0 1 -2 -2 V7 a2 2 0 0 1 2 -2 z",
         paysage: "M4 7 h16 a1.5 1.5 0 0 1 1.5 1.5 v7 a1.5 1.5 0 0 1 -1.5 1.5 H4 a1.5 1.5 0 0 1 -1.5 -1.5 v-7 A1.5 1.5 0 0 1 4 7 z",
         portrait: "M8.5 2.5 h7 A1.5 1.5 0 0 1 17 4 v16 a1.5 1.5 0 0 1 -1.5 1.5 h-7 A1.5 1.5 0 0 1 7 20 V4 a1.5 1.5 0 0 1 1.5 -1.5 z",

@@ -6,7 +6,7 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ### Changed
 
-- **Clearer, consistent icons in Prisme 2.** The actions under each image, the top bar (phone, models, settings), the writing area (image, enhance, LoRA, compare) and the formats are now small line icons drawn in one style, each with a tooltip; the formats show the shape of the image. Close buttons and list arrows use the same icons.
+- **Clearer, consistent icons in Prisme 2.** The actions under each image, the top bar (phone, models, settings), the writing area (image, enhance, LoRA, compare) and the formats are now small line icons drawn in one style, each with a tooltip; the formats show the shape of the image. In the writing area, the tools keep their name next to the icon (Image, Enhance with a magic wand, LoRA with a puzzle piece, Compare) when the window is wide enough. Close buttons and list arrows use the same icons.
 
 ### Fixed
 

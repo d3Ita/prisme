@@ -54,6 +54,8 @@ ApplicationWindow {
     property string texteAmeliore: ""
     readonly property bool ameliorationPossible: !!(etat.amelioration && etat.amelioration.modele)
     readonly property var formats: ({ carre: [1024, 1024], paysage: [1280, 720], portrait: [720, 1280] })
+    // Fenetre assez large : les outils de la zone d'ecriture ont leur nom a cote de l'icone
+    readonly property bool large: width >= 900
 
     function note(texte, erreur) {
         bulleNote.texte = texte
@@ -844,6 +846,7 @@ ApplicationWindow {
 
                     BoutonDiscret {
                         icone: "image"
+                        text: large ? tx("Image", "Image") : ""
                         enabled: !occupe
                         aide: tx("Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)",
                                  "Add an image to edit (you can also drag or paste it here)")
@@ -854,7 +857,8 @@ ApplicationWindow {
                         enabled: !ameliorant && !occupe && saisie.text.trim().length > 0
                         icone: "ameliorer"
                         // Le travail en cours s'ecrit a cote de l'icone
-                        text: ameliorant ? (source ? tx("Analyse de l'image…", "Looking at the image…") : tx("Amélioration…", "Enhancing…")) : ""
+                        text: ameliorant ? (source ? tx("Analyse de l'image…", "Looking at the image…") : tx("Amélioration…", "Enhancing…"))
+                                         : large ? tx("Améliorer", "Enhance") : ""
                         aide: tx("Améliorer : réécrire la description en plus détaillé avec ", "Enhance: rewrite the description in more detail with ") + (etat.amelioration ? etat.amelioration.modele : "")
                         onClicked: ameliorer(null)
                     }
@@ -870,7 +874,7 @@ ApplicationWindow {
                         visible: lorasDispo.length > 0
                         icone: "lora"
                         // Le nombre de LoRA choisis pour ces creations, quand ils different des Reglages
-                        text: lorasChoisis ? String(lorasChoisis.length) : ""
+                        text: (large ? "LoRA" : "") + (lorasChoisis ? (large ? " · " : "") + lorasChoisis.length : "")
                         actif: !!lorasChoisis
                         aide: lorasChoisis ? tx("LoRA choisis pour les prochaines créations (pas dans les Réglages)",
                                                         "LoRA chosen for the next creations (not in the Settings)")
@@ -924,6 +928,7 @@ ApplicationWindow {
                     }
                     BoutonDiscret {
                         icone: "comparer"
+                        text: large ? tx("Comparer", "Compare") : ""
                         enabled: !occupe && !source && !ameliorant && saisie.text.trim().length > 0
                         aide: tx("Comparer des modèles : cette description avec plusieurs modèles et la même variante",
                                  "Compare models: this description with several models and the same variant")

@@ -29,6 +29,6 @@ Rectangle {
             Layout.fillWidth: true
         }
         Row { id: boutons; spacing: 6 }
-        BoutonDiscret { visible: bandeau.masquable; text: "✕"; onClicked: bandeau.masquer() }
+        BoutonDiscret { visible: bandeau.masquable; icone: "fermer"; aide: Theme.tx("Masquer", "Hide"); onClicked: bandeau.masquer() }
     }
 }

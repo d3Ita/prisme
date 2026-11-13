@@ -41,7 +41,7 @@ Popup {
                     Layout.fillWidth: true
                 }
             }
-            BoutonDiscret { text: "✕"; font.pixelSize: 16; onClicked: panneau.close() }
+            BoutonDiscret { icone: "fermer"; aide: Theme.tx("Fermer", "Close"); onClicked: panneau.close() }
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.bordure }
         ScrollView {

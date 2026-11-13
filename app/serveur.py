@@ -1884,6 +1884,14 @@ def nouveau_chemin(dossier=IMAGES):
     return chemin
 
 
+def force_lisible(force):
+    """Force d'un LoRA telle que sd-cli l'ecrit (float32 : 0.800000011920929), arrondie : 0.8."""
+    try:
+        return f'{round(float(force), 2):g}'
+    except ValueError:
+        return force
+
+
 def parametres_png(texte):
     """Conditions d'une creation, lues dans le bloc structure que sd-cli ecrit dans le PNG (schema sdcpp.generation/v1),
     ou None pour une image sans ce bloc (versions anciennes du moteur, image venue d'ailleurs)."""
@@ -1897,7 +1905,8 @@ def parametres_png(texte):
     loras = []
     for nom, force in BALISE_LORA.findall(texte.split('\nSteps:')[0]):
         try:
-            loras.append({'nom': nom, 'force': float(force)})
+            # sd-cli ecrit la force en float32 (0.800000011920929)
+            loras.append({'nom': nom, 'force': round(float(force), 2)})
         except ValueError:
             pass
     return {'loras': loras, 'etapes': echantillon.get('sample_steps'), 'cfg': (echantillon.get('guidance') or {}).get('txt_cfg'),
@@ -2062,7 +2071,7 @@ def lire_infos(chemin):
                         except UnicodeDecodeError:
                             texte = brut.decode('latin-1')
                         prompt = texte.split('\nSteps:')[0]
-                        infos['loras'] = [f'{nom} ({force})' for nom, force in BALISE_LORA.findall(prompt)]
+                        infos['loras'] = [f'{nom} ({force_lisible(force)})' for nom, force in BALISE_LORA.findall(prompt)]
                         infos['prompt'] = BALISE_LORA.sub('', prompt).strip()
                         seed = re.search(r'Seed: (-?\d+)', texte)
                         if seed:

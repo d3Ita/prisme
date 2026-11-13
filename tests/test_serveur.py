@@ -1158,8 +1158,11 @@ class MetadonneesTest(unittest.TestCase):
             'loras': [], 'etapes': 4, 'cfg': 1.0, 'methode': 'euler', 'modele_diffusion': 'flux-2-klein-4b-Q4_0.gguf',
             'modele_texte': 'Qwen3-4B-Q4_K_M.gguf', 'vae': 'vae.safetensors'})
         # Les LoRA de la creation, tels que sd-cli les a lus dans la description
-        chemin.write_bytes(png('un phare<lora:style:0.8>\nSteps: 4, Seed: 7, SDCPP: ' + json.dumps(bloc)))
-        self.assertEqual(serveur.lire_infos(chemin)['parametres']['loras'], [{'nom': 'style', 'force': 0.8}])
+        # sd-cli ecrit la force en float32
+        chemin.write_bytes(png('un phare <lora:style:0.800000011920929>\nSteps: 4, Seed: 7, SDCPP: ' + json.dumps(bloc)))
+        infos = serveur.lire_infos(chemin)
+        self.assertEqual(infos['parametres']['loras'], [{'nom': 'style', 'force': 0.8}])
+        self.assertEqual(infos['loras'], ['style (0.8)'])
 
     def test_memoire_du_moteur_mesuree(self):
         import subprocess

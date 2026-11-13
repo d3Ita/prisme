@@ -12,7 +12,9 @@ ComboBox {
     font.pixelSize: 13
     onActivated: valeur = currentValue
     onValeurChanged: currentIndex = indexOfValue(valeur)
-    onModelChanged: currentIndex = indexOfValue(valeur)
+    // Apres coup : au changement de liste, les elements ne sont pas encore la et la liste paraissait vide
+    onModelChanged: Qt.callLater(function () { liste.currentIndex = liste.indexOfValue(liste.valeur) })
+    Component.onCompleted: currentIndex = indexOfValue(valeur)
     contentItem: Text {
         leftPadding: 12
         rightPadding: 28
@@ -22,12 +24,11 @@ ComboBox {
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideMiddle
     }
-    indicator: Text {
-        x: liste.width - width - 12
+    indicator: Icone {
+        x: liste.width - width - 10
         anchors.verticalCenter: parent.verticalCenter
-        text: "⌄"
-        color: Theme.texte2
-        font.pixelSize: 14
+        nom: "chevron"
+        taille: 16
     }
     background: Rectangle {
         radius: 10

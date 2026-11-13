@@ -4,6 +4,15 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Changed
+
+- **Clearer, consistent icons in Prisme 2.** The actions under each image, the top bar (phone, models, settings), the writing area (image, enhance, LoRA, compare) and the formats are now small line icons drawn in one style, each with a tooltip; the formats show the shape of the image. Close buttons and list arrows use the same icons.
+
+### Fixed
+
+- **Nothing spills out of the window anymore**: on a narrow window, the top bar buttons and the "Create" button went past the edge. The search field and the project list now shrink, and the model name hides when space runs out.
+- The project list sometimes showed empty instead of "All images".
+
 ## [2.1.0] - 2026-11-13
 
 ### Added

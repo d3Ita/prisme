@@ -361,7 +361,8 @@ ApplicationWindow {
                 font.weight: Font.DemiBold
             }
             Rectangle {
-                visible: !!etat.modele
+                // Le nom du modele s'efface quand la fenetre est etroite : les boutons restent dans l'en-tete
+                visible: !!etat.modele && fenetre.width >= 1000
                 radius: 999
                 color: c.surface3
                 implicitHeight: 24
@@ -383,8 +384,10 @@ ApplicationWindow {
             }
             ListeDeroulante {
                 id: choixProjet
-                implicitWidth: 190
                 implicitHeight: 32
+                Layout.fillWidth: true
+                Layout.minimumWidth: 120
+                Layout.maximumWidth: 190
                 valeur: ""
                 model: [{ valeur: "", texte: tx("Toutes les images", "All images") }]
                        .concat(projets.map(p => ({ valeur: "projet:" + p, texte: p })))
@@ -401,15 +404,23 @@ ApplicationWindow {
                 }
             }
             Champ {
-                implicitWidth: 230
                 implicitHeight: 32
-                placeholderText: tx("Rechercher dans mes images", "Search my images")
+                Layout.fillWidth: true
+                Layout.minimumWidth: 120
+                Layout.maximumWidth: 250
+                leftPadding: 34
+                placeholderText: tx("Rechercher", "Search")
                 onTextChanged: { recherche = text; afficherImages() }
+                Icone { x: 11; anchors.verticalCenter: parent.verticalCenter; nom: "recherche"; taille: 16; couleur: c.texte3 }
             }
-            BoutonDiscret { text: tx("Téléphone", "Phone"); onClicked: telephone.open() }
-            BoutonDiscret { text: tx("Modèles", "Models"); onClicked: modeles.open() }
-            BoutonDiscret { text: tx("Réglages", "Settings"); onClicked: reglages.open() }
+            Row {
+                spacing: 2
+                BoutonDiscret { icone: "telephone"; aide: tx("Utiliser sur ton téléphone", "Use on your phone"); onClicked: telephone.open() }
+                BoutonDiscret { icone: "modeles"; aide: tx("Modèles", "Models"); onClicked: modeles.open() }
+                BoutonDiscret { icone: "reglages"; aide: tx("Réglages", "Settings"); onClicked: reglages.open() }
+            }
             Text {
+                visible: fenetre.width >= 760
                 text: etat.version ? "v" + etat.version : ""
                 color: c.texte3
                 font.pixelSize: 12
@@ -556,23 +567,27 @@ ApplicationWindow {
                     x: 30
                     spacing: 2
                     BoutonDiscret {
-                        text: tx("Modifier", "Edit")
+                        icone: "modifier"
+                        aide: tx("Modifier cette image", "Edit this image")
                         enabled: !occupe
                         onClicked: definirSource({ galerie: message.model.nom, nom: message.model.nom,
                                                    url: adresse + "/images/" + encodeURIComponent(message.model.nom),
                                                    largeur: message.model.largeur, hauteur: message.model.hauteur })
                     }
                     BoutonDiscret {
-                        text: tx("Réutiliser", "Reuse")
+                        icone: "reutiliser"
+                        aide: tx("Réutiliser la description et la variante", "Reuse the description and variant")
                         // La description et la variante : la meme image peut etre refaite en changeant un detail
                         onClicked: { saisie.text = message.model.prompt; variante.text = message.model.seed; saisie.forceActiveFocus() }
                     }
                     BoutonDiscret {
-                        text: tx("Détails", "Details")
+                        icone: "details"
+                        aide: tx("Détails et refaire à l'identique", "Details and redo identically")
                         onClicked: details.ouvrir(JSON.parse(message.model.infos))
                     }
                     BoutonDiscret {
-                        text: tx("Agrandir ×4", "Enlarge ×4")
+                        icone: "agrandir"
+                        aide: tx("Agrandir ×4", "Enlarge ×4")
                         enabled: !occupe
                         onClicked: api("/api/agrandir", { nom: message.model.nom }, function () {
                             etaitOccupe = true
@@ -581,22 +596,27 @@ ApplicationWindow {
                         }, function (m) { note(m, true) })
                     }
                     BoutonDiscret {
-                        text: tx("Copier", "Copy")
+                        icone: "copier"
+                        aide: tx("Copier l'image", "Copy the image")
                         onClicked: {
                             const fait = typeof fichiers !== "undefined" && fichiers.copierImage(adresse + "/images/" + encodeURIComponent(message.model.nom))
                             note(fait ? tx("Image copiée", "Image copied") : tx("Impossible de copier l'image.", "The image cannot be copied."), !fait)
                         }
                     }
                     BoutonDiscret {
-                        text: tx("Enregistrer", "Save")
+                        icone: "enregistrer"
+                        aide: tx("Enregistrer sous…", "Save as…")
                         onClicked: { enregistrement.nom = message.model.nom; enregistrement.open() }
                     }
                     BoutonDiscret {
-                        text: tx("Dans le dossier", "Show in folder")
+                        icone: "dossier"
+                        aide: tx("Montrer dans le dossier", "Show in folder")
                         onClicked: api("/api/dossier", { nom: message.model.nom }, null, function (m) { note(m, true) })
                     }
                     BoutonDiscret {
-                        text: tx("Corbeille", "Trash")
+                        icone: "corbeille"
+                        aide: tx("Mettre à la corbeille", "Move to the trash")
+                        danger: true
                         onClicked: api("/api/supprimer", { nom: message.model.nom }, function () {
                             chargerImages(false)
                             note(tx("Image mise à la corbeille", "Image moved to the trash"))
@@ -761,7 +781,7 @@ ApplicationWindow {
                             font.pixelSize: 12
                         }
                     }
-                    BoutonDiscret { text: tx("Retirer", "Remove"); onClicked: definirSource(null) }
+                    BoutonDiscret { icone: "fermer"; aide: tx("Retirer l'image de départ", "Remove the starting image"); onClicked: definirSource(null) }
                 }
 
                 RowLayout {
@@ -779,7 +799,7 @@ ApplicationWindow {
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
-                    BoutonDiscret { text: tx("Retirer", "Remove"); onClicked: oublierReprise() }
+                    BoutonDiscret { icone: "fermer"; aide: tx("Ne plus reprendre ces réglages", "Stop reusing these settings"); onClicked: oublierReprise() }
                 }
 
                 ScrollView {
@@ -820,39 +840,39 @@ ApplicationWindow {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: 4
 
                     BoutonDiscret {
-                        text: tx("Image", "Image")
+                        icone: "image"
                         enabled: !occupe
-                        ToolTip.visible: hovered
-                        ToolTip.text: tx("Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)",
-                                         "Add an image to edit (you can also drag or paste it here)")
+                        aide: tx("Ajouter une image à modifier (tu peux aussi la glisser ou la coller ici)",
+                                 "Add an image to edit (you can also drag or paste it here)")
                         onClicked: choixImage.open()
                     }
                     BoutonDiscret {
                         visible: ameliorationPossible
                         enabled: !ameliorant && !occupe && saisie.text.trim().length > 0
-                        text: ameliorant ? (source ? tx("Analyse de l'image…", "Looking at the image…") : tx("Amélioration…", "Enhancing…"))
-                                         : tx("Améliorer", "Enhance")
-                        ToolTip.visible: hovered
-                        ToolTip.text: tx("Réécrire la description en plus détaillé avec ", "Rewrite the description in more detail with ") + (etat.amelioration ? etat.amelioration.modele : "")
+                        icone: "ameliorer"
+                        // Le travail en cours s'ecrit a cote de l'icone
+                        text: ameliorant ? (source ? tx("Analyse de l'image…", "Looking at the image…") : tx("Amélioration…", "Enhancing…")) : ""
+                        aide: tx("Améliorer : réécrire la description en plus détaillé avec ", "Enhance: rewrite the description in more detail with ") + (etat.amelioration ? etat.amelioration.modele : "")
                         onClicked: ameliorer(null)
                     }
                     BoutonDiscret {
                         visible: texteAmeliore !== "" && saisie.text === texteAmeliore
-                        text: tx("Rétablir", "Undo")
-                        ToolTip.visible: hovered
-                        ToolTip.text: tx("Revenir au texte que tu avais écrit", "Go back to the text you wrote")
+                        icone: "retablir"
+                        aide: tx("Rétablir le texte que tu avais écrit", "Go back to the text you wrote")
                         onClicked: { saisie.text = texteOriginal; texteAmeliore = ""; saisie.forceActiveFocus() }
                     }
 
                     BoutonDiscret {
                         id: boutonLoras
                         visible: lorasDispo.length > 0
-                        text: lorasChoisis ? "LoRA · " + lorasChoisis.length + " ✱" : "LoRA"
-                        ToolTip.visible: hovered
-                        ToolTip.text: lorasChoisis ? tx("LoRA choisis pour les prochaines créations (pas dans les Réglages)",
+                        icone: "lora"
+                        // Le nombre de LoRA choisis pour ces creations, quand ils different des Reglages
+                        text: lorasChoisis ? String(lorasChoisis.length) : ""
+                        actif: !!lorasChoisis
+                        aide: lorasChoisis ? tx("LoRA choisis pour les prochaines créations (pas dans les Réglages)",
                                                         "LoRA chosen for the next creations (not in the Settings)")
                                                    : tx("Choisir les LoRA des prochaines créations", "Choose the LoRA of the next creations")
                         onClicked: { chargerLoras(); menuLoras.open() }
@@ -903,60 +923,50 @@ ApplicationWindow {
                         }
                     }
                     BoutonDiscret {
-                        text: tx("Comparer", "Compare")
+                        icone: "comparer"
                         enabled: !occupe && !source && !ameliorant && saisie.text.trim().length > 0
-                        ToolTip.visible: hovered
-                        ToolTip.text: tx("Créer cette description avec plusieurs modèles, la même variante, pour les comparer",
-                                         "Create this description with several models, the same variant, to compare them")
+                        aide: tx("Comparer des modèles : cette description avec plusieurs modèles et la même variante",
+                                 "Compare models: this description with several models and the same variant")
                         onClicked: comparateur.open()
                     }
 
                     Rectangle { width: 1; height: 20; color: c.bordure; Layout.leftMargin: 4; Layout.rightMargin: 4 }
 
+                    // Formats : l'icone a la forme de l'image
                     Repeater {
-                        model: [["carre", tx("Carré", "Square")], ["paysage", tx("Paysage", "Landscape")], ["portrait", tx("Portrait", "Portrait")],
-                                ["source", tx("Original", "Original")], ["repris", tx("Comme l'image", "Like the image")]]
-                        delegate: Button {
-                            id: choixFormat
+                        model: [["carre", "carre", tx("Carré", "Square")], ["paysage", "paysage", tx("Paysage", "Landscape")],
+                                ["portrait", "portrait", tx("Portrait", "Portrait")],
+                                ["source", "recadrer", tx("Proportions de l'image de départ", "Starting image's proportions")],
+                                ["repris", "historique", tx("Taille de l'image refaite", "Size of the image being redone")]]
+                        delegate: BoutonDiscret {
                             required property var modelData
-                            readonly property bool actif: format === modelData[0]
-                            text: modelData[1]
-                            // Original : les proportions de l'image de depart
+                            icone: modelData[1]
+                            actif: format === modelData[0]
                             visible: modelData[0] === "source" ? !!source : modelData[0] !== "repris" || (!!reprise && reprise.horsFormat)
-                            implicitHeight: 32
-                            font.pixelSize: 13
+                            aide: modelData[2] + (formats[modelData[0]] ? " · " + formats[modelData[0]].join(" × ") : "")
                             onClicked: format = modelData[0]
-                            contentItem: Text {
-                                text: choixFormat.text
-                                font: choixFormat.font
-                                color: choixFormat.actif ? c.texte : c.texte2
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            background: Rectangle {
-                                radius: 999
-                                color: choixFormat.actif ? c.surface3 : (choixFormat.hovered ? c.surface2 : "transparent")
-                                border.color: choixFormat.actif ? c.bordure : "transparent"
-                            }
                         }
                     }
 
                     Rectangle { width: 1; height: 20; color: c.bordure; Layout.leftMargin: 4; Layout.rightMargin: 4 }
 
-                    BoutonDiscret { text: "−"; enabled: nombre > 1; onClicked: nombre-- }
+                    // Nombre d'images par lancement
+                    BoutonDiscret { icone: "moins"; aide: tx("Une image de moins", "One image less"); enabled: nombre > 1; onClicked: nombre-- }
                     Text {
-                        text: nombre + " " + (nombre > 1 ? tx("images", "images") : tx("image", "image"))
-                        color: c.texte2
-                        font.pixelSize: 13
+                        text: nombre
+                        color: c.texte
+                        font.pixelSize: 14
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.minimumWidth: 12
                     }
-                    BoutonDiscret { text: "+"; enabled: nombre < 4; onClicked: nombre++ }
+                    BoutonDiscret { icone: "plus"; aide: tx("Une image de plus (4 au plus)", "One more image (4 at most)"); enabled: nombre < 4; onClicked: nombre++ }
 
                     // Variante : vide = au hasard ; meme description et meme variante donnent la meme image
                     Champ {
                         id: variante
-                        implicitWidth: 130
+                        implicitWidth: 92
                         implicitHeight: 32
-                        placeholderText: tx("Variante au hasard", "Random variant")
+                        placeholderText: tx("Variante", "Variant")
                         validator: RegularExpressionValidator { regularExpression: /\d{0,10}/ }
                         ToolTip.visible: hovered
                         ToolTip.text: tx("Même description et même numéro donnent la même image : pratique pour refaire une image en changeant un détail.",

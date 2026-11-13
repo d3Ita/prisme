@@ -4,6 +4,11 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **Image details** in Prisme 2: a "Details" button under each image shows how it was made (description, variant, size, date, steps, CFG, method, models, LoRA), read from the image file itself.
+- **Redo identically**: from the details, Prisme puts back the description, variant and size, and uses that image's models, steps, CFG and method for the next creation only, without changing the Settings. `/api/generer` accepts these as `parametres`.
+
 ## [2.0.1] - 2026-11-13
 
 ### Fixed

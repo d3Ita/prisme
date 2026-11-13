@@ -83,7 +83,8 @@ ApplicationWindow {
             if (mots && (image.prompt || "").toLowerCase().indexOf(mots) < 0)
                 continue
             images.append({ nom: image.nom, prompt: image.prompt || "", largeur: image.largeur || 0, hauteur: image.hauteur || 0,
-                            seed: image.seed === null || image.seed === undefined ? "" : String(image.seed) })
+                            seed: image.seed === null || image.seed === undefined ? "" : String(image.seed),
+                            infos: JSON.stringify(image) })
         }
     }
 
@@ -130,7 +131,26 @@ ApplicationWindow {
     }
 
     // Comme la version web : 1024 x 1024 pixels en tout, aux proportions de l'image de depart
+    // Refaire une image : ses modeles, etapes, CFG, methode et taille, pour la prochaine creation seulement
+    property var reprise: null
+
+    function refaire(image) {
+        saisie.text = image.prompt
+        variante.text = image.seed === null || image.seed === undefined ? "" : String(image.seed)
+        const format_ = Object.keys(formats).find(f => formats[f][0] === image.largeur && formats[f][1] === image.hauteur)
+        reprise = Object.assign({}, image, { horsFormat: !format_ })
+        definirSource(null)
+        format = format_ || "repris"
+    }
+
+    function oublierReprise() {
+        reprise = null
+        if (format === "repris") format = "carre"
+    }
+
     function tailleVoulue() {
+        if (format === "repris" && reprise)
+            return [reprise.largeur, reprise.hauteur]
         if (format === "source" && source && source.largeur && source.hauteur) {
             const e = Math.sqrt(1024 * 1024 / (source.largeur * source.hauteur))
             const arrondi = v => Math.min(2048, Math.max(256, Math.round(v * e / 16) * 16))
@@ -161,6 +181,7 @@ ApplicationWindow {
         const taille = tailleVoulue()
         const corps = avecSource({ prompt: texte, largeur: taille[0], hauteur: taille[1], nombre: nombre })
         if (variante.text !== "") corps.seed = Number(variante.text)
+        if (reprise && reprise.parametres) corps.parametres = reprise.parametres
         api("/api/generer", corps, function () {
             etat = Object.assign({}, etat, { occupe: true, phase: "chargement", etape: 0, prompt: texte,
                                              largeur: taille[0], hauteur: taille[1], nombre: nombre, index: 1 })
@@ -168,6 +189,7 @@ ApplicationWindow {
             saisie.text = ""
             texteAmeliore = ""
             definirSource(null)
+            oublierReprise()
             fil.positionViewAtBeginning()
         }, function (message) { note(message, true) })
     }
@@ -448,6 +470,10 @@ ApplicationWindow {
                         onClicked: { saisie.text = message.model.prompt; variante.text = message.model.seed; saisie.forceActiveFocus() }
                     }
                     BoutonDiscret {
+                        text: tx("Détails", "Details")
+                        onClicked: details.ouvrir(JSON.parse(message.model.infos))
+                    }
+                    BoutonDiscret {
                         text: tx("Agrandir ×4", "Enlarge ×4")
                         enabled: !occupe
                         onClicked: api("/api/agrandir", { nom: message.model.nom }, function () {
@@ -638,6 +664,24 @@ ApplicationWindow {
                     BoutonDiscret { text: tx("Retirer", "Remove"); onClicked: definirSource(null) }
                 }
 
+                RowLayout {
+                    visible: !!reprise
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Text {
+                        readonly property var p: reprise && reprise.parametres
+                        text: !reprise ? "" : p ? tx("Réglages de l'image repris · ", "Image settings reused · ") + p.etapes + tx(" étapes · CFG ", " steps · CFG ")
+                                                  + p.cfg + " · " + p.methode + " · " + (p.modele_diffusion || "")
+                                                : tx("Cette image ne garde pas ses réglages : ceux d'aujourd'hui serviront.",
+                                                     "This image doesn't keep its settings: today's will be used.")
+                        color: c.texte2
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    BoutonDiscret { text: tx("Retirer", "Remove"); onClicked: oublierReprise() }
+                }
+
                 ScrollView {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.min(Math.max(saisie.implicitHeight, 44), 160)
@@ -707,14 +751,14 @@ ApplicationWindow {
 
                     Repeater {
                         model: [["carre", tx("Carré", "Square")], ["paysage", tx("Paysage", "Landscape")], ["portrait", tx("Portrait", "Portrait")],
-                                ["source", tx("Original", "Original")]]
+                                ["source", tx("Original", "Original")], ["repris", tx("Comme l'image", "Like the image")]]
                         delegate: Button {
                             id: choixFormat
                             required property var modelData
                             readonly property bool actif: format === modelData[0]
                             text: modelData[1]
                             // Original : les proportions de l'image de depart
-                            visible: modelData[0] !== "source" || !!source
+                            visible: modelData[0] === "source" ? !!source : modelData[0] !== "repris" || (!!reprise && reprise.horsFormat)
                             implicitHeight: 32
                             font.pixelSize: 13
                             onClicked: format = modelData[0]
@@ -869,6 +913,7 @@ ApplicationWindow {
     }
 
     FenetreTelephone { id: telephone; objectName: "telephone" }
+    FenetreDetails { id: details; objectName: "details"; onRefaire: function (image) { fenetre.refaire(image) } }
 
     // --- Un appareil demande l'acces : le PC l'autorise en comparant le code
     property string demandeRepondue: ""

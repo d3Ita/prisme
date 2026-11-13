@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-13
+
 ### Fixed
 
 - **Saving the Settings works again.** Since 1.10.1, the settings version sent back by the window was a 19-digit number that JavaScript rounds, so Prisme always answered that the settings had changed and refused to save (for example when turning on phone access).
@@ -289,7 +291,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/d3Ita/prisme/releases/tag/v2.0.1
 [2.0.0]: https://github.com/d3Ita/prisme/releases/tag/v2.0.0
 [1.10.1]: https://github.com/d3Ita/prisme/releases/tag/v1.10.1
 [1.10.0]: https://github.com/d3Ita/prisme/releases/tag/v1.10.0

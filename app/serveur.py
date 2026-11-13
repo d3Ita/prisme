@@ -1958,7 +1958,7 @@ def reglages_d_une_creation(r, parametres):
 
 def modeles_de_creation(profil):
     """Fichiers d'un profil qui servent a creer : sans la vision, utile seulement pour modifier une image."""
-    return [MODELES_PAR_ID[i] for i in profil['modeles'] if MODELES_PAR_ID[i]['role'] != 'edition']
+    return [MODELES_PAR_ID[i] for i in profil['modeles'] if MODELES_PAR_ID[i]['role_id'] != 'edition']
 
 
 def reglages_du_profil(r, profil):

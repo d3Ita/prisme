@@ -68,7 +68,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 
 ## Features
 
-- **A real desktop app** (new in 2.0): Prisme has its own window on Windows and Mac, light or dark like the system. Closing it only hides it: Prisme keeps serving your phone, Claude and downloads, then stops according to its settings. Opening Prisme again brings the window back
+- **A real desktop app** (new in 2.0): Prisme has its own window on Windows and Mac, light or dark like the system, title bar included. Closing it only hides it: Prisme keeps serving your phone, Claude and downloads, then stops according to its settings. Opening Prisme again brings the window back
 - **Create** images from a description, 1 to 4 per run, with a **variant** number to redo an image while changing a detail
 - **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
 - **Edit** an existing image: click **Edit** (Modifier) under a result, or drag, paste or attach any picture

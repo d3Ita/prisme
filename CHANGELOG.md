@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-11-13
+
 ### Fixed
 
 - **Prisme 2 looks as finished on Windows as on macOS.** The window's title bar now takes Prisme's colors instead of staying white, and follows the light or dark theme (exact colors on Windows 11, dark bar on Windows 10). Text is drawn by Windows, sharper than before, with Windows 11's modern font (Segoe UI Variable) when it is installed.
@@ -318,7 +320,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.1.2...HEAD
+[2.1.2]: https://github.com/d3Ita/prisme/releases/tag/v2.1.2
 [2.1.1]: https://github.com/d3Ita/prisme/releases/tag/v2.1.1
 [2.1.0]: https://github.com/d3Ita/prisme/releases/tag/v2.1.0
 [2.0.1]: https://github.com/d3Ita/prisme/releases/tag/v2.0.1

@@ -58,7 +58,7 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 
 ## Fonctions
 
-- **Une vraie application de bureau** (nouveau dans la 2.0) : Prisme a sa propre fenêtre sur Windows et Mac, claire ou sombre comme le système. La fermer la cache seulement : Prisme continue pour le téléphone, Claude et les téléchargements, puis s'arrête selon ses réglages. Relancer Prisme fait revenir la fenêtre
+- **Une vraie application de bureau** (nouveau dans la 2.0) : Prisme a sa propre fenêtre sur Windows et Mac, claire ou sombre comme le système, barre de titre comprise. La fermer la cache seulement : Prisme continue pour le téléphone, Claude et les téléchargements, puis s'arrête selon ses réglages. Relancer Prisme fait revenir la fenêtre
 - **Création** d'images à partir d'une description, de 1 à 4 images par lancement, avec un numéro de **variante** pour refaire une image en changeant un détail
 - **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
 - **Installation automatique** des moteurs au premier lancement : CUDA pour les cartes NVIDIA, Vulkan pour les cartes AMD et Intel

@@ -640,6 +640,8 @@ ApplicationWindow {
                     Layout.preferredHeight: Math.min(Math.max(saisie.implicitHeight, 44), 160)
                     TextArea {
                         id: saisie
+                        // Nom pour les captures et la demo, faites en pilotant la fenetre depuis Python
+                        objectName: "saisie"
                         placeholderText: source ? tx("Décris le changement à faire sur cette image…", "Describe the change to make to this image…")
                                                 : tx("Décris ton image…", "Describe your image…")
                         enabled: !ameliorant

@@ -225,7 +225,10 @@ ApplicationWindow {
     // Fermer la fenetre la cache (Prisme continue pour le telephone et Claude) et previent le serveur, comme la page web
     onClosing: api("/api/fermeture", {})
 
+    Connections { target: Theme.reseau; function onReponse(n, statut, texte) { Theme.recevoir(n, statut, texte) } }
+
     Component.onCompleted: {
+        if (typeof requetes !== "undefined") Theme.reseau = requetes
         Theme.adresse = adresse
         chargerImages(true)
         api("/api/claude", undefined, function (c) { claude = c }, function () {})

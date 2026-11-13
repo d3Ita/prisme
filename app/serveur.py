@@ -482,11 +482,12 @@ def ecrire_reglages(r):
 
 
 def version_reglages():
-    """Change a chaque ecriture : la fenetre Reglages la renvoie pour ne pas ecraser un choix fait entre-temps."""
+    """Change a chaque ecriture : la fenetre Reglages la renvoie pour ne pas ecraser un choix fait entre-temps.
+    En texte : ce nombre de 19 chiffres serait arrondi par JavaScript, et l'enregistrement toujours refuse."""
     try:
-        return FICHIER_REGLAGES.stat().st_mtime_ns
+        return str(FICHIER_REGLAGES.stat().st_mtime_ns)
     except OSError:
-        return 0
+        return '0'
 
 
 def lire_reglages():
@@ -2722,7 +2723,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(400, {'erreur': 'Données invalides.'})
             with verrou_reglages:
                 # Un telechargement ou une suppression a change les modeles pendant que la fenetre Reglages etait ouverte
-                if donnees.get('version') is not None and donnees['version'] != version_reglages():
+                if donnees.get('version') is not None and str(donnees['version']) != version_reglages():
                     return self.envoyer(409, {'erreur': 'Les réglages ont changé pendant que la fenêtre était ouverte '
                                                         '(un modèle a été choisi ou supprimé) : rouvre les Réglages.'})
                 r, erreur = valider_reglages(donnees)

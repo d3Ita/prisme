@@ -4,6 +4,11 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- **Saving the Settings works again.** Since 1.10.1, the settings version sent back by the window was a 19-digit number that JavaScript rounds, so Prisme always answered that the settings had changed and refused to save (for example when turning on phone access).
+- **Prisme 2 shows the real error message** instead of "Prisme is not responding": the window's requests now go through Python, since Qt's XMLHttpRequest dropped the answer of some errors (409, such as "A generation is already running").
+
 ## [2.0.0] - 2026-11-12
 
 ### Added

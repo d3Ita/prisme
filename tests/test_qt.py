@@ -96,5 +96,37 @@ class FenetreQtTest(unittest.TestCase):
             self.assertFalse(fichiers.copierImage('https://exemple.org/image.png'))
 
 
+    def test_erreur_409_garde_son_message(self):
+        # Le XMLHttpRequest de QML rendait un statut 0 pour un 409 : la fenetre disait « Prisme ne repond pas »
+        import http.server
+        import json
+        import threading
+
+        class Gestion(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers['Content-Length']))
+                corps = json.dumps({'erreur': 'Une génération est déjà en cours.'}).encode()
+                self.send_response(409)
+                self.send_header('Content-Length', str(len(corps)))
+                self.end_headers()
+                self.wfile.write(corps)
+
+            def log_message(self, *args):
+                pass
+
+        application = fenetre_qt.application()
+        serveur = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Gestion)
+        threading.Thread(target=serveur.serve_forever, daemon=True).start()
+        self.addCleanup(serveur.shutdown)
+        reseau, recu = fenetre_qt.Reseau(), []
+        reseau.reponse.connect(lambda *args: recu.append(args))
+        reseau.envoyer(7, 'POST', f'http://127.0.0.1:{serveur.server_address[1]}/api/generer', '{"prompt": "un chat"}')
+        limite = time.monotonic() + 10
+        while not recu and time.monotonic() < limite:
+            application.processEvents(QEventLoop.AllEvents, 50)
+        self.assertEqual(recu[0][:2], (7, 409))
+        self.assertEqual(json.loads(recu[0][2])['erreur'], 'Une génération est déjà en cours.')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -44,24 +44,44 @@ QtObject {
         return francais ? valeur.replace(".", ",") + (go ? " Go" : " Mo") : valeur + (go ? " GB" : " MB")
     }
 
+    // Requetes par Python (fenetre_qt.Reseau), qui garde le message de toutes les erreurs ; donne par la fenetre principale
+    property var reseau: null
+    property int numero: 0
+    property var attentes: ({})
+
+    function recevoir(n, statut, texte) {
+        const attente = attentes[n]
+        delete attentes[n]
+        if (attente) traiter(statut, texte, attente[0], attente[1])
+    }
+
+    function traiter(statut, texte, reussite, echec) {
+        let donnees = {}
+        try { donnees = JSON.parse(texte || "{}") } catch (e) {}
+        if (statut >= 200 && statut < 300) {
+            enLigne = true
+            if (reussite) reussite(donnees)
+            return
+        }
+        if (!statut) enLigne = false
+        const message = donnees.erreur || (statut ? tx("Erreur ", "Error ") + statut : tx("Prisme ne répond pas.", "Prisme is not responding."))
+        if (echec) echec(message)
+        else note(message, true)
+    }
+
     // Appel a l'API de Prisme ; echec(message) recoit le message d'erreur du serveur
     function api(chemin, corps, reussite, echec) {
+        if (reseau) {
+            numero++
+            attentes[numero] = [reussite, echec]
+            reseau.envoyer(numero, corps === undefined ? "GET" : "POST", adresse + chemin, corps === undefined ? "" : JSON.stringify(corps))
+            return
+        }
+        // Sans Python (outils de developpement) : XMLHttpRequest, qui perd le message de certaines erreurs
         const requete = new XMLHttpRequest()
         requete.onreadystatechange = function () {
-            if (requete.readyState !== XMLHttpRequest.DONE)
-                return
-            let donnees = {}
-            try { donnees = JSON.parse(requete.responseText || "{}") } catch (e) {}
-            if (requete.status >= 200 && requete.status < 300) {
-                enLigne = true
-                if (reussite) reussite(donnees)
-                return
-            }
-            if (!requete.status) enLigne = false
-            const texte = donnees.erreur || (requete.status ? tx("Erreur ", "Error ") + requete.status
-                                                             : tx("Prisme ne répond pas.", "Prisme is not responding."))
-            if (echec) echec(texte)
-            else note(texte, true)
+            if (requete.readyState === XMLHttpRequest.DONE)
+                traiter(requete.status, requete.responseText, reussite, echec)
         }
         requete.open(corps === undefined ? "GET" : "POST", adresse + chemin)
         if (corps === undefined) {

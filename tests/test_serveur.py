@@ -1523,6 +1523,8 @@ class SecuriteHttpTest(unittest.TestCase):
         serveur.ecrire_reglages({**serveur.REGLAGES_DEFAUT, **BASE})
         self.addCleanup(serveur.FICHIER_REGLAGES.unlink, missing_ok=True)
         version = json.loads(self.requete('GET', '/api/reglages')[2])['version']
+        # En texte : JavaScript arrondirait ce nombre de 19 chiffres (1.10.1 refusait ainsi tout enregistrement)
+        self.assertIsInstance(version, str)
         # Un telechargement choisit un autre modele pendant que la fenetre Reglages est ouverte
         time.sleep(0.01)
         serveur.ecrire_reglages({**serveur.REGLAGES_DEFAUT, **BASE, 'modele_diffusion': 'nouveau.gguf'})

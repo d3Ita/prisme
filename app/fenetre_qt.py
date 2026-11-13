@@ -9,6 +9,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QGuiApplication, QIcon, QImage
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtQml import QQmlApplicationEngine
 
 
@@ -82,6 +83,32 @@ class Fichiers(QObject):
         return segno.make(texte, error='m').svg_data_uri(scale=6, border=2, dark='#1f2430', light='#ffffff')
 
 
+class Reseau(QObject):
+    """Requetes de l'interface vers le serveur de Prisme. Le XMLHttpRequest de QML rend un statut 0 et une reponse vide
+    pour certaines erreurs (409 : « une generation est deja en cours »...) : la fenetre aurait dit « Prisme ne repond pas »."""
+    reponse = Signal(int, int, str)  # numero de la requete, statut HTTP (0 sans reponse), texte de la reponse
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.acces = QNetworkAccessManager(self)
+
+    @Slot(int, str, str, str)
+    def envoyer(self, numero, methode, adresse, corps):
+        demande = QNetworkRequest(QUrl(adresse))
+        if methode == 'POST':
+            demande.setHeader(QNetworkRequest.ContentTypeHeader, 'application/json')
+            reponse = self.acces.post(demande, corps.encode('utf-8'))
+        else:
+            reponse = self.acces.get(demande)
+        reponse.finished.connect(lambda: self.finir(numero, reponse))
+
+    def finir(self, numero, reponse):
+        statut = reponse.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        texte = bytes(reponse.readAll()).decode('utf-8', 'replace')
+        reponse.deleteLater()
+        self.reponse.emit(numero, int(statut), texte)
+
+
 def application():
     """L'application Qt ; son nom range l'apparence choisie (Settings) a part des autres programmes."""
     appli = QGuiApplication.instance() or QGuiApplication(sys.argv)
@@ -96,6 +123,7 @@ def charger(adresse, ressources, erreurs=None, **proprietes):
     if erreurs is not None:
         moteur.warnings.connect(lambda liste: erreurs.extend(e.toString() for e in liste))
     moteur.rootContext().setContextProperty('fichiers', Fichiers(moteur))
+    moteur.rootContext().setContextProperty('requetes', Reseau(moteur))
     moteur.setInitialProperties({'adresse': adresse, **proprietes})
     moteur.load(QUrl.fromLocalFile(str(Path(ressources) / 'qml' / 'Prisme.qml')))
     return moteur

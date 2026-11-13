@@ -1484,6 +1484,10 @@ class SecuriteHttpTest(unittest.TestCase):
         dessin = next(serveur.MODELES_PAR_ID[i] for i in profil['modeles'] if 'modele_diffusion' in serveur.MODELES_PAR_ID[i]['remplit'])
         self.assertEqual((r['modele_diffusion'], r['etapes']), (dessin['fichier'], dessin['reglages']['etapes']))
         self.assertEqual(serveur.nom_du_profil(profil), f"{dessin['nom']} {dessin['quantification']}")
+        # La vision ne sert qu'a modifier : un profil Qwen-Image se compare sans elle
+        qwen = next(p for p in serveur.PROFILS if p['id'] == 'qwen-8go')
+        self.assertNotIn('edition', {m['role'] for m in serveur.modeles_de_creation(qwen)})
+        self.assertEqual(serveur.reglages_du_profil({**serveur.REGLAGES_DEFAUT, 'modele_vision': 'v.gguf'}, qwen)['modele_vision'], 'v.gguf')
         for comparer, motif in ((['cpu-8go'], '2 à 4'), (['cpu-8go', 'cpu-8go'], '2 à 4'), (['cpu-8go', 'inconnu'], '2 à 4'),
                                 (['cpu-8go', 'gpu-8go'], 'Télécharge')):
             with self.subTest(comparer=comparer):

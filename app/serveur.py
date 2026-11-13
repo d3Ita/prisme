@@ -1956,11 +1956,16 @@ def reglages_d_une_creation(r, parametres):
     return r, None
 
 
+def modeles_de_creation(profil):
+    """Fichiers d'un profil qui servent a creer : sans la vision, utile seulement pour modifier une image."""
+    return [MODELES_PAR_ID[i] for i in profil['modeles'] if MODELES_PAR_ID[i]['role'] != 'edition']
+
+
 def reglages_du_profil(r, profil):
     """Reglages pour creer avec les modeles d'un profil (et les reglages conseilles de son modele de dessin), pour une
     comparaison : les Reglages ne changent pas."""
     r = dict(r)
-    for m in (MODELES_PAR_ID[i] for i in profil['modeles']):
+    for m in modeles_de_creation(profil):
         for cle in m['remplit']:
             r[cle] = m['fichier']
         for cle in m.get('vide', []):
@@ -2660,7 +2665,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 profils = [next((x for x in PROFILS if x['id'] == i), None) for i in comparer]
                 if not 2 <= len(comparer) <= 4 or len(set(comparer)) != len(comparer) or None in profils:
                     return self.envoyer(400, {'erreur': 'Choisis de 2 à 4 profils différents à comparer.'})
-                if any(not (MODELES / MODELES_PAR_ID[i]['fichier']).is_file() for x in profils for i in x['modeles']):
+                if any(not (MODELES / m['fichier']).is_file() for x in profils for m in modeles_de_creation(x)):
                     return self.envoyer(400, {'erreur': 'Télécharge d\'abord les modèles de chaque profil à comparer.'})
                 if p.get('source_nom') or p.get('source_data'):
                     return self.envoyer(400, {'erreur': 'La comparaison crée à partir d\'une description, sans image de départ.'})

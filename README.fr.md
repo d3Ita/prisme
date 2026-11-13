@@ -1,3 +1,8 @@
+> [!WARNING]
+> **La vidéo est en pause.** Les modèles vidéo demandent aujourd'hui beaucoup trop de ressources (mémoire de la carte graphique, temps par vidéo) pour la plupart des ordinateurs. Cette fonctionnalité ne sera donc pas développée davantage pour l'instant. Si les technologies le permettent à l'avenir, nous y reviendrons.
+>
+> Cette branche est gardée comme expérience (pre-release [Prisme Video Experimental](https://github.com/d3Ita/prisme/releases/tag/video-v2.0.0-beta.4)). Pour l'usage courant, prends la [version actuelle de Prisme](https://github.com/d3Ita/prisme/releases/latest).
+
 <p align="center">
   <img src="docs/logo.png" alt="Logo de Prisme" width="128">
 </p>

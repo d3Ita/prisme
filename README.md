@@ -1,3 +1,8 @@
+> [!WARNING]
+> **Video is on hold.** Video models currently need far too much computing power (graphics card memory, time per video) for most computers. This feature will not be developed further for now. If future technology makes it possible, we will come back to it.
+>
+> This branch is kept as an experiment (pre-release [Prisme Video Experimental](https://github.com/d3Ita/prisme/releases/tag/video-v2.0.0-beta.4)). For everyday use, take the [current version of Prisme](https://github.com/d3Ita/prisme/releases/latest).
+
 <p align="center">
   <img src="docs/logo.png" alt="Prisme logo" width="128">
 </p>

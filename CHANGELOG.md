@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-13
+
 ### Changed
 
 - **Clearer, consistent icons in Prisme 2.** The actions under each image, the top bar (phone, models, settings), the writing area (image, enhance, LoRA, compare) and the formats are now small line icons drawn in one style, each with a tooltip; the formats show the shape of the image. In the writing area, the tools keep their name next to the icon (Image, Enhance with a magic wand, LoRA with a puzzle piece, Compare) when the window is wide enough. Close buttons and list arrows use the same icons.
@@ -312,7 +314,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/d3Ita/prisme/releases/tag/v2.1.1
 [2.1.0]: https://github.com/d3Ita/prisme/releases/tag/v2.1.0
 [2.0.1]: https://github.com/d3Ita/prisme/releases/tag/v2.0.1
 [2.0.0]: https://github.com/d3Ita/prisme/releases/tag/v2.0.0

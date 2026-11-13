@@ -32,7 +32,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
 
 import agrandir
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 VERSION = '2.1.1'
 # PRISME_PORT change le port, par exemple pour lancer une version de travail a cote de Prisme
@@ -1395,14 +1395,15 @@ def infos_fichier_distant(url):
     return int(taille or 0), empreinte if re.fullmatch(r'[0-9a-f]{64}', empreinte) else None
 
 
-def preparer_externe(url, role):
-    """Verifie une demande de modele hors catalogue : https, fichier .gguf ou .safetensors, pas deja present."""
+def preparer_externe(url, role, nom=None):
+    """Verifie une demande de modele hors catalogue : https, fichier .gguf ou .safetensors, pas deja present.
+    nom : nom du fichier enregistre, s'il doit differer de celui du lien."""
     adresse = urlparse(str(url or ''))
     if adresse.scheme != 'https' or not adresse.hostname:
         raise ValueError('Adresse invalide : il faut un lien https vers le fichier.')
     if role not in ROLES_EXTERNES:
         raise ValueError('Rôle inconnu : image, texte, edition, vae ou lora.')
-    nom = unquote(adresse.path.rsplit('/', 1)[-1])
+    nom = nom or unquote(adresse.path.rsplit('/', 1)[-1])
     if not re.fullmatch(r'[\w.+-]+', nom) or not nom.lower().endswith(EXTENSIONS_MODELES):
         raise ValueError('Seuls les fichiers .gguf et .safetensors peuvent être téléchargés.')
     fichier = ('loras/' if role == 'lora' else '') + nom
@@ -1429,19 +1430,111 @@ def creer_consentement(genre, details):
     return ident
 
 
+def ajouter_externe(d):
+    """Un fichier hors catalogue (verifie par preparer_externe) devient telechargeable : son identifiant."""
+    ident = 'externe-' + hashlib.sha256(d['url'].encode()).hexdigest()[:12]
+    MODELES_EXTERNES[ident] = {'id': ident, 'role': ROLES_MODELES.get(d['role'], 'Autre'), 'role_id': d['role'],
+                               'titre': Path(d['fichier']).name, 'fichier': d['fichier'], 'url': d['url'],
+                               'taille': d['taille'], 'sha256': d['sha256'], 'remplit': ROLES_EXTERNES[d['role']],
+                               'vide': [], 'reglages': None, 'licence': {'nom': None, 'commercial': None}}
+    return ident
+
+
+# --- Bibliotheque de LoRA : ceux de Hugging Face faits pour le modele de dessin choisi
+# Modeles de base sur Hugging Face pour chaque famille du catalogue (les LoRA y declarent leur base_model)
+BASES_LORA = {'flux2-klein': ['black-forest-labs/FLUX.2-klein-4B', 'black-forest-labs/FLUX.2-klein-base-4B'],
+              'z-image-turbo': ['Tongyi-MAI/Z-Image-Turbo'],
+              'qwen-image-2.1': ['Qwen/Qwen-Image-2.1-Turbo', 'Qwen/Qwen-Image-2.1']}
+# Pas proposes : contenus pour adultes (Hugging Face a une etiquette, mais beaucoup de depots ne la mettent pas) et
+# echange de visages (deepfakes). shortcut: filtre par mots du nom, des etiquettes et des exemples ; une image d'apercu
+# peut encore surprendre, a completer si des retours le montrent
+MOTS_EXCLUS = re.compile(r'nsfw|uncensor|nud(e|ity)|naked|porn|hentai|erotic|sexy|\bsex|lingerie|breast|busty|cleavage|'
+                         r'bikini|undress|nipple|\bboob|\bass\b|\bbutt|onlyfans|fetish|\badult|cum(shot)?\b|penis|\bdick|'
+                         r'vagina|pussy|\b18\+|face.?swap|swap.?face|deep.?fake|face.?transfer', re.I)
+ID_DEPOT = re.compile(r'[\w.-]+/[\w.-]+')
+cache_bibliotheque = {}
+
+
+def famille_du_modele(r):
+    """Famille du catalogue du modele de dessin choisi (flux2-klein...), ou None pour un modele personnel."""
+    m = next((m for m in MODELES_CONSEILLES if m['fichier'] == r['modele_diffusion'] and 'modele_diffusion' in m['remplit']), None)
+    return (m['familles'] or [None])[0] if m else None
+
+
+def lora_de_hugging_face(m):
+    """Une entree de la bibliotheque d'apres la reponse de l'API Hugging Face, ou None si elle n'est pas proposee
+    (prive, acces restreint, contenu pour adultes, pas de fichier .safetensors)."""
+    carte = m.get('cardData') or {}
+    widgets = [w for w in carte.get('widget') or [] if isinstance(w, dict)]
+    texte = ' '.join([m['id'], ' '.join(m.get('tags') or []), ' '.join(str(w.get('text') or '') for w in widgets),
+                      str(carte.get('instance_prompt') or '')])
+    if m.get('private') or m.get('gated') or 'not-for-all-audiences' in (m.get('tags') or []) or MOTS_EXCLUS.search(texte):
+        return None
+    fichiers = [s['rfilename'] for s in m.get('siblings') or []
+                if '/' not in s['rfilename'] and s['rfilename'].lower().endswith('.safetensors')]
+    if not fichiers or not ID_DEPOT.fullmatch(m['id']):
+        return None
+    # Le format ComfyUI en dernier : sd-cli lit d'abord le format diffusers
+    fichiers.sort(key=lambda f: ('comfy' in f.lower(), f))
+    apercu = next((str((w.get('output') or {}).get('url') or '') for w in widgets if isinstance(w.get('output'), dict)), '')
+    if apercu and not apercu.startswith('http'):
+        apercu = f'https://huggingface.co/{m["id"]}/resolve/main/{apercu.lstrip("/")}'
+    if not re.match(r'https://huggingface\.co/[^?#]+\.(png|jpe?g|webp)$', apercu, re.I):
+        apercu = None
+    licence = carte.get('license')
+    return {'id': m['id'], 'auteur': m['id'].split('/')[0], 'nom': m['id'].split('/')[1].replace('-', ' ').replace('_', ' '),
+            'page': f'https://huggingface.co/{m["id"]}', 'telechargements': m.get('downloads') or 0, 'likes': m.get('likes') or 0,
+            'licence': str(licence) if licence else None, 'declencheur': str(carte.get('instance_prompt') or '') or None,
+            'apercu': apercu, 'fichiers': fichiers[:8],
+            'installe': any((LORAS / nom_fichier_lora(m['id'], f, len(fichiers))).is_file() for f in fichiers)}
+
+
+def nom_fichier_lora(depot, fichier, nombre):
+    """Nom du LoRA dans models/loras : celui du depot (les fichiers s'appellent souvent tous pareil), plus celui du
+    fichier quand le depot en propose plusieurs."""
+    nom = re.sub(r'[^\w.+-]+', '-', depot.split('/')[1]).strip('-.') or 'lora'
+    if nombre > 1:
+        nom += '-' + re.sub(r'[^\w.+-]+', '-', Path(fichier).stem).strip('-.')
+    return nom + '.safetensors'
+
+
+def bibliotheque_loras(r, recherche=''):
+    """LoRA de Hugging Face pour le modele de dessin choisi, les plus telecharges d'abord (gardes 10 minutes)."""
+    famille = famille_du_modele(r)
+    if not famille or famille not in BASES_LORA:
+        return {'famille': None, 'loras': []}
+    cle = (famille, recherche.lower())
+    connu = cache_bibliotheque.get(cle)
+    if connu and time.time() - connu[0] < 600:
+        return connu[1]
+    trouves = {}
+    for base in BASES_LORA[famille]:
+        parametres = {'filter': f'base_model:adapter:{base}', 'sort': 'downloads', 'direction': '-1', 'limit': '40',
+                      'full': 'true', 'cardData': 'true'}
+        if recherche:
+            parametres['search'] = recherche
+        requete = urllib.request.Request('https://huggingface.co/api/models?' + urlencode(parametres),
+                                         headers={'User-Agent': f'Prisme/{VERSION}'})
+        try:
+            with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=15) as reponse:
+                for m in json.load(reponse):
+                    entree = isinstance(m, dict) and isinstance(m.get('id'), str) and lora_de_hugging_face(m)
+                    if entree:
+                        trouves.setdefault(entree['id'], entree)
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            raise RuntimeError('Hugging Face ne répond pas. Vérifie ta connexion, puis réessaie.') from e
+    resultat = {'famille': famille, 'loras': sorted(trouves.values(), key=lambda l: -l['telechargements'])[:40]}
+    cache_bibliotheque[cle] = (time.time(), resultat)
+    return resultat
+
+
 def executer_consentement(demande):
     """L'utilisateur a accepte dans la fenetre : les telechargements commencent."""
     if demande['genre'] == 'profil':
         profil = next(p for p in PROFILS if p['id'] == demande['details']['profil'])
         idents = list(profil['modeles'])
     else:
-        d = demande['details']
-        ident = 'externe-' + hashlib.sha256(d['url'].encode()).hexdigest()[:12]
-        MODELES_EXTERNES[ident] = {'id': ident, 'role': ROLES_MODELES.get(d['role'], 'Autre'), 'role_id': d['role'],
-                                   'titre': Path(d['fichier']).name, 'fichier': d['fichier'], 'url': d['url'],
-                                   'taille': d['taille'], 'sha256': d['sha256'], 'remplit': ROLES_EXTERNES[d['role']],
-                                   'vide': [], 'reglages': None, 'licence': {'nom': None, 'commercial': None}}
-        idents = [ident]
+        idents = [ajouter_externe(demande['details'])]
     for ident in idents:
         demander_modele(ident)
     demande['telechargements'] = idents
@@ -2539,6 +2632,15 @@ class Gestionnaire(BaseHTTPRequestHandler):
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             self.envoyer(200, etat_modeles_conseilles())
+        elif chemin == '/api/loras/bibliotheque':
+            # Bibliotheque de LoRA : seulement sur le PC, et pas pour Claude
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            recherche = ' '.join(parse_qs(url.query).get('q', [''])[0].split())[:80]
+            try:
+                self.envoyer(200, bibliotheque_loras(lire_reglages(), recherche))
+            except RuntimeError as e:
+                self.envoyer(502, {'erreur': str(e)})
         elif chemin == '/api/consentement':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
@@ -2932,6 +3034,26 @@ class Gestionnaire(BaseHTTPRequestHandler):
                                       'total': sum(a['taille'] for a in MOTEURS[nom]['archives']), 'erreur': None}
             threading.Thread(target=installer_moteur, args=(nom,), daemon=True).start()
             self.envoyer(200, {})
+
+        elif chemin == '/api/loras/telecharger':
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            donnees = self.lire_json()
+            depot, fichier, nombre = str(donnees.get('id') or ''), str(donnees.get('fichier') or ''), donnees.get('nombre') or 1
+            if not ID_DEPOT.fullmatch(depot) or not re.fullmatch(r'[\w.+-]+\.safetensors', fichier) or not isinstance(nombre, int):
+                return self.envoyer(400, {'erreur': 'LoRA invalide.'})
+            try:
+                details = preparer_externe(f'https://huggingface.co/{depot}/resolve/main/{fichier}', 'lora',
+                                           nom_fichier_lora(depot, fichier, nombre))
+            except (ValueError, RuntimeError) as e:
+                return self.envoyer(400, {'erreur': str(e)})
+            # Sans empreinte, le fichier ne pourrait pas etre verifie apres le telechargement
+            if not details['sha256']:
+                return self.envoyer(400, {'erreur': 'Hugging Face ne donne pas l\'empreinte de ce fichier : téléchargement refusé.'})
+            ident = ajouter_externe(details)
+            demander_modele(ident)
+            cache_bibliotheque.clear()
+            self.envoyer(200, {'id': ident, 'fichier': details['fichier'], 'taille': details['taille']})
 
         elif chemin == '/api/projet':
             if self.vient_du_mcp():

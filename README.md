@@ -78,6 +78,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Compare models**: the same description and variant with 2 to 4 installed profiles, each image captioned with its model and time
 - **Projects**: sort images into projects, show one project at a time, and new creations go into the project shown
 - **LoRA per creation**: pick the LoRA of the next creations and their strength from the writing area, without touching the settings
+- **LoRA library**: find LoRA made for your model on Hugging Face, with an example image and the license, and download them in one click
 - **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt, copy or save an image elsewhere, and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
 - **English and French interface**, following the device's language or chosen in the settings

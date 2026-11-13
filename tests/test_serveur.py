@@ -1517,6 +1517,54 @@ class SecuriteHttpTest(unittest.TestCase):
         # Claude ne range pas les images de Prisme
         self.assertEqual(self.poster('/api/projet', json.dumps({'noms': noms, 'projet': 'x'}), {'X-Prisme-Client': 'mcp'})[0], 403)
 
+    def test_bibliotheque_de_loras(self):
+        from unittest import mock
+        depot = lambda ident, **autres: {'id': ident, 'tags': ['lora'], 'downloads': 10, 'likes': 1,
+                                         'siblings': [{'rfilename': 'lora.safetensors'}], 'cardData': {'license': 'apache-2.0'}, **autres}
+        bon = serveur.lora_de_hugging_face(depot('auteur/pixel-art', siblings=[
+            {'rfilename': 'pytorch_lora_weights.comfyui.safetensors'}, {'rfilename': 'pytorch_lora_weights.safetensors'},
+            {'rfilename': 'samples/a.png'}, {'rfilename': 'sous/dossier.safetensors'}],
+            cardData={'license': 'apache-2.0', 'instance_prompt': 'PXART', 'widget': [{'text': 'a knight', 'output': {'url': 'samples/a.png'}}]}))
+        self.assertEqual((bon['nom'], bon['licence'], bon['declencheur']), ('pixel art', 'apache-2.0', 'PXART'))
+        # Fichiers a la racine seulement, le format ComfyUI en dernier ; apercu sur Hugging Face seulement
+        self.assertEqual(bon['fichiers'], ['pytorch_lora_weights.safetensors', 'pytorch_lora_weights.comfyui.safetensors'])
+        self.assertEqual(bon['apercu'], 'https://huggingface.co/auteur/pixel-art/resolve/main/samples/a.png')
+        self.assertIsNone(serveur.lora_de_hugging_face(depot('a/b', cardData={'widget': [{'output': {'url': 'https://ailleurs.org/x.png'}}]}))['apercu'])
+        # Pas proposes : contenus pour adultes (meme sans l'etiquette), echange de visages, acces restreint, sans .safetensors
+        for exclu in (depot('a/b', tags=['not-for-all-audiences']), depot('a/Qwen-Image-Uncensored'), depot('a/closeupcum'),
+                      depot('a/BFS-Best-Face-Swap'), depot('a/b', cardData={'widget': [{'text': 'busty girl'}]}),
+                      depot('a/b', gated='auto'), depot('a/b', siblings=[{'rfilename': 'lora.ckpt'}])):
+            with self.subTest(exclu=exclu['id']):
+                self.assertIsNone(serveur.lora_de_hugging_face(exclu))
+        # Nom dans models/loras : celui du depot, et du fichier si le depot en a plusieurs
+        self.assertEqual(serveur.nom_fichier_lora('auteur/pixel-art', 'pytorch_lora_weights.safetensors', 1), 'pixel-art.safetensors')
+        self.assertEqual(serveur.nom_fichier_lora('a/b c', 'v2 final.safetensors', 2), 'b-c-v2-final.safetensors')
+        # Seulement pour un modele du catalogue
+        self.assertEqual(serveur.famille_du_modele({'modele_diffusion': 'flux-2-klein-4b-Q4_0.gguf'}), 'flux2-klein')
+        self.assertIsNone(serveur.famille_du_modele({'modele_diffusion': 'mon-modele.gguf'}))
+        self.assertEqual(serveur.bibliotheque_loras({'modele_diffusion': 'mon-modele.gguf'}), {'famille': None, 'loras': []})
+        # Telechargement : depot et fichier controles, nom choisi par Prisme, empreinte obligatoire
+        for mauvais in ({'id': '../x', 'fichier': 'a.safetensors'}, {'id': 'a/b', 'fichier': '../a.safetensors'},
+                        {'id': 'a/b', 'fichier': 'a.ckpt'}):
+            with self.subTest(mauvais=mauvais):
+                self.assertEqual(self.poster('/api/loras/telecharger', json.dumps(mauvais))[0], 400)
+        self.assertEqual(self.poster('/api/loras/telecharger', json.dumps({'id': 'a/b', 'fichier': 'a.safetensors'}),
+                                     {'X-Prisme-Client': 'mcp'})[0], 403)
+        self.assertEqual(self.distant('/api/loras/bibliotheque', serveur.CODE)[0], 403)
+        with mock.patch.object(serveur, 'infos_fichier_distant', return_value=(1000, None)):
+            statut, _, corps = self.poster('/api/loras/telecharger', json.dumps({'id': 'a/pixel', 'fichier': 'l.safetensors'}))
+        self.assertEqual(statut, 400)
+        self.assertIn('empreinte', json.loads(corps)['erreur'])
+        with mock.patch.object(serveur, 'infos_fichier_distant', return_value=(1000, 'f' * 64)), \
+                mock.patch.object(serveur, 'demander_modele') as demande:
+            statut, _, corps = self.poster('/api/loras/telecharger', json.dumps({'id': 'a/pixel', 'fichier': 'l.safetensors'}))
+        self.assertEqual(statut, 200)
+        r = json.loads(corps)
+        self.assertEqual(r['fichier'], 'loras/pixel.safetensors')
+        modele = serveur.trouver_modele(r['id'])
+        self.assertEqual((modele['url'], modele['sha256']), ('https://huggingface.co/a/pixel/resolve/main/l.safetensors', 'f' * 64))
+        demande.assert_called_once_with(r['id'])
+
     def test_profils_en_lecture_seule_sur_le_pc(self):
         statut, _, corps = self.requete('GET', '/api/profils')
         self.assertEqual(statut, 200)

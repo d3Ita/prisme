@@ -1568,12 +1568,26 @@ def lire_release(donnees):
     return version, fichier
 
 
+def version_par_la_page():
+    """Derniere version d'apres la redirection de la page des releases, qui ne compte pas dans la limite de l'API."""
+    with urllib.request.urlopen(requete_github(PAGE_VERSIONS), context=contexte_ssl(), timeout=8) as reponse:
+        m = re.search(r'/releases/tag/v?([^/?#]+)$', reponse.geturl())
+    return m.group(1) if m else ''
+
+
 def verifier_mise_a_jour(discret=True):
     """Au lancement, en silence ; depuis le bouton des reglages (discret=False), l'erreur remonte."""
     try:
         requete = requete_github('https://api.github.com/repos/d3Ita/prisme/releases/latest', Accept='application/vnd.github+json')
-        with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=8) as reponse:
-            version, fichier = lire_release(json.load(reponse))
+        try:
+            with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=8) as reponse:
+                version, fichier = lire_release(json.load(reponse))
+        except urllib.error.HTTPError as e:
+            if e.code not in (403, 429):
+                raise
+            # Limite de l'API (60 demandes par heure et par connexion, partagee par un bureau ou une ecole) : la version
+            # d'apres la page, sans empreinte, donc avec le lien de telechargement au lieu de la mise a jour en un clic
+            version, fichier = version_par_la_page(), None
         if numero_version(version) > numero_version(VERSION):
             # La mise a jour en un clic ne vaut que pour le programme construit, pas pour le script Python
             mise_a_jour.update(version=version, url=PAGE_VERSIONS, fichier=fichier, auto=bool(EXE and fichier and not TRANSLOQUE),

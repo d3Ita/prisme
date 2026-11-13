@@ -1560,6 +1560,15 @@ class SecuriteHttpTest(unittest.TestCase):
             self.assertEqual(code, 200)
             r = json.loads(corps)
             self.assertEqual((r['version'], (r['mise_a_jour'] or {}).get('version')), (serveur.VERSION, attendu))
+        # Limite de l'API GitHub atteinte : la version d'apres la page des releases, sans mise a jour en un clic
+        serveur.mise_a_jour.clear()
+        limite = serveur.urllib.error.HTTPError('https://api.github.com/', 403, 'rate limit exceeded', {}, io.BytesIO(b''))
+        page = mock.MagicMock()
+        page.__enter__.return_value.geturl.return_value = 'https://github.com/d3Ita/prisme/releases/tag/v99.1.0'
+        with mock.patch.object(serveur.urllib.request, 'urlopen', side_effect=[limite, page]):
+            code, _, corps = self.poster('/api/verifier-mise-a-jour')
+        self.assertEqual(code, 200)
+        self.assertEqual({k: json.loads(corps)['mise_a_jour'][k] for k in ('version', 'auto')}, {'version': '99.1.0', 'auto': False})
 
     # --- connexion en tapant seulement l'adresse : demande acceptee sur le PC
     def demander(self):

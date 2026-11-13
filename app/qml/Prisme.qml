@@ -66,10 +66,15 @@ ApplicationWindow {
     // Toutes les images du dossier ; le fil n'en montre que celles qui correspondent a la recherche
     property var toutesImages: []
     property string recherche: ""
+    // Projet montre dans le fil, ou les nouvelles images sont rangees ("" : toutes les images, sans projet)
+    property string projetActif: ""
+    property var projets: []
 
     function chargerImages(descendre) {
         api("/api/images", undefined, function (liste) {
             toutesImages = liste
+            const noms = liste.map(i => i.projet).filter(p => p)
+            projets = [...new Set(projetActif ? noms.concat([projetActif]) : noms)].sort((a, b) => a.localeCompare(b))
             afficherImages()
             if (descendre) fil.positionViewAtBeginning()
         }, function (message) { note(message, true) })
@@ -82,9 +87,14 @@ ApplicationWindow {
         for (const image of toutesImages) {
             if (mots && (image.prompt || "").toLowerCase().indexOf(mots) < 0)
                 continue
+            if (projetActif && image.projet !== projetActif)
+                continue
+            const m = image.mesures || {}
             images.append({ nom: image.nom, prompt: image.prompt || "", largeur: image.largeur || 0, hauteur: image.hauteur || 0,
                             seed: image.seed === null || image.seed === undefined ? "" : String(image.seed),
-                            infos: JSON.stringify(image) })
+                            infos: JSON.stringify(image),
+                            // Comparaison de modeles : le modele et le temps sous chaque image
+                            legende: m.comparaison ? m.comparaison + (m.duree ? " · " + Math.round(m.duree) + " s" : "") : "" })
         }
     }
 
@@ -131,6 +141,36 @@ ApplicationWindow {
     }
 
     // Comme la version web : 1024 x 1024 pixels en tout, aux proportions de l'image de depart
+    // LoRA pour les creations suivantes (null : ceux des Reglages), et ceux du dossier avec leur etat dans les Reglages
+    property var lorasChoisis: null
+    property var lorasDispo: []
+    // Profils a comparer pour la prochaine creation
+    property var comparaisonDemandee: null
+
+    function chargerLoras() {
+        api("/api/reglages", undefined, function (i) {
+            lorasDispo = i.loras.map(function (l) {
+                const connu = (i.reglages.loras || []).find(x => x.nom === l.nom)
+                return { nom: l.nom, force: connu ? connu.force : 1.0, actif: connu ? connu.actif : false }
+            })
+        }, function () {})
+    }
+
+    function loraCoche(nom) {
+        return lorasChoisis ? lorasChoisis.some(l => l.nom === nom) : lorasDispo.some(l => l.nom === nom && l.actif)
+    }
+
+    function basculerLora(l) {
+        const actuels = lorasChoisis || lorasDispo.filter(x => x.actif).map(x => ({ nom: x.nom, force: x.force }))
+        lorasChoisis = loraCoche(l.nom) ? actuels.filter(x => x.nom !== l.nom) : actuels.concat([{ nom: l.nom, force: l.force }])
+    }
+
+    // Sans amelioration automatique : les modeles comparent la description telle qu'elle est ecrite
+    function comparer(profils) {
+        comparaisonDemandee = profils
+        lancerCreation()
+    }
+
     // Refaire une image : ses modeles, etapes, CFG, methode et taille, pour la prochaine creation seulement
     property var reprise: null
 
@@ -139,6 +179,7 @@ ApplicationWindow {
         variante.text = image.seed === null || image.seed === undefined ? "" : String(image.seed)
         const format_ = Object.keys(formats).find(f => formats[f][0] === image.largeur && formats[f][1] === image.hauteur)
         reprise = Object.assign({}, image, { horsFormat: !format_ })
+        lorasChoisis = null
         definirSource(null)
         format = format_ || "repris"
     }
@@ -176,15 +217,25 @@ ApplicationWindow {
             lancerCreation()
     }
 
-    function lancerCreation() {
-        const texte = saisie.text.trim()
+    // Ce que /api/generer recoit pour la prochaine creation
+    function corpsCreation() {
         const taille = tailleVoulue()
-        const corps = avecSource({ prompt: texte, largeur: taille[0], hauteur: taille[1], nombre: nombre })
+        const corps = avecSource({ prompt: saisie.text.trim(), largeur: taille[0], hauteur: taille[1], nombre: nombre })
         if (variante.text !== "") corps.seed = Number(variante.text)
-        if (reprise && reprise.parametres) corps.parametres = reprise.parametres
+        const parametres = Object.assign({}, reprise && reprise.parametres ? reprise.parametres : {})
+        if (lorasChoisis) parametres.loras = lorasChoisis
+        if (Object.keys(parametres).length) corps.parametres = parametres
+        if (comparaisonDemandee) corps.comparer = comparaisonDemandee
+        if (projetActif) corps.projet = projetActif
+        return corps
+    }
+
+    function lancerCreation() {
+        const corps = corpsCreation()
+        comparaisonDemandee = null
         api("/api/generer", corps, function () {
-            etat = Object.assign({}, etat, { occupe: true, phase: "chargement", etape: 0, prompt: texte,
-                                             largeur: taille[0], hauteur: taille[1], nombre: nombre, index: 1 })
+            etat = Object.assign({}, etat, { occupe: true, phase: "chargement", etape: 0, prompt: corps.prompt, largeur: corps.largeur,
+                                             hauteur: corps.hauteur, nombre: corps.comparer ? corps.comparer.length : corps.nombre, index: 1 })
             etaitOccupe = true
             saisie.text = ""
             texteAmeliore = ""
@@ -253,6 +304,7 @@ ApplicationWindow {
         if (typeof requetes !== "undefined") Theme.reseau = requetes
         Theme.adresse = adresse
         chargerImages(true)
+        chargerLoras()
         api("/api/claude", undefined, function (c) { claude = c }, function () {})
     }
 
@@ -309,6 +361,25 @@ ApplicationWindow {
                 text: tx("Prisme ne répond pas", "Prisme is not responding")
                 color: c.danger
                 font.pixelSize: 13
+            }
+            ListeDeroulante {
+                id: choixProjet
+                implicitWidth: 190
+                implicitHeight: 32
+                valeur: ""
+                model: [{ valeur: "", texte: tx("Toutes les images", "All images") }]
+                       .concat(projets.map(p => ({ valeur: "projet:" + p, texte: p })))
+                       .concat([{ valeur: "nouveau", texte: tx("Nouveau projet…", "New project…") }])
+                onActivated: {
+                    if (currentValue === "nouveau") {
+                        nomProjet.text = ""
+                        nouveauProjet.open()
+                    } else {
+                        projetActif = currentValue.replace(/^projet:/, "")
+                        afficherImages()
+                    }
+                    Qt.callLater(function () { choixProjet.valeur = projetActif ? "projet:" + projetActif : "" })
+                }
             }
             Champ {
                 implicitWidth: 230
@@ -452,6 +523,14 @@ ApplicationWindow {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: visionneuse.ouvrir(message.model.nom)
                     }
+                }
+
+                Text {
+                    x: 36
+                    visible: message.model.legende !== ""
+                    text: message.model.legende
+                    color: c.texte2
+                    font.pixelSize: 13
                 }
 
                 Row {
@@ -610,6 +689,8 @@ ApplicationWindow {
                 anchors.centerIn: parent
                 visible: images.count === 0 && !occupe
                 text: recherche.trim() ? tx("Aucune image ne correspond à ta recherche.", "No image matches your search.")
+                      : projetActif ? tx("Aucune image dans ce projet : les prochaines créations y seront rangées.",
+                                         "No image in this project yet: the next creations will go in it.")
                                        : tx("Décris l'image à créer, en bas.", "Describe the image to create, below.")
                 color: c.texte3
                 font.pixelSize: 15
@@ -745,6 +826,48 @@ ApplicationWindow {
                         ToolTip.visible: hovered
                         ToolTip.text: tx("Revenir au texte que tu avais écrit", "Go back to the text you wrote")
                         onClicked: { saisie.text = texteOriginal; texteAmeliore = ""; saisie.forceActiveFocus() }
+                    }
+
+                    BoutonDiscret {
+                        id: boutonLoras
+                        visible: lorasDispo.length > 0
+                        text: lorasChoisis ? "LoRA · " + lorasChoisis.length + " ✱" : "LoRA"
+                        ToolTip.visible: hovered
+                        ToolTip.text: lorasChoisis ? tx("LoRA choisis pour les prochaines créations (pas dans les Réglages)",
+                                                        "LoRA chosen for the next creations (not in the Settings)")
+                                                   : tx("Choisir les LoRA des prochaines créations", "Choose the LoRA of the next creations")
+                        onClicked: { chargerLoras(); menuLoras.open() }
+                        Popup {
+                            id: menuLoras
+                            y: -height - 8
+                            padding: 12
+                            background: Rectangle { radius: 14; color: c.surface; border.color: c.bordure }
+                            contentItem: ColumnLayout {
+                                spacing: 8
+                                Repeater {
+                                    model: lorasDispo
+                                    delegate: RowLayout {
+                                        required property var modelData
+                                        spacing: 10
+                                        Interrupteur { checked: loraCoche(modelData.nom); onToggled: basculerLora(modelData) }
+                                        Text { text: modelData.nom.replace(/\.(safetensors|gguf)$/i, "") + " · " + modelData.force; color: c.texte; font.pixelSize: 13 }
+                                    }
+                                }
+                                BoutonDiscret {
+                                    visible: !!lorasChoisis
+                                    text: tx("Comme dans les Réglages", "As in the Settings")
+                                    onClicked: { lorasChoisis = null; menuLoras.close() }
+                                }
+                            }
+                        }
+                    }
+                    BoutonDiscret {
+                        text: tx("Comparer", "Compare")
+                        enabled: !occupe && !source && !ameliorant && saisie.text.trim().length > 0
+                        ToolTip.visible: hovered
+                        ToolTip.text: tx("Créer cette description avec plusieurs modèles, la même variante, pour les comparer",
+                                         "Create this description with several models, the same variant, to compare them")
+                        onClicked: comparateur.open()
                     }
 
                     Rectangle { width: 1; height: 20; color: c.bordure; Layout.leftMargin: 4; Layout.rightMargin: 4 }
@@ -913,7 +1036,36 @@ ApplicationWindow {
     }
 
     FenetreTelephone { id: telephone; objectName: "telephone" }
-    FenetreDetails { id: details; objectName: "details"; onRefaire: function (image) { fenetre.refaire(image) } }
+    FenetreDetails {
+        id: details
+        objectName: "details"
+        onRefaire: function (image) { fenetre.refaire(image) }
+        onRange: chargerImages(false)
+    }
+    FenetreComparer { id: comparateur; objectName: "comparateur"; onComparer: function (profils) { fenetre.comparer(profils) } }
+    Demande {
+        id: nouveauProjet
+        titre: tx("Nouveau projet", "New project")
+        accepter: tx("Créer", "Create")
+        refuser: tx("Annuler", "Cancel")
+        Champ {
+            id: nomProjet
+            Layout.fillWidth: true
+            maximumLength: 60
+            placeholderText: tx("Nom du projet", "Project name")
+            onAccepted: nouveauProjet.reponse(true)
+        }
+        onOpened: nomProjet.forceActiveFocus()
+        onReponse: function (accepte) {
+            close()
+            const nom = nomProjet.text.split(/\s+/).filter(m => m).join(" ")
+            if (!accepte || !nom) return
+            projetActif = nom
+            if (projets.indexOf(nom) < 0) projets = projets.concat([nom]).sort((a, b) => a.localeCompare(b))
+            choixProjet.valeur = "projet:" + nom
+            afficherImages()
+        }
+    }
 
     // --- Un appareil demande l'acces : le PC l'autorise en comparant le code
     property string demandeRepondue: ""

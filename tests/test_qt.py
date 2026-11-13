@@ -1,6 +1,7 @@
 """Prisme 2 : la fenetre Qt Quick se charge sans erreur QML (lance seulement si PySide6 est installe).
 
 Sans ecran (CI) : plateforme offscreen et rendu logiciel."""
+import json
 import os
 import socket
 import sys
@@ -45,8 +46,8 @@ class FenetreQtTest(unittest.TestCase):
         # et Linux seulement, a revoir si « Prisme ne repond pas » manque sur un vrai Mac
         if sys.platform != 'darwin':
             self.assertFalse(racine.property('enLigne'))
-        # Les fenetres Modeles, Reglages, Telephone et Details s'ouvrent aussi sans erreur, meme sans reponse du serveur
-        for nom in ('modeles', 'reglages', 'telephone', 'details'):
+        # Les fenetres Modeles, Reglages, Telephone, Details et Comparer s'ouvrent aussi sans erreur, meme sans reponse du serveur
+        for nom in ('modeles', 'reglages', 'telephone', 'details', 'comparateur'):
             fenetre = racine.findChild(QObject, nom)
             self.assertIsNotNone(fenetre, nom)
             QMetaObject.invokeMethod(fenetre, 'open')
@@ -62,8 +63,22 @@ class FenetreQtTest(unittest.TestCase):
                 f'date: "2026-11-13T10:00:00", parametres: {parametres}}}); details.refaire(details.image)')
         self.assertEqual(evaluer('[saisie.text, variante.text, format, tailleVoulue().join("x"), reprise.parametres.etapes].join("|")'),
                          'un phare|7|repris|832x1216|4')
+        # Ce que recoit /api/generer : les reglages de l'image, les LoRA choisis et le projet montre
+        evaluer('lorasDispo = [{nom: "style.safetensors", force: 0.8, actif: true}, {nom: "autre.safetensors", force: 1, actif: false}]; '
+                'basculerLora(lorasDispo[1]); projetActif = "Phares"')
+        self.assertEqual(evaluer('JSON.stringify(corpsCreation())'), json.dumps({
+            'prompt': 'un phare', 'largeur': 832, 'hauteur': 1216, 'nombre': 1, 'seed': 7,
+            'parametres': {'etapes': 4, 'cfg': 1, 'methode': 'euler', 'modele_diffusion': 'flux/dessin.gguf',
+                           'loras': [{'nom': 'style.safetensors', 'force': 0.8}, {'nom': 'autre.safetensors', 'force': 1}]},
+            'projet': 'Phares'}, separators=(',', ':')))
         evaluer('oublierReprise()')
         self.assertEqual(evaluer('format + (reprise === null)'), 'carretrue')
+        # Le fil ne montre que le projet choisi ; une image de comparaison a sa legende
+        evaluer('toutesImages = [{nom: "a.png", prompt: "un phare", projet: "Phares", mesures: {duree: 41.6, comparaison: "FLUX.2 klein 4B Q4_0"}}, '
+                '{nom: "b.png", prompt: "un chat", projet: ""}]; afficherImages()')
+        self.assertEqual(evaluer('images.count + "|" + images.get(0).legende'), '1|FLUX.2 klein 4B Q4_0 · 42 s')
+        evaluer('projetActif = ""; afficherImages()')
+        self.assertEqual(evaluer('images.count + "|" + images.get(1).legende'), '2|')
         self.assertEqual(erreurs, [])
 
 

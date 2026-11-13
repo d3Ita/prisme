@@ -8,6 +8,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - **Image details** in Prisme 2: a "Details" button under each image shows how it was made (description, variant, size, date, steps, CFG, method, models, LoRA), read from the image file itself.
 - **Redo identically**: from the details, Prisme puts back the description, variant and size, and uses that image's models, steps, CFG and method for the next creation only, without changing the Settings. `/api/generer` accepts these as `parametres`.
+- **Time and memory of each creation**: Prisme keeps in each new image how long it took and the engine's peak memory (RAM, not the graphics card's), shown in the details.
+- **Compare models**: "Compare" in the writing area creates the description with 2 to 4 installed profiles, the same variant and each model's recommended settings; each image is captioned with its model and time (`/api/generer` with `comparer`).
+- **Projects**: a list at the top shows all images or one project; new creations go into the project shown, enlarged images stay in their original's project, and the details move an image to another project (`/api/projet`, stored in `images/projets.json`).
+- **LoRA per creation**: a "LoRA" button in the writing area picks the LoRA of the next creations without changing the Settings; "Redo identically" also reuses the image's LoRA.
 
 ## [2.0.1] - 2026-11-13
 

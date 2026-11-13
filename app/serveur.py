@@ -2024,9 +2024,12 @@ def noter_dans_png(chemin, donnees):
 
 def lire_infos(chemin):
     """Lit taille, prompt et seed dans les metadonnees PNG ecrites par sd-cli."""
-    mtime = chemin.stat().st_mtime
+    statut = chemin.stat()
+    mtime = statut.st_mtime
+    # La taille aussi : sous Windows, une image reecrite aussitot (mesures ajoutees) peut garder la meme date
+    cle = (statut.st_mtime_ns, statut.st_size)
     connu = cache_infos.get(chemin.name)
-    if connu and connu[0] == mtime:
+    if connu and connu[0] == cle:
         return connu[1]
 
     infos = {'nom': chemin.name, 'prompt': '', 'seed': None, 'loras': [], 'largeur': 0, 'hauteur': 0, 'parametres': None,
@@ -2067,7 +2070,7 @@ def lire_infos(chemin):
                             pass
     except OSError:
         pass
-    cache_infos[chemin.name] = (mtime, infos)
+    cache_infos[chemin.name] = (cle, infos)
     return infos
 
 

@@ -84,6 +84,19 @@ class FenetreQtTest(unittest.TestCase):
         self.assertEqual(erreurs, [])
 
 
+    def test_barre_de_titre_windows(self):
+        from unittest import mock
+        # Windows attend ses couleurs en 0x00BBGGRR
+        self.assertEqual(fenetre_qt.couleur_windows('#1b1a18'), 0x181a1b)
+        self.assertEqual(fenetre_qt.couleur_windows('#2f5bea'), 0xea5b2f)
+        # Hors de Windows, ou sans fenetre, rien n'est demande a Windows
+        cadre = fenetre_qt.Cadre()
+        cadre.teinter('#1b1a18', '#f1eee8', '#383632', True)
+        cadre.fenetre = mock.Mock()
+        with mock.patch.object(fenetre_qt, 'WINDOWS', False):
+            cadre.teinter('#1b1a18', '#f1eee8', '#383632', True)
+        cadre.fenetre.winId.assert_not_called()
+
     def test_image_de_depart_en_png(self):
         fenetre_qt.application()
         image = QImage(40, 30, QImage.Format_RGB32)

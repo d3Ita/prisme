@@ -17,6 +17,7 @@ sys.path.insert(0, str(APP))
 try:
     from PySide6.QtCore import QEventLoop, QMetaObject, QObject, QUrl
     from PySide6.QtGui import QColor, QImage
+    from PySide6.QtQml import QQmlExpression
     import fenetre_qt
 except ImportError:
     fenetre_qt = None
@@ -44,8 +45,8 @@ class FenetreQtTest(unittest.TestCase):
         # et Linux seulement, a revoir si « Prisme ne repond pas » manque sur un vrai Mac
         if sys.platform != 'darwin':
             self.assertFalse(racine.property('enLigne'))
-        # Les fenetres Modeles, Reglages et Telephone s'ouvrent aussi sans erreur, meme sans reponse du serveur
-        for nom in ('modeles', 'reglages', 'telephone'):
+        # Les fenetres Modeles, Reglages, Telephone et Details s'ouvrent aussi sans erreur, meme sans reponse du serveur
+        for nom in ('modeles', 'reglages', 'telephone', 'details'):
             fenetre = racine.findChild(QObject, nom)
             self.assertIsNotNone(fenetre, nom)
             QMetaObject.invokeMethod(fenetre, 'open')
@@ -54,6 +55,15 @@ class FenetreQtTest(unittest.TestCase):
                 application.processEvents(QEventLoop.AllEvents, 50)
             self.assertTrue(fenetre.property('opened'), nom)
             QMetaObject.invokeMethod(fenetre, 'close')
+        # Refaire a l'identique : description, variante, taille hors format et reglages de l'image pour la creation
+        parametres = '{etapes: 4, cfg: 1, methode: "euler", modele_diffusion: "flux/dessin.gguf"}'
+        evaluer = lambda code: QQmlExpression(moteur.contextForObject(racine), racine, code).evaluate()[0]
+        evaluer('details.ouvrir({nom: "image_1.png", prompt: "un phare", seed: 7, largeur: 832, hauteur: 1216, loras: [], '
+                f'date: "2026-11-13T10:00:00", parametres: {parametres}}}); details.refaire(details.image)')
+        self.assertEqual(evaluer('[saisie.text, variante.text, format, tailleVoulue().join("x"), reprise.parametres.etapes].join("|")'),
+                         'un phare|7|repris|832x1216|4')
+        evaluer('oublierReprise()')
+        self.assertEqual(evaluer('format + (reprise === null)'), 'carretrue')
         self.assertEqual(erreurs, [])
 
 

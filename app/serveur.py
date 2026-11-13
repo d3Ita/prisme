@@ -1860,6 +1860,56 @@ def nouveau_chemin(dossier=IMAGES):
     return chemin
 
 
+def parametres_png(texte):
+    """Conditions d'une creation, lues dans le bloc structure que sd-cli ecrit dans le PNG (schema sdcpp.generation/v1),
+    ou None pour une image sans ce bloc (versions anciennes du moteur, image venue d'ailleurs)."""
+    try:
+        donnees = json.loads(texte.split('SDCPP: ', 1)[1])
+    except (IndexError, ValueError):
+        return None
+    if not isinstance(donnees, dict):
+        return None
+    echantillon, modeles = donnees.get('sample_params') or {}, donnees.get('models') or {}
+    return {'etapes': echantillon.get('sample_steps'), 'cfg': (echantillon.get('guidance') or {}).get('txt_cfg'),
+            'methode': echantillon.get('sample_method'), 'modele_diffusion': modeles.get('diffusion_model'),
+            'modele_texte': modeles.get('llm'), 'vae': modeles.get('vae')}
+
+
+def fichier_modele(nom):
+    """Chemin, dans le dossier models, du fichier qu'une image nomme (sd-cli ne garde que son nom), ou None."""
+    nom = str(nom or '').replace('\\', '/')
+    if chemin_relatif_sur(nom) and (MODELES / nom).is_file():
+        return nom
+    return next((m['nom'] for m in lister_modeles() if m['nom'].rsplit('/', 1)[-1] == nom), None)
+
+
+def reglages_d_une_creation(r, parametres):
+    """Reglages pour une seule creation, avec les parametres d'une image a refaire : (reglages, erreur)."""
+    if not isinstance(parametres, dict):
+        return None, 'Paramètres invalides.'
+    r = dict(r)
+    for cle in ('modele_diffusion', 'modele_texte', 'vae'):
+        if parametres.get(cle):
+            r[cle] = fichier_modele(parametres[cle])
+            if not r[cle]:
+                return None, f'Modèle introuvable dans le dossier models : {parametres[cle]}'
+    try:
+        if parametres.get('etapes') is not None:
+            r['etapes'] = int(parametres['etapes'])
+        if parametres.get('cfg') is not None:
+            r['cfg'] = float(parametres['cfg'])
+    except (TypeError, ValueError):
+        return None, 'Paramètres invalides.'
+    if parametres.get('methode'):
+        r['methode'] = str(parametres['methode'])
+    if not 1 <= r['etapes'] <= 150 or not 0 <= r['cfg'] <= 30 or r['methode'] not in METHODES:
+        return None, 'Paramètres invalides.'
+    # Des sigmas reglees pour un autre nombre d'etapes ne vont plus : sd-cli choisit les siennes
+    if r['sigmas'] and len(r['sigmas'].split(',')) != r['etapes'] + 1:
+        r['sigmas'] = ''
+    return r, None
+
+
 def lire_infos(chemin):
     """Lit taille, prompt et seed dans les metadonnees PNG ecrites par sd-cli."""
     mtime = chemin.stat().st_mtime
@@ -1867,7 +1917,7 @@ def lire_infos(chemin):
     if connu and connu[0] == mtime:
         return connu[1]
 
-    infos = {'nom': chemin.name, 'prompt': '', 'seed': None, 'loras': [], 'largeur': 0, 'hauteur': 0,
+    infos = {'nom': chemin.name, 'prompt': '', 'seed': None, 'loras': [], 'largeur': 0, 'hauteur': 0, 'parametres': None,
              'date': datetime.fromtimestamp(mtime).isoformat(timespec='seconds'), 'version': int(mtime)}
     try:
         with open(chemin, 'rb') as f:
@@ -1896,6 +1946,7 @@ def lire_infos(chemin):
                         seed = re.search(r'Seed: (-?\d+)', texte)
                         if seed:
                             infos['seed'] = int(seed.group(1))
+                        infos['parametres'] = parametres_png(texte)
     except OSError:
         pass
     cache_infos[chemin.name] = (mtime, infos)
@@ -2453,6 +2504,11 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(400, {'erreur': 'Taille invalide : multiples de 16, entre 256 et 2048.'})
 
             r = lire_reglages()
+            # Refaire une image : ses modeles, etapes, CFG et methode, pour cette creation seulement
+            if p.get('parametres'):
+                r, erreur = reglages_d_une_creation(r, p['parametres'])
+                if erreur:
+                    return self.envoyer(400, {'erreur': erreur})
             # Modele de dessin choisi pour cette creation seulement (serveur MCP) ; les reglages ne changent pas
             if modele:
                 if not chemin_relatif_sur(modele) or not (MODELES / modele).is_file():

@@ -1142,8 +1142,21 @@ class MetadonneesTest(unittest.TestCase):
             self.assertEqual(infos['seed'], 42)
             self.assertEqual(infos['loras'], ['style (0.8)'])
             self.assertEqual((infos['largeur'], infos['hauteur']), (640, 480))
+            # Sans bloc structure (moteur ancien, image venue d'ailleurs) : pas de parametres
+            self.assertIsNone(infos['parametres'])
         finally:
             chemin.unlink()
+
+    def test_parametres_de_creation_lus_dans_l_image(self):
+        bloc = {'models': {'diffusion_model': 'flux-2-klein-4b-Q4_0.gguf', 'llm': 'Qwen3-4B-Q4_K_M.gguf', 'vae': 'vae.safetensors'},
+                'sample_params': {'guidance': {'txt_cfg': 1.0}, 'sample_method': 'euler', 'sample_steps': 4}, 'seed': '7'}
+        serveur.IMAGES.mkdir(exist_ok=True)
+        chemin = serveur.IMAGES / 'image_test_parametres.png'
+        chemin.write_bytes(png('un phare\nSteps: 4, Seed: 7, SDCPP: ' + json.dumps(bloc)))
+        self.addCleanup(chemin.unlink)
+        self.assertEqual(serveur.lire_infos(chemin)['parametres'], {
+            'etapes': 4, 'cfg': 1.0, 'methode': 'euler', 'modele_diffusion': 'flux-2-klein-4b-Q4_0.gguf',
+            'modele_texte': 'Qwen3-4B-Q4_K_M.gguf', 'vae': 'vae.safetensors'})
 
 
 class GestionnaireTest(serveur.Gestionnaire):
@@ -1376,6 +1389,29 @@ class SecuriteHttpTest(unittest.TestCase):
                 statut, _, reponse = self.poster('/api/generer', corps)
                 self.assertEqual(statut, 400)
                 self.assertIn('Modèle introuvable', json.loads(reponse)['erreur'])
+
+    def test_refaire_une_image_avec_ses_parametres(self):
+        # Les fichiers des modeles de l'image, dont un range dans un sous-dossier (sd-cli n'en garde que le nom)
+        (serveur.MODELES / 'flux').mkdir(parents=True, exist_ok=True)
+        for nom in ('flux/dessin-refait.gguf', 'texte-refait.gguf', 'vae-refait.safetensors'):
+            (serveur.MODELES / nom).write_bytes(b'')
+            self.addCleanup((serveur.MODELES / nom).unlink)
+        parametres = {'modele_diffusion': 'dessin-refait.gguf', 'modele_texte': 'texte-refait.gguf', 'vae': 'vae-refait.safetensors',
+                      'etapes': 6, 'cfg': 1.5, 'methode': 'euler'}
+        for mauvais, motif in (({'modele_diffusion': 'absent.gguf'}, 'introuvable'), ({'vae': '../app/code-acces.txt'}, 'introuvable'),
+                               ({'etapes': 0}, 'invalides'), ({'cfg': 'beaucoup'}, 'invalides'), ({'methode': 'magie'}, 'invalides')):
+            with self.subTest(mauvais=mauvais):
+                corps = json.dumps({'prompt': 'un chat', 'parametres': {**parametres, **mauvais}})
+                statut, _, reponse = self.poster('/api/generer', corps)
+                self.assertEqual(statut, 400)
+                self.assertIn(motif, json.loads(reponse)['erreur'])
+        r, erreur = serveur.reglages_d_une_creation({**serveur.REGLAGES_DEFAUT, 'sigmas': '1,0.5,0'}, parametres)
+        self.assertIsNone(erreur)
+        self.assertEqual((r['modele_diffusion'], r['etapes'], r['cfg']), ('flux/dessin-refait.gguf', 6, 1.5))
+        # Des sigmas prevues pour un autre nombre d'etapes sont abandonnees
+        self.assertEqual(r['sigmas'], '')
+        # Les reglages enregistres ne changent pas
+        self.assertNotEqual(serveur.lire_reglages()['modele_diffusion'], 'flux/dessin-refait.gguf')
 
     def test_profils_en_lecture_seule_sur_le_pc(self):
         statut, _, corps = self.requete('GET', '/api/profils')

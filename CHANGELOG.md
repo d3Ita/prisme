@@ -12,7 +12,6 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - **Nothing spills out of the window anymore**: on a narrow window, the top bar buttons and the "Create" button went past the edge. The search field and the project list now shrink, and the model name hides when space runs out.
 - The project list sometimes showed empty instead of "All images".
-
 - **Updates are still found when GitHub limits checks.** GitHub allows 60 checks per hour per internet connection (shared by an office or a school); past that, Prisme said "GitHub is not answering" and showed no update. It now reads the latest version from the releases page and offers its download link; the one-click update comes back at the next check.
 
 ## [2.1.0] - 2026-11-13

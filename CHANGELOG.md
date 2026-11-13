@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- **Models can be chosen freely again, one by one.** The advanced mode of the Models window only offered to download or delete: a model added by hand (a Qwen-Image 2.1 variant, for example) could not be used from there. The window now shows "Your setup" at the top, with a list for each role (drawing model, text model, vision, VAE) that offers every file of the models folder; it says whether the setup comes from a profile or is custom. In advanced mode, each installed model has a "Use" button, and each file added by hand a "Use as…" list. Before a profile replaces a custom setup, Prisme says so. Same in the web version. Machine profiles stay as they are.
+
 ## [2.1.2] - 2026-11-13
 
 ### Fixed

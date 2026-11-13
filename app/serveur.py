@@ -1288,6 +1288,37 @@ def utiliser_modele(modele):
             ecrire_reglages(r)
 
 
+# Roles qu'on peut donner a n'importe quel fichier du dossier models dans la fenetre des modeles (mode avance)
+ROLES_CHOISIS = {'image': 'modele_diffusion', 'texte': 'modele_texte', 'edition': 'modele_vision', 'vae': 'vae'}
+
+
+def utiliser_fichier(nom, role):
+    """Choisit un fichier du dossier models pour un role, sans passer par un profil : la configuration reste libre.
+    Un fichier du catalogue garde ses regles (etapes du modele de dessin, vision retiree si le texte n'en a pas)."""
+    nom = str(nom).replace('\\', '/')
+    fichier = MODELES / nom
+    if role == 'edition' and not nom:
+        # La vision est facultative : « Aucune »
+        with verrou_reglages:
+            reglages = lire_reglages()
+            reglages['modele_vision'] = ''
+            ecrire_reglages(reglages)
+        return
+    if not chemin_relatif_sur(nom) or not fichier.is_file() or fichier.suffix.lower() not in EXTENSIONS_MODELES \
+            or LORAS in fichier.parents:
+        raise ValueError('Modèle introuvable dans le dossier models.')
+    connu = next((m for m in MODELES_CONSEILLES if m['fichier'] == nom and m['role_id'] == role), None)
+    if connu:
+        utiliser_modele(connu)
+        return
+    if role not in ROLES_CHOISIS:
+        raise ValueError('Rôle inconnu.')
+    with verrou_reglages:
+        reglages = lire_reglages()
+        reglages[ROLES_CHOISIS[role]] = nom
+        ecrire_reglages(reglages)
+
+
 def telecharger_modele(modele):
     """Telecharge un modele dans models/ en reprenant un telechargement interrompu, puis verifie son empreinte."""
     suivi = telechargements_modeles[modele['id']]
@@ -1517,19 +1548,27 @@ def etat_profils():
 def etat_modeles_conseilles():
     profils = etat_profils()
     conseilles = set(next(p for p in PROFILS if p['id'] == profils['conseille'])['modeles'])
+    reglages = lire_reglages()
     with verrou_modeles:
         machine = profil_machine()
-        modeles = [{k: m[k] for k in ('id', 'role', 'titre', 'detail', 'detail_en', 'fichier', 'taille', 'licence')}
+        modeles = [{k: m[k] for k in ('id', 'role', 'role_id', 'titre', 'detail', 'detail_en', 'fichier', 'taille', 'licence')}
                    | {'conseille': m['id'] in conseilles, 'present': (MODELES / m['fichier']).is_file(),
+                      'utilise': (MODELES / m['fichier']).is_file() and all(reglages.get(c) == m['fichier'] for c in m['remplit']),
                       'reprise': (MODELES / (m['fichier'] + '.partiel')).is_file(),
                       'telechargement': dict(telechargements_modeles[m['id']]) if m['id'] in telechargements_modeles else None}
                    for m in MODELES_CONSEILLES]
     MODELES.mkdir(parents=True, exist_ok=True)
     # Le moteur de texte (pour Ameliorer) est propose dans la meme fenetre
     du_catalogue = {m['fichier'] for m in MODELES_CONSEILLES}
-    autres = [m for m in lister_modeles() if m['nom'] not in du_catalogue]
+    # Fichiers ajoutes a la main, avec les roles qu'ils tiennent dans les reglages
+    autres = [m | {'roles': [role for role, cle in ROLES_CHOISIS.items() if reglages.get(cle) == m['nom']]}
+              for m in lister_modeles() if m['nom'] not in du_catalogue]
+    # Configuration actuelle : celle d'un profil, ou personnalisee (fichiers choisis un par un)
+    configuration = {role: reglages.get(cle) or '' for role, cle in ROLES_CHOISIS.items()}
+    profil_actif = next((p['id'] for p in profils['profils'] if p['actif']), None)
     return {'modeles': modeles, 'autres': autres, 'libre': shutil.disk_usage(MODELES).free, 'machine': machine, 'moteurs': etat_moteurs(),
-            'profils': profils['profils'], 'suggestion': profils['suggestion'], 'conseille': profils['conseille']}
+            'profils': profils['profils'], 'suggestion': profils['suggestion'], 'conseille': profils['conseille'],
+            'configuration': configuration, 'profil_actif': profil_actif}
 
 
 # Avis de nouvelle version : le numero de la derniere version publiee sur GitHub, lu une fois au lancement
@@ -2835,6 +2874,17 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 with verrou_modeles:
                     if ident in telechargements_modeles:
                         telechargements_modeles[ident]['annule'] = True
+            self.envoyer(200, {})
+
+        elif chemin == '/api/utiliser-modele':
+            # Choisir un modele pour un role depuis la fenetre des modeles, comme dans les Reglages : seulement sur le PC
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme sur le PC.'})
+            donnees = self.lire_json()
+            try:
+                utiliser_fichier(donnees.get('nom') or '', str(donnees.get('role') or ''))
+            except ValueError as e:
+                return self.envoyer(400, {'erreur': str(e)})
             self.envoyer(200, {})
 
         elif chemin == '/api/supprimer-modele':

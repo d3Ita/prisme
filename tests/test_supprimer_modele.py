@@ -75,7 +75,7 @@ class SuppressionTest(unittest.TestCase):
         catalogue = serveur.MODELES_CONSEILLES[0]['fichier']
         (self.modeles / catalogue).write_bytes(b'x')
         autres = serveur.etat_modeles_conseilles()['autres']
-        self.assertEqual(autres, [{'nom': 'perso.safetensors', 'taille': 5}])
+        self.assertEqual(autres, [{'nom': 'perso.safetensors', 'taille': 5, 'roles': []}])
 
 
 class RouteSuppressionTest(unittest.TestCase):

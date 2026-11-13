@@ -1155,8 +1155,60 @@ class MetadonneesTest(unittest.TestCase):
         chemin.write_bytes(png('un phare\nSteps: 4, Seed: 7, SDCPP: ' + json.dumps(bloc)))
         self.addCleanup(chemin.unlink)
         self.assertEqual(serveur.lire_infos(chemin)['parametres'], {
-            'etapes': 4, 'cfg': 1.0, 'methode': 'euler', 'modele_diffusion': 'flux-2-klein-4b-Q4_0.gguf',
+            'loras': [], 'etapes': 4, 'cfg': 1.0, 'methode': 'euler', 'modele_diffusion': 'flux-2-klein-4b-Q4_0.gguf',
             'modele_texte': 'Qwen3-4B-Q4_K_M.gguf', 'vae': 'vae.safetensors'})
+        # Les LoRA de la creation, tels que sd-cli les a lus dans la description
+        # sd-cli ecrit la force en float32
+        chemin.write_bytes(png('un phare <lora:style:0.800000011920929>\nSteps: 4, Seed: 7, SDCPP: ' + json.dumps(bloc)))
+        infos = serveur.lire_infos(chemin)
+        self.assertEqual(infos['parametres']['loras'], [{'nom': 'style', 'force': 0.8}])
+        self.assertEqual(infos['loras'], ['style (0.8)'])
+
+    def test_memoire_du_moteur_mesuree(self):
+        import subprocess
+        moteur = subprocess.Popen([sys.executable, '-c', 'import sys; b = bytearray(80_000_000); b[::4096] = b"x" * len(b[::4096]); sys.exit(3)'])
+        code, memoire = serveur.attendre_moteur(moteur)
+        self.assertEqual(code, 3)
+        self.assertEqual(moteur.wait(), 3)
+        self.assertGreater(memoire, 60_000_000)
+
+    def test_mesures_comparaison_et_projet_d_une_creation(self):
+        import io
+        from unittest import mock
+        serveur.IMAGES.mkdir(exist_ok=True)
+        commandes = []
+
+        def faux_moteur(commande, **options):
+            # Comme sd-cli : l'image demandee, avec ses parametres
+            Path(commande[commande.index('-o') + 1]).write_bytes(png('un phare\nSteps: 4, Seed: 5'))
+            commandes.append(commande)
+            return mock.Mock(stdout=io.BytesIO(b''))
+
+        r = {**serveur.REGLAGES_DEFAUT, **BASE}
+        serveur.annule = False
+        serveur.etat.clear()
+        serveur.etat.update(occupe=True, resultats=[], erreur=None)
+        with mock.patch.object(serveur, 'lancer_moteur', faux_moteur), mock.patch.object(serveur, 'attendre_moteur', lambda m: (0, 123)), \
+                mock.patch.object(serveur, 'modeles_manquants', lambda r, vision: []):
+            serveur.generer({'reglages': r, 'prompt': 'un phare', 'largeur': 512, 'hauteur': 512, 'nombre': 2, 'seed': 5, 'claude': False,
+                             'liste_reglages': [{**r, 'modele_diffusion': 'a.gguf'}, {**r, 'modele_diffusion': 'b.gguf', 'etapes': 8}],
+                             'comparaison': ['Modèle A', 'Modèle B'], 'projet': 'Phares'})
+        resultats = [serveur.IMAGES / n for n in serveur.etat['resultats']]
+        for chemin in resultats:
+            self.addCleanup(chemin.unlink, missing_ok=True)
+        self.assertIsNone(serveur.etat['erreur'])
+        self.assertEqual(len(resultats), 2)
+        # Une image par modele, avec la meme variante et les reglages de chacun
+        self.assertEqual([c[c.index('--seed') + 1] for c in commandes], ['5', '5'])
+        self.assertTrue(any(a.endswith('a.gguf') for a in commandes[0]) and any(a.endswith('b.gguf') for a in commandes[1]))
+        self.assertEqual(commandes[1][commandes[1].index('--steps') + 1], '8')
+        infos = [serveur.lire_infos(c) for c in resultats]
+        self.assertEqual([(i['mesures']['memoire'], i['mesures']['comparaison']) for i in infos], [(123, 'Modèle A'), (123, 'Modèle B')])
+        # Le morceau ajoute ne gene pas la lecture du reste
+        self.assertEqual((infos[0]['prompt'], infos[0]['seed'], infos[0]['largeur']), ('un phare', 5, 640))
+        self.assertEqual({serveur.lire_projets()[c.name] for c in resultats}, {'Phares'})
+        serveur.ranger([c.name for c in resultats], '')
+        self.assertEqual(serveur.lire_projets(), {})
 
 
 class GestionnaireTest(serveur.Gestionnaire):
@@ -1412,6 +1464,58 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertEqual(r['sigmas'], '')
         # Les reglages enregistres ne changent pas
         self.assertNotEqual(serveur.lire_reglages()['modele_diffusion'], 'flux/dessin-refait.gguf')
+
+    def test_loras_d_une_creation(self):
+        serveur.LORAS.mkdir(parents=True, exist_ok=True)
+        (serveur.LORAS / 'style.safetensors').write_bytes(b'')
+        self.addCleanup((serveur.LORAS / 'style.safetensors').unlink)
+        r = {**serveur.REGLAGES_DEFAUT, 'loras': [{'nom': 'autre.safetensors', 'force': 1.0, 'actif': True}]}
+        # sd-cli nomme les LoRA sans extension
+        self.assertEqual(serveur.reglages_d_une_creation(r, {'loras': [{'nom': 'style', 'force': 0.8}]})[0]['loras'],
+                         [{'nom': 'style.safetensors', 'force': 0.8, 'actif': True}])
+        # Une liste vide : sans LoRA ; sans liste : ceux des reglages
+        self.assertEqual(serveur.reglages_d_une_creation(r, {'loras': []})[0]['loras'], [])
+        self.assertEqual(serveur.reglages_d_une_creation(r, {'etapes': 4})[0]['loras'], r['loras'])
+        for mauvais, motif in (([{'nom': 'absent'}], 'introuvable'), ([{'nom': '../reglages'}], 'introuvable'),
+                               ([{'nom': 'style', 'force': 5}], 'invalides'), (['style'], 'introuvable')):
+            with self.subTest(mauvais=mauvais):
+                self.assertIn(motif, serveur.reglages_d_une_creation(r, {'loras': mauvais})[1])
+
+    def test_comparer_des_profils(self):
+        profil = next(p for p in serveur.PROFILS if p['id'] == 'cpu-8go')
+        r = serveur.reglages_du_profil({**serveur.REGLAGES_DEFAUT, 'etapes': 30}, profil)
+        dessin = next(serveur.MODELES_PAR_ID[i] for i in profil['modeles'] if 'modele_diffusion' in serveur.MODELES_PAR_ID[i]['remplit'])
+        self.assertEqual((r['modele_diffusion'], r['etapes']), (dessin['fichier'], dessin['reglages']['etapes']))
+        self.assertEqual(serveur.nom_du_profil(profil), f"{dessin['nom']} {dessin['quantification']}")
+        # La vision ne sert qu'a modifier : un profil Qwen-Image se compare sans elle
+        qwen = next(p for p in serveur.PROFILS if p['id'] == 'qwen-8go')
+        self.assertEqual([m['id'] for m in serveur.modeles_de_creation(qwen)], [i for i in qwen['modeles'] if not i.startswith('vision')])
+        self.assertEqual(serveur.reglages_du_profil({**serveur.REGLAGES_DEFAUT, 'modele_vision': 'v.gguf'}, qwen)['modele_vision'], 'v.gguf')
+        for comparer, motif in ((['cpu-8go'], '2 à 4'), (['cpu-8go', 'cpu-8go'], '2 à 4'), (['cpu-8go', 'inconnu'], '2 à 4'),
+                                (['cpu-8go', 'gpu-8go'], 'Télécharge')):
+            with self.subTest(comparer=comparer):
+                statut, _, reponse = self.poster('/api/generer', json.dumps({'prompt': 'un chat', 'comparer': comparer}))
+                self.assertEqual(statut, 400)
+                self.assertIn(motif, json.loads(reponse)['erreur'])
+
+    def test_ranger_les_images_dans_un_projet(self):
+        serveur.IMAGES.mkdir(exist_ok=True)
+        noms = ['image_20990101_000000.png', 'image_20990101_000001.png']
+        # Apres l'effacement des images (les nettoyages se font a l'envers) : le fichier des projets les oublie
+        self.addCleanup(lambda: serveur.ranger([], ''))
+        for nom in noms:
+            (serveur.IMAGES / nom).write_bytes(png('un phare\nSteps: 4, Seed: 1'))
+            self.addCleanup((serveur.IMAGES / nom).unlink)
+        self.assertEqual(self.poster('/api/projet', json.dumps({'noms': noms, 'projet': '  Phares   du Nord '}))[0], 200)
+        images = {i['nom']: i['projet'] for i in json.loads(self.requete('GET', '/api/images')[2])}
+        self.assertEqual([images[n] for n in noms], ['Phares du Nord', 'Phares du Nord'])
+        self.assertEqual(self.poster('/api/projet', json.dumps({'noms': noms[:1], 'projet': ''}))[0], 200)
+        self.assertEqual(serveur.lire_projets(), {noms[1]: 'Phares du Nord'})
+        for mauvais in ({'noms': ['../app/reglages.json'], 'projet': 'x'}, {'noms': [], 'projet': 'x'}, {'noms': 'image.png'}):
+            with self.subTest(mauvais=mauvais):
+                self.assertEqual(self.poster('/api/projet', json.dumps(mauvais))[0], 404)
+        # Claude ne range pas les images de Prisme
+        self.assertEqual(self.poster('/api/projet', json.dumps({'noms': noms, 'projet': 'x'}), {'X-Prisme-Client': 'mcp'})[0], 403)
 
     def test_profils_en_lecture_seule_sur_le_pc(self):
         statut, _, corps = self.requete('GET', '/api/profils')

@@ -7,6 +7,7 @@ Popup {
     id: demande
     property string titre: ""
     property string accepter: Theme.tx("Autoriser", "Approve")
+    property string refuser: Theme.tx("Refuser", "Refuse")
     default property alias contenu: zone.data
     signal reponse(bool accepte)
     parent: Overlay.overlay
@@ -42,7 +43,7 @@ Popup {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 6
             spacing: 10
-            BoutonPrincipal { secondaire: true; text: Theme.tx("Refuser", "Refuse"); onClicked: demande.reponse(false) }
+            BoutonPrincipal { secondaire: true; text: demande.refuser; onClicked: demande.reponse(false) }
             BoutonPrincipal { text: demande.accepter; onClicked: demande.reponse(true) }
         }
     }

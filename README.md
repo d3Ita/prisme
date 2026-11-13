@@ -74,6 +74,10 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **Edit** an existing image: click **Edit** (Modifier) under a result, or drag, paste or attach any picture
 - **Enlarge** a finished image 4 times with Real-ESRGAN: one click under the image, details stay sharp
 - **Formats**: square, landscape, portrait, or the starting image's proportions
+- **Image details and redo** (desktop app): under each image, **Details** shows its models, steps, CFG, method, LoRA, time and peak memory on this computer; **Redo identically** creates it again with those settings, without changing yours
+- **Compare models**: the same description and variant with 2 to 4 installed profiles, each image captioned with its model and time
+- **Projects**: sort images into projects, show one project at a time, and new creations go into the project shown
+- **LoRA per creation**: pick the LoRA of the next creations and their strength from the writing area, without touching the settings
 - **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt, copy or save an image elsewhere, and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
 - **English and French interface**, following the device's language or chosen in the settings

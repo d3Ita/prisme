@@ -129,6 +129,30 @@ def lancer_moteur(commande, **options):
     return processus
 
 
+class _MemoireProcessus(ctypes.Structure):
+    # PROCESS_MEMORY_COUNTERS de Windows
+    _fields_ = [('cb', ctypes.c_ulong), ('PageFaultCount', ctypes.c_ulong)] + [(n, ctypes.c_size_t) for n in (
+        'PeakWorkingSetSize', 'WorkingSetSize', 'QuotaPeakPagedPoolUsage', 'QuotaPagedPoolUsage', 'QuotaPeakNonPagedPoolUsage',
+        'QuotaNonPagedPoolUsage', 'PagefileUsage', 'PeakPagefileUsage')]
+
+
+def attendre_moteur(moteur):
+    """Attend la fin du moteur : (code de sortie, memoire vive la plus haute qu'il a prise en octets, ou None).
+    La memoire de la carte graphique n'y est pas."""
+    if WINDOWS:
+        code = moteur.wait()
+        compteurs = _MemoireProcessus(cb=ctypes.sizeof(_MemoireProcessus))
+        lu = _noyau.K32GetProcessMemoryInfo(ctypes.c_void_p(int(moteur._handle)), ctypes.byref(compteurs), compteurs.cb)
+        return code, compteurs.PeakWorkingSetSize if lu else None
+    try:
+        _, statut, usage = os.wait4(moteur.pid, 0)
+    except ChildProcessError:
+        return moteur.wait(), None
+    moteur.returncode = os.waitstatus_to_exitcode(statut)
+    # ru_maxrss : en octets sur Mac, en kilo-octets sous Linux
+    return moteur.returncode, usage.ru_maxrss * (1 if sys.platform == 'darwin' else 1024)
+
+
 def tuer_arbre(moteur):
     """Arrete un moteur et ce qu'il a lance : son groupe sous Linux et Mac ; sous Windows, l'objet Job s'en charge."""
     try:
@@ -1860,6 +1884,14 @@ def nouveau_chemin(dossier=IMAGES):
     return chemin
 
 
+def force_lisible(force):
+    """Force d'un LoRA telle que sd-cli l'ecrit (float32 : 0.800000011920929), arrondie : 0.8."""
+    try:
+        return f'{round(float(force), 2):g}'
+    except ValueError:
+        return force
+
+
 def parametres_png(texte):
     """Conditions d'une creation, lues dans le bloc structure que sd-cli ecrit dans le PNG (schema sdcpp.generation/v1),
     ou None pour une image sans ce bloc (versions anciennes du moteur, image venue d'ailleurs)."""
@@ -1870,7 +1902,14 @@ def parametres_png(texte):
     if not isinstance(donnees, dict):
         return None
     echantillon, modeles = donnees.get('sample_params') or {}, donnees.get('models') or {}
-    return {'etapes': echantillon.get('sample_steps'), 'cfg': (echantillon.get('guidance') or {}).get('txt_cfg'),
+    loras = []
+    for nom, force in BALISE_LORA.findall(texte.split('\nSteps:')[0]):
+        try:
+            # sd-cli ecrit la force en float32 (0.800000011920929)
+            loras.append({'nom': nom, 'force': round(float(force), 2)})
+        except ValueError:
+            pass
+    return {'loras': loras, 'etapes': echantillon.get('sample_steps'), 'cfg': (echantillon.get('guidance') or {}).get('txt_cfg'),
             'methode': echantillon.get('sample_method'), 'modele_diffusion': modeles.get('diffusion_model'),
             'modele_texte': modeles.get('llm'), 'vae': modeles.get('vae')}
 
@@ -1902,6 +1941,22 @@ def reglages_d_une_creation(r, parametres):
         return None, 'Paramètres invalides.'
     if parametres.get('methode'):
         r['methode'] = str(parametres['methode'])
+    # LoRA de cette creation (une liste vide : aucun) ; sd-cli les nomme sans extension
+    if isinstance(parametres.get('loras'), list):
+        loras = []
+        for l in parametres['loras']:
+            nom = str(l.get('nom') or '') if isinstance(l, dict) else ''
+            fichier = next((x['nom'] for x in lister_loras() if nom in (x['nom'], Path(x['nom']).with_suffix('').as_posix())), None)
+            if not fichier:
+                return None, f'LoRA introuvable dans models/loras : {nom}'
+            try:
+                force = round(float(l.get('force', 1.0)), 2)
+            except (TypeError, ValueError):
+                return None, 'Paramètres invalides.'
+            if not -2 <= force <= 2:
+                return None, 'Paramètres invalides.'
+            loras.append({'nom': fichier, 'force': force, 'actif': True})
+        r['loras'] = loras
     if not 1 <= r['etapes'] <= 150 or not 0 <= r['cfg'] <= 30 or r['methode'] not in METHODES:
         return None, 'Paramètres invalides.'
     # Des sigmas reglees pour un autre nombre d'etapes ne vont plus : sd-cli choisit les siennes
@@ -1910,14 +1965,89 @@ def reglages_d_une_creation(r, parametres):
     return r, None
 
 
+def modeles_de_creation(profil):
+    """Fichiers d'un profil qui servent a creer : sans la vision, utile seulement pour modifier une image."""
+    return [MODELES_PAR_ID[i] for i in profil['modeles'] if MODELES_PAR_ID[i]['role_id'] != 'edition']
+
+
+def reglages_du_profil(r, profil):
+    """Reglages pour creer avec les modeles d'un profil (et les reglages conseilles de son modele de dessin), pour une
+    comparaison : les Reglages ne changent pas."""
+    r = dict(r)
+    for m in modeles_de_creation(profil):
+        for cle in m['remplit']:
+            r[cle] = m['fichier']
+        for cle in m.get('vide', []):
+            r[cle] = ''
+        if m.get('reglages') and 'modele_diffusion' in m['remplit']:
+            r.update(m['reglages'])
+    return r
+
+
+def nom_du_profil(profil):
+    """Nom du modele de dessin d'un profil, pour legender une comparaison."""
+    m = next(MODELES_PAR_ID[i] for i in profil['modeles'] if 'modele_diffusion' in MODELES_PAR_ID[i]['remplit'])
+    return f"{m['nom']} {m['quantification']}"
+
+
+# --- Projets : {nom d'image: projet}, a cote des images
+verrou_projets = threading.Lock()
+
+
+def lire_projets():
+    try:
+        projets = json.loads((IMAGES / 'projets.json').read_text('utf-8'))
+    except (OSError, ValueError):
+        return {}
+    return projets if isinstance(projets, dict) else {}
+
+
+def ranger(noms, projet):
+    """Range des images dans un projet ('' : dans aucun) ; les images qui n'existent plus sont oubliees."""
+    with verrou_projets:
+        projets = lire_projets()
+        for nom in noms:
+            if projet:
+                projets[nom] = projet
+            else:
+                projets.pop(nom, None)
+        projets = {n: p for n, p in projets.items() if (IMAGES / n).is_file()}
+        IMAGES.mkdir(exist_ok=True)
+        temporaire = IMAGES / 'projets.json.tmp'
+        temporaire.write_text(json.dumps(projets, ensure_ascii=False, indent=1), 'utf-8')
+        os.replace(temporaire, IMAGES / 'projets.json')
+
+
+def nom_projet(valeur):
+    """Nom de projet propre : espaces simplifies, 60 caracteres au plus."""
+    return ' '.join(str(valeur or '').split())[:60]
+
+
+def noter_dans_png(chemin, donnees):
+    """Ajoute a une image le morceau texte « prisme » (JSON : duree, memoire, comparaison...), avant les pixels pour que
+    lire_infos le trouve sans lire toute l'image."""
+    morceaux = agrandir.morceaux_png(chemin.read_bytes())
+    texte = agrandir.morceau_png(b'tEXt', b'prisme\x00' + json.dumps(donnees, ensure_ascii=True).encode())
+    i = next(n for n, (genre, _) in enumerate(morceaux) if genre == b'IDAT')
+    contenu = agrandir.SIGNATURE_PNG + b''.join(agrandir.morceau_png(g, c) for g, c in morceaux[:i]) + texte \
+        + b''.join(agrandir.morceau_png(g, c) for g, c in morceaux[i:])
+    temporaire = chemin.with_name(chemin.name + '.tmp')
+    temporaire.write_bytes(contenu)
+    os.replace(temporaire, chemin)
+
+
 def lire_infos(chemin):
     """Lit taille, prompt et seed dans les metadonnees PNG ecrites par sd-cli."""
-    mtime = chemin.stat().st_mtime
+    statut = chemin.stat()
+    mtime = statut.st_mtime
+    # La taille aussi : sous Windows, une image reecrite aussitot (mesures ajoutees) peut garder la meme date
+    cle = (statut.st_mtime_ns, statut.st_size)
     connu = cache_infos.get(chemin.name)
-    if connu and connu[0] == mtime:
+    if connu and connu[0] == cle:
         return connu[1]
 
     infos = {'nom': chemin.name, 'prompt': '', 'seed': None, 'loras': [], 'largeur': 0, 'hauteur': 0, 'parametres': None,
+             'mesures': None,
              'date': datetime.fromtimestamp(mtime).isoformat(timespec='seconds'), 'version': int(mtime)}
     try:
         with open(chemin, 'rb') as f:
@@ -1941,15 +2071,20 @@ def lire_infos(chemin):
                         except UnicodeDecodeError:
                             texte = brut.decode('latin-1')
                         prompt = texte.split('\nSteps:')[0]
-                        infos['loras'] = [f'{nom} ({force})' for nom, force in BALISE_LORA.findall(prompt)]
+                        infos['loras'] = [f'{nom} ({force_lisible(force)})' for nom, force in BALISE_LORA.findall(prompt)]
                         infos['prompt'] = BALISE_LORA.sub('', prompt).strip()
                         seed = re.search(r'Seed: (-?\d+)', texte)
                         if seed:
                             infos['seed'] = int(seed.group(1))
                         infos['parametres'] = parametres_png(texte)
+                    elif genre == b'tEXt' and donnees.startswith(b'prisme\x00'):
+                        try:
+                            infos['mesures'] = json.loads(donnees[len(b'prisme\x00'):])
+                        except ValueError:
+                            pass
     except OSError:
         pass
-    cache_infos[chemin.name] = (mtime, infos)
+    cache_infos[chemin.name] = (cle, infos)
     return infos
 
 
@@ -1957,7 +2092,8 @@ def lister_images():
     if not IMAGES.exists():
         return []
     fichiers = sorted(IMAGES.glob('*.png'), key=lambda p: p.stat().st_mtime, reverse=True)
-    return [lire_infos(p) for p in fichiers]
+    projets = lire_projets()
+    return [{**lire_infos(p), 'projet': projets.get(p.name, '')} for p in fichiers]
 
 
 def generer(params):
@@ -1977,21 +2113,25 @@ def generer(params):
                 f.write(base64.b64decode(donnees))
             source = source_temp = Path(chemin)
 
+        # Une comparaison : les memes description et variante, avec les reglages de chaque profil
+        liste = params.get('liste_reglages') or [r] * params['nombre']
         mode = mode_edition(r) if source else None
         if source and not mode:
             raise RuntimeError('Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire '
                                '(FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.')
-        manquants = modeles_manquants(r, mode == 'vision')
-        if manquants:
-            raise RuntimeError('Modèle introuvable dans le dossier models : ' + ', '.join(manquants) + '. Vérifie les réglages.')
+        for r in liste:
+            manquants = modeles_manquants(r, mode == 'vision')
+            if manquants:
+                raise RuntimeError('Modèle introuvable dans le dossier models : ' + ', '.join(manquants) + '. Vérifie les réglages.')
 
         for i in range(params['nombre']):
             if annule:
                 break
-            seed = params['seed'] + i
+            r = liste[i]
+            seed = params['seed'] + (0 if params.get('comparaison') else i)
             sortie = nouveau_chemin(IMAGES_CLAUDE if params['claude'] else IMAGES)
             with verrou:
-                etat.update(phase='chargement', etape=0, index=i + 1, seed=seed, debut_image=time.time())
+                etat.update(phase='chargement', etape=0, total=r['etapes'], index=i + 1, seed=seed, debut_image=time.time())
             journal = deque(maxlen=80)
             processus = lancer_moteur(
                 [str(SD_CLI)] + arguments(r, params['prompt'], params['largeur'], params['hauteur'], seed, source, sortie,
@@ -2016,7 +2156,7 @@ def generer(params):
                                 etat.update(phase='finalisation' if fait >= total else 'dessin', etape=fait)
                             elif etat['phase'] == 'dessin':
                                 etat['phase'] = 'finalisation'
-            code = processus.wait()
+            code, memoire = attendre_moteur(processus)
 
             if annule:
                 sortie.unlink(missing_ok=True)
@@ -2026,6 +2166,16 @@ def generer(params):
                 with verrou:
                     etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
                 break
+            # Mesures de cette creation, gardees dans l'image : combien de temps et de memoire sur cet ordinateur
+            mesures = {'duree': round(time.time() - etat['debut_image'], 1), 'memoire': memoire}
+            if params.get('comparaison'):
+                mesures['comparaison'] = params['comparaison'][i]
+            try:
+                noter_dans_png(sortie, mesures)
+            except (OSError, ValueError, StopIteration):
+                pass
+            if params.get('projet') and not params['claude']:
+                ranger([sortie.name], params['projet'])
             with verrou:
                 etat['resultats'].append(sortie.name)
     except Exception as e:
@@ -2080,6 +2230,8 @@ def generer_agrandissement(params):
                 etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
         else:
             agrandir.copier_description(source, sortie)
+            if lire_projets().get(source.name):
+                ranger([sortie.name], lire_projets()[source.name])
             with verrou:
                 etat['resultats'].append(sortie.name)
     except Exception as e:
@@ -2496,6 +2648,8 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 seed = p.get('seed')
                 seed = random.randint(0, 2**31 - 1) if seed in (None, '') else int(seed)
                 modele = str(p.get('modele') or '')
+                comparer = [str(x) for x in p.get('comparer') or []]
+                projet = nom_projet(p.get('projet'))
             except (ValueError, TypeError, json.JSONDecodeError):
                 return self.envoyer(400, {'erreur': 'Paramètres invalides.'})
             if not prompt:
@@ -2514,6 +2668,19 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 if not chemin_relatif_sur(modele) or not (MODELES / modele).is_file():
                     return self.envoyer(400, {'erreur': 'Modèle introuvable dans le dossier models.'})
                 r = {**r, 'modele_diffusion': modele}
+            # Comparer des modeles : une image par profil installe, meme description, meme variante
+            liste_reglages = comparaison = None
+            if comparer:
+                profils = [next((x for x in PROFILS if x['id'] == i), None) for i in comparer]
+                if not 2 <= len(comparer) <= 4 or len(set(comparer)) != len(comparer) or None in profils:
+                    return self.envoyer(400, {'erreur': 'Choisis de 2 à 4 profils différents à comparer.'})
+                if any(not (MODELES / m['fichier']).is_file() for x in profils for m in modeles_de_creation(x)):
+                    return self.envoyer(400, {'erreur': 'Télécharge d\'abord les modèles de chaque profil à comparer.'})
+                if p.get('source_nom') or p.get('source_data'):
+                    return self.envoyer(400, {'erreur': 'La comparaison crée à partir d\'une description, sans image de départ.'})
+                liste_reglages = [reglages_du_profil(r, x) for x in profils]
+                comparaison = [nom_du_profil(x) for x in profils]
+                nombre = len(profils)
             claude = self.vient_du_mcp()
             with verrou:
                 if etat['occupe']:
@@ -2528,7 +2695,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
             # Claude n'envoie que ses propres images (source_data), jamais un nom d'image de Prisme
             params = dict(prompt=prompt, largeur=largeur, hauteur=hauteur, nombre=nombre, seed=seed, reglages=r,
                           source_nom=None if claude else p.get('source_nom'), source_data=p.get('source_data'),
-                          claude=claude)
+                          claude=claude, liste_reglages=liste_reglages, comparaison=comparaison, projet=projet)
             threading.Thread(target=generer, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
 
@@ -2750,6 +2917,17 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 installations[nom] = {'phase': 'telechargement', 'fait': 0,
                                       'total': sum(a['taille'] for a in MOTEURS[nom]['archives']), 'erreur': None}
             threading.Thread(target=installer_moteur, args=(nom,), daemon=True).start()
+            self.envoyer(200, {})
+
+        elif chemin == '/api/projet':
+            if self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Les images de Prisme ne sont pas accessibles à Claude.'})
+            donnees = self.lire_json()
+            noms = donnees.get('noms')
+            if not isinstance(noms, list) or not noms or any(not isinstance(n, str) or not NOM_IMAGE.match(n)
+                                                             or not (IMAGES / n).is_file() for n in noms):
+                return self.envoyer(404, {'erreur': 'Image introuvable.'})
+            ranger(noms, nom_projet(donnees.get('projet')))
             self.envoyer(200, {})
 
         elif chemin == '/api/supprimer':

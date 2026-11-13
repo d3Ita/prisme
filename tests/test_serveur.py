@@ -886,7 +886,8 @@ class VersionTest(unittest.TestCase):
     def test_comparaison(self):
         self.assertGreater(serveur.numero_version('v1.10.0'), serveur.numero_version('1.9.2'))
         self.assertEqual(serveur.numero_version('v1.7.0'), serveur.numero_version('1.7.0'))
-        self.assertGreater(serveur.numero_version('2.0'), serveur.numero_version(serveur.VERSION))
+        # Une version future est toujours plus recente que celle-ci
+        self.assertGreater(serveur.numero_version('99.0'), serveur.numero_version(serveur.VERSION))
 
     def test_pre_versions(self):
         v = serveur.numero_version

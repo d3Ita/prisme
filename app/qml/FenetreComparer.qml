@@ -16,7 +16,16 @@ Panneau {
 
     onOpened: {
         choisis = []
-        Theme.api("/api/profils", undefined, function (p) { profils = p.profils.filter(x => x.installe) })
+        // Deux profils avec les memes fichiers (Carte de 8 Go et Mac 16 Go) donneraient deux fois la meme image : un seul
+        Theme.api("/api/profils", undefined, function (p) {
+            const vus = {}
+            profils = p.profils.filter(function (x) {
+                const cle = x.modeles.map(m => m.fichier).sort().join("|")
+                if (!x.installe || vus[cle]) return false
+                vus[cle] = true
+                return true
+            })
+        })
     }
 
     Text {
@@ -33,7 +42,7 @@ Panneau {
         delegate: Ligne {
             required property var modelData
             nom: Theme.enLangue(modelData.nom)
-            aide: modelData.modeles.map(m => m.nom).filter((n, i, t) => t.indexOf(n) === i).join(" · ")
+            aide: modelData.modeles.map(m => m.nom + (m.quantification ? " " + m.quantification : "")).join(" · ")
             Interrupteur {
                 checked: fenetre.choisis.indexOf(modelData.id) >= 0
                 enabled: checked || fenetre.choisis.length < 4

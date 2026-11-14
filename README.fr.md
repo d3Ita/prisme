@@ -58,7 +58,7 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 
 ## Fonctions
 
-- **Une vraie application de bureau** (nouveau dans la 2.0) : Prisme a sa propre fenêtre sur Windows et Mac, claire ou sombre comme le système. La fermer la cache seulement : Prisme continue pour le téléphone, Claude et les téléchargements, puis s'arrête selon ses réglages. Relancer Prisme fait revenir la fenêtre
+- **Une vraie application de bureau** (nouveau dans la 2.0) : Prisme a sa propre fenêtre sur Windows et Mac, claire ou sombre comme le système, barre de titre comprise. La fermer la cache seulement : Prisme continue pour le téléphone, Claude et les téléchargements, puis s'arrête selon ses réglages. Relancer Prisme fait revenir la fenêtre
 - **Création** d'images à partir d'une description, de 1 à 4 images par lancement, avec un numéro de **variante** pour refaire une image en changeant un détail
 - **Amélioration de la description** par un modèle de langage local, à la demande ou automatiquement, en création comme en modification
 - **Installation automatique** des moteurs au premier lancement : CUDA pour les cartes NVIDIA, Vulkan pour les cartes AMD et Intel
@@ -186,7 +186,7 @@ Si tu préfères ne pas faire confiance au programme, construis-le toi-même à 
 
 Ouvre la fenêtre des modèles (**Télécharger les modèles**, ou **Réglages → Modèles → Télécharger**) et choisis la carte qui correspond à ton ordinateur. Prisme lit ta carte graphique et ta mémoire avec les outils déjà présents sur ton système (`nvidia-smi`, `rocm-smi`, le registre de Windows, `/sys` et `/proc/meminfo` sous Linux, `vulkaninfo`, `sysctl` sous macOS) et marque le profil qu'il recommande. Rien n'est envoyé. S'il n'arrive pas à tout lire, choisis toi-même.
 
-**Télécharger ce profil** affiche d'abord la taille et la place libre sur le disque, puis récupère tout l'ensemble, vérifie l'empreinte SHA-256 de chaque fichier et le choisit dans les réglages. Les fichiers que tu as déjà ne sont pas retéléchargés, et le moteur de texte utilisé par **Améliorer** est ajouté s'il manque. **Choisir les modèles un par un (mode avancé)** affiche chaque fichier.
+**Télécharger ce profil** affiche d'abord la taille et la place libre sur le disque, puis récupère tout l'ensemble, vérifie l'empreinte SHA-256 de chaque fichier et le choisit dans les réglages. Les fichiers que tu as déjà ne sont pas retéléchargés, et le moteur de texte utilisé par **Améliorer** est ajouté s'il manque. En haut, **Ta configuration** montre le fichier utilisé pour chaque rôle (modèle de dessin, modèle de texte, vision, VAE), avec l'étiquette **Personnalisée** quand elle ne vient pas d'un profil, et permet de choisir n'importe quel fichier du dossier `models` pour chaque rôle. **Choisir ou supprimer les modèles un par un (mode avancé)** affiche chaque fichier, avec **Utiliser** à côté de chaque modèle installé et **Utiliser comme…** à côté de ceux ajoutés à la main. Prisme prévient avant qu'un profil remplace une configuration personnalisée.
 
 Les profils de ta machine n'utilisent que des modèles sous licence **Apache-2.0**, qui permet l'usage commercial, y compris des images que tu crées : [FLUX.2 klein 4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B) crée et modifie les images, [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) comprend la description (et fait fonctionner **Améliorer**), et le [FLUX.2 small decoder](https://huggingface.co/black-forest-labs/FLUX.2-small-decoder) produit l'image finale.
 

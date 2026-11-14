@@ -321,7 +321,15 @@ ApplicationWindow {
 
     Connections { target: Theme.reseau; function onReponse(n, statut, texte) { Theme.recevoir(n, statut, texte) } }
 
+    // Barre de titre de Windows aux couleurs du theme (fenetre_qt.Cadre) ; rien a faire sur Mac et Linux
+    function teinterCadre() {
+        if (typeof cadre !== "undefined" && cadre) cadre.teinter(c.fond, c.texte, c.bordure, c.sombre)
+    }
+    Connections { target: Theme; function onSombreChanged() { fenetre.teinterCadre() } }
+
     Component.onCompleted: {
+        // Apres le chargement : Python a alors donne la fenetre a teinter
+        Qt.callLater(teinterCadre)
         if (typeof requetes !== "undefined") Theme.reseau = requetes
         Theme.adresse = adresse
         chargerImages(true)

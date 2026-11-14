@@ -68,7 +68,42 @@ Panneau {
 
     function profilActuel() {
         if (!infos) return null
-        return infos.profils.find(p => p.id === profilChoisi) || infos.profils.find(p => p.id === infos.conseille) || infos.profils[0]
+        return infos.profils.find(p => p.id === profilChoisi) || infos.profils.find(p => p.id === infos.profil_actif)
+            || infos.profils.find(p => p.id === infos.conseille) || infos.profils[0]
+    }
+
+    // --- Configuration libre : un fichier du dossier models pour chaque role, avec ou sans profil
+    readonly property var roles: [
+        { id: "image", nom: Theme.tx("Modèle de dessin", "Drawing model"), aide: Theme.tx("Fait l'image", "Makes the image") },
+        { id: "texte", nom: Theme.tx("Modèle de texte", "Text model"), aide: Theme.tx("Comprend la description", "Understands the description") },
+        { id: "edition", nom: Theme.tx("Vision", "Vision"), aide: Theme.tx("Lit l'image de départ (Qwen-Image)", "Reads the starting image (Qwen-Image)") },
+        { id: "vae", nom: "VAE", aide: Theme.tx("Produit l'image finale", "Produces the final image") }
+    ]
+
+    function nomRole(id) {
+        const role = roles.find(x => x.id === id)
+        return role ? role.nom : id
+    }
+
+    // Fichiers installes dans models/ (catalogue et ajouts a la main), plus le fichier actuel s'il a disparu
+    function fichiersInstalles(role) {
+        if (!infos) return []
+        const noms = infos.modeles.filter(m => m.present).map(m => m.fichier).concat(infos.autres.map(m => m.nom))
+            .filter((n, i, t) => t.indexOf(n) === i).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+        const actuel = infos.configuration ? infos.configuration[role] : ""
+        const liste = noms.map(n => ({ valeur: n, texte: n }))
+        if (actuel && noms.indexOf(actuel) < 0) liste.unshift({ valeur: actuel, texte: actuel + Theme.tx(" (introuvable)", " (missing)") })
+        if (role === "edition" || !actuel) liste.unshift({ valeur: "", texte: role === "edition" ? Theme.tx("Aucune", "None") : "" })
+        return liste
+    }
+
+    function choisir(role, nom) {
+        Theme.api("/api/utiliser-modele", { nom: nom, role: role }, function () {
+            Theme.note(nom ? nom + Theme.tx(" choisi : ", " selected: ") + nomRole(role).toLowerCase()
+                           : Theme.tx("Vision retirée", "Vision removed"))
+            lire()
+            changement()
+        }, function () { lire() })
     }
 
     function licenceManquante(p) {
@@ -211,6 +246,53 @@ Panneau {
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                }
+            }
+        }
+    }
+
+    // --- Configuration utilisee maintenant : celle d'un profil, ou choisie fichier par fichier
+    Section {
+        id: configuration
+        readonly property var actif: fenetre.infos ? fenetre.infos.profils.find(p => p.id === fenetre.infos.profil_actif) || null : null
+        visible: !!fenetre.infos && !!fenetre.infos.configuration
+        titre: Theme.tx("Ta configuration", "Your setup")
+        description: configuration.actif ? Theme.tx("Celle du profil ", "The one from the ") + Theme.enLangue(configuration.actif.nom)
+                                           + Theme.tx(". Change un modèle ici, ou choisis un autre profil plus bas.", " profile. Change a model here, or pick another profile below.")
+                     : Theme.tx("Choisie modèle par modèle. Change un modèle ici, ou choisis un profil plus bas.", "Chosen model by model. Change a model here, or pick a profile below.")
+        liens: [
+            Rectangle {
+                radius: 999
+                height: 22
+                width: etiquette.implicitWidth + 16
+                color: configuration.actif ? Theme.surface3 : Theme.accentDoux
+                Text {
+                    id: etiquette
+                    anchors.centerIn: parent
+                    text: configuration.actif ? Theme.tx("Profil", "Profile") : Theme.tx("Personnalisée", "Custom")
+                    font.pixelSize: 11
+                    color: configuration.actif ? Theme.texte2 : Theme.accent
+                }
+            }
+        ]
+        Repeater {
+            model: fenetre.roles
+            delegate: Ligne {
+                id: ligneRole
+                required property var modelData
+                nom: modelData.nom
+                aide: modelData.aide
+                ListeDeroulante {
+                    id: liste
+                    objectName: "configuration-" + ligneRole.modelData.id
+                    model: fenetre.fichiersInstalles(ligneRole.modelData.id)
+                    valeur: fenetre.infos && fenetre.infos.configuration ? fenetre.infos.configuration[ligneRole.modelData.id] : ""
+                    onActivated: {
+                        const choix = currentValue
+                        if (fenetre.infos && choix !== fenetre.infos.configuration[ligneRole.modelData.id]) fenetre.choisir(ligneRole.modelData.id, choix)
+                        // La liste suit toujours la configuration lue sur le serveur, meme si le choix est refuse
+                        Qt.callLater(function () { liste.valeur = Qt.binding(function () { return fenetre.infos && fenetre.infos.configuration ? fenetre.infos.configuration[ligneRole.modelData.id] : "" }) })
+                    }
                 }
             }
         }
@@ -391,6 +473,13 @@ Panneau {
                       : Theme.tx("Tout est téléchargé : « Utiliser ce profil » le choisit dans les réglages.", "Everything is downloaded: \"Use this profile\" selects it in the settings.")
                 color: Theme.texte2; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
+            // Une configuration choisie a la main n'est pas remplacee sans le dire
+            Text {
+                visible: !!resume.p && !resume.p.actif && !!fenetre.infos && !fenetre.infos.profil_actif
+                text: Theme.tx("Ta configuration personnalisée sera remplacée par celle de ce profil. Tes fichiers restent dans le dossier models.",
+                               "Your custom setup will be replaced by this profile's. Your files stay in the models folder.")
+                color: Theme.texte; font.pixelSize: 13; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true
+            }
         }
     }
 
@@ -424,9 +513,15 @@ Panneau {
                             Text {
                                 visible: ligneModele.modelData.present
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "✓ " + Theme.tx("Installé", "Installed")
+                                text: "✓ " + (ligneModele.modelData.utilise ? Theme.tx("Utilisé", "In use") : Theme.tx("Installé", "Installed"))
                                 color: Theme.succes
                                 font.pixelSize: 13
+                            }
+                            BoutonPrincipal {
+                                visible: ligneModele.modelData.present && !ligneModele.modelData.utilise
+                                secondaire: true
+                                text: Theme.tx("Utiliser", "Use")
+                                onClicked: fenetre.choisir(ligneModele.modelData.role_id, ligneModele.modelData.fichier)
                             }
                             BoutonDiscret {
                                 visible: ligneModele.modelData.present
@@ -481,10 +576,27 @@ Panneau {
                 required property var modelData
                 nom: modelData.nom
                 aide: Theme.taille(modelData.taille)
-                BoutonDiscret {
-                    danger: true
-                    text: Theme.tx("Supprimer", "Delete")
-                    onClicked: fenetre.supprimer(autre.modelData.nom, autre.modelData.nom, autre.modelData.taille)
+                      + (modelData.roles.length ? " · " + Theme.tx("Utilisé : ", "In use: ") + modelData.roles.map(r => fenetre.nomRole(r).toLowerCase()).join(", ") : "")
+                Row {
+                    spacing: 6
+                    ListeDeroulante {
+                        id: roleChoisi
+                        objectName: "utiliser-comme"
+                        implicitWidth: 190
+                        model: [{ valeur: "", texte: Theme.tx("Utiliser comme…", "Use as…") }]
+                               .concat(fenetre.roles.filter(r => autre.modelData.roles.indexOf(r.id) < 0).map(r => ({ valeur: r.id, texte: r.nom })))
+                        onActivated: {
+                            const role = currentValue
+                            Qt.callLater(function () { roleChoisi.valeur = ""; roleChoisi.currentIndex = 0 })
+                            if (role) fenetre.choisir(role, autre.modelData.nom)
+                        }
+                    }
+                    BoutonDiscret {
+                        anchors.verticalCenter: parent.verticalCenter
+                        danger: true
+                        text: Theme.tx("Supprimer", "Delete")
+                        onClicked: fenetre.supprimer(autre.modelData.nom, autre.modelData.nom, autre.modelData.taille)
+                    }
                 }
             }
         }

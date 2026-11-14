@@ -68,7 +68,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 
 ## Features
 
-- **A real desktop app** (new in 2.0): Prisme has its own window on Windows and Mac, light or dark like the system. Closing it only hides it: Prisme keeps serving your phone, Claude and downloads, then stops according to its settings. Opening Prisme again brings the window back
+- **A real desktop app** (new in 2.0): Prisme has its own window on Windows and Mac, light or dark like the system, title bar included. Closing it only hides it: Prisme keeps serving your phone, Claude and downloads, then stops according to its settings. Opening Prisme again brings the window back
 - **Create** images from a description, 1 to 4 per run, with a **variant** number to redo an image while changing a detail
 - **Enhance prompts** with a local language model: a short idea becomes a detailed description, and an edit request becomes a precise instruction that keeps the rest of the image intact
 - **Edit** an existing image: click **Edit** (Modifier) under a result, or drag, paste or attach any picture
@@ -188,7 +188,7 @@ You can also build Prisme yourself or run `app/serveur.py` directly on any syste
 
 Open the models window (**Download the models**, or **Settings → Models → Download**) and pick the card that matches your computer. Prisme reads your graphics card and memory with the tools already on your system (`nvidia-smi`, `rocm-smi`, the Windows registry, `/sys` and `/proc/meminfo` on Linux, `vulkaninfo`, `sysctl` on macOS) and marks the profile it recommends. Nothing is sent anywhere. If it can't read everything, choose the profile yourself.
 
-**Download this profile** shows the size and the free disk space first, then fetches the whole set, checks each file's SHA-256 and selects it in the settings. Files you already have are not downloaded again, and the text engine used by **Enhance** is added if it's missing. **Choose models one by one (advanced mode)** lists every file.
+**Download this profile** shows the size and the free disk space first, then fetches the whole set, checks each file's SHA-256 and selects it in the settings. Files you already have are not downloaded again, and the text engine used by **Enhance** is added if it's missing. At the top, **Your setup** shows the file used for each role (drawing model, text model, vision, VAE), marked **Custom** when it doesn't come from a profile, and lets you pick any file of the `models` folder for each role. **Choose or delete models one by one (advanced mode)** lists every file, with **Use** next to each installed model and **Use as…** next to the ones you added by hand. Prisme warns you before a profile replaces a custom setup.
 
 The profiles for your machine use only **Apache-2.0** models, which allow commercial use, including of the images you create: [FLUX.2 klein 4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B) creates and edits images, [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) understands the description (and powers **Enhance**), and the [FLUX.2 small decoder](https://huggingface.co/black-forest-labs/FLUX.2-small-decoder) produces the final image.
 

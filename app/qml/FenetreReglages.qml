@@ -17,6 +17,7 @@ Panneau {
     property var loras: []
     readonly property string sigmasRapide: "1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0"
     signal ouvrirModeles()
+    signal ouvrirLoras()
     signal enregistre()
     signal apparenceChoisie(string apparence)
     signal langueChoisie(string langue)
@@ -127,8 +128,9 @@ Panneau {
     // --- LoRA
     Section {
         titre: "LoRA"
-        description: fenetre.loras.length ? "" : Theme.tx("Aucun LoRA : place des fichiers .safetensors dans models/loras.", "No LoRA: put .safetensors files in models/loras.")
-        liens: [BoutonDiscret { text: Theme.tx("Ouvrir le dossier", "Open the folder"); onClicked: Theme.api("/api/dossier-loras", {}) }]
+        description: fenetre.loras.length ? "" : Theme.tx("Aucun LoRA : trouves-en dans la Bibliothèque, ou place des fichiers .safetensors dans models/loras.", "No LoRA: find some in the Library, or put .safetensors files in models/loras.")
+        liens: [BoutonDiscret { text: Theme.tx("Bibliothèque", "Library"); onClicked: fenetre.ouvrirLoras() },
+                BoutonDiscret { text: Theme.tx("Ouvrir le dossier", "Open the folder"); onClicked: Theme.api("/api/dossier-loras", {}) }]
         Repeater {
             model: fenetre.loras
             delegate: Ligne {

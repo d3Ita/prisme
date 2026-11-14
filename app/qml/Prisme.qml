@@ -879,7 +879,6 @@ ApplicationWindow {
 
                     BoutonDiscret {
                         id: boutonLoras
-                        visible: lorasDispo.length > 0
                         icone: "lora"
                         // Le nombre de LoRA choisis pour ces creations, quand ils different des Reglages
                         text: (large ? "LoRA" : "") + (lorasChoisis ? (large ? " · " : "") + lorasChoisis.length : "")
@@ -921,15 +920,30 @@ ApplicationWindow {
                                     }
                                 }
                                 Text {
+                                    visible: lorasDispo.length === 0
+                                    text: tx("Aucun LoRA pour l'instant.", "No LoRA yet.")
+                                    color: c.texte2
+                                    font.pixelSize: 13
+                                }
+                                Text {
+                                    visible: lorasDispo.length > 0
                                     text: tx("Pour les prochaines créations seulement : les Réglages ne changent pas.",
                                              "For the next creations only: the Settings don't change.")
                                     color: c.texte3
                                     font.pixelSize: 12
                                 }
-                                BoutonDiscret {
-                                    visible: !!lorasChoisis
-                                    text: tx("Comme dans les Réglages", "As in the Settings")
-                                    onClicked: { lorasChoisis = null; menuLoras.close() }
+                                RowLayout {
+                                    spacing: 4
+                                    BoutonDiscret {
+                                        icone: "recherche"
+                                        text: tx("Trouver des LoRA…", "Find LoRA…")
+                                        onClicked: { menuLoras.close(); bibliotheque.open() }
+                                    }
+                                    BoutonDiscret {
+                                        visible: !!lorasChoisis
+                                        text: tx("Comme dans les Réglages", "As in the Settings")
+                                        onClicked: { lorasChoisis = null; menuLoras.close() }
+                                    }
                                 }
                             }
                         }
@@ -1073,6 +1087,7 @@ ApplicationWindow {
         id: reglages
         objectName: "reglages"
         onOuvrirModeles: { reglages.close(); modeles.open() }
+        onOuvrirLoras: { reglages.close(); bibliotheque.open() }
         onEnregistre: lireEtat()
         onApparenceChoisie: function (choix) {
             fenetre.apparence = choix
@@ -1106,6 +1121,7 @@ ApplicationWindow {
         onRefaire: function (image) { fenetre.refaire(image) }
         onRange: chargerImages(false)
     }
+    FenetreLoras { id: bibliotheque; objectName: "bibliotheque"; onInstalle: chargerLoras() }
     FenetreComparer { id: comparateur; objectName: "comparateur"; onComparer: function (profils) { fenetre.comparer(profils) } }
     Demande {
         id: nouveauProjet

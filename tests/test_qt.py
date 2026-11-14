@@ -47,7 +47,7 @@ class FenetreQtTest(unittest.TestCase):
         if sys.platform != 'darwin':
             self.assertFalse(racine.property('enLigne'))
         # Les fenetres Modeles, Reglages, Telephone, Details et Comparer s'ouvrent aussi sans erreur, meme sans reponse du serveur
-        for nom in ('modeles', 'reglages', 'telephone', 'details', 'comparateur'):
+        for nom in ('modeles', 'reglages', 'telephone', 'details', 'comparateur', 'bibliotheque'):
             fenetre = racine.findChild(QObject, nom)
             self.assertIsNotNone(fenetre, nom)
             QMetaObject.invokeMethod(fenetre, 'open')

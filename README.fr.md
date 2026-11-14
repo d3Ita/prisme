@@ -71,6 +71,7 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 - **Comparer des modèles** : la même description et la même variante avec 2 à 4 profils installés, chaque image légendée avec son modèle et son temps
 - **Projets** : ranger les images dans des projets, n'en montrer qu'un, et les nouvelles créations vont dans le projet montré
 - **LoRA par création** : choisir les LoRA des prochaines créations et leur intensité depuis la zone d'écriture, sans toucher aux réglages
+- **Bibliothèque de LoRA** : trouver sur Hugging Face des LoRA faits pour ton modèle, avec une image d'exemple et la licence, et les télécharger en un clic
 - **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description, copie ou enregistrement d'une image ailleurs, et mise à la corbeille
 - **Thème clair ou sombre**, ou celui du système
 - **Interface en français ou en anglais**, selon la langue de l'appareil ou au choix dans **Réglages → Application → Langue**

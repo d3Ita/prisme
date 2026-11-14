@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **LoRA library** in Prisme 2: "Find LoRA…" in the LoRA menu (or "Library" in Settings) lists the LoRA shared on Hugging Face for the drawing model in use (FLUX.2 klein, Z-Image, Qwen-Image), most downloaded first, with a search field, an example image, the license and the trigger word. One click downloads it into `models/loras`, checked by SHA-256. Private, gated, adult and face-swap repositories are left out (`/api/loras/bibliotheque`, `/api/loras/telecharger`). Prisme fetches the example images itself as soon as the list arrives, four at a time and at most 25 s each, and keeps them on disk (300 MB at most): reopening the library or searching again shows them at once (`/api/loras/apercu`).
+
 ## [2.1.3] - 2026-11-13
 
 ### Fixed

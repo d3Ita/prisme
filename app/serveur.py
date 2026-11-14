@@ -272,6 +272,8 @@ IMAGES_CLAUDE = RACINE / 'images-claude'
 SD_CLI = RACINE / 'sd' / f'sd-cli{SUFFIXE_EXE}'
 LLAMA_SERVEUR = RACINE / 'llama' / f'llama-server{SUFFIXE_EXE}'
 TELECHARGEMENTS = RACINE / '.telechargements'
+# Images d'exemple de la bibliotheque de LoRA, gardees pour ne pas les retelecharger a chaque ouverture
+APERCUS_LORAS = RACINE / '.cache' / 'apercus-loras'
 
 # Moteurs installes par Prisme au premier lancement : versions officielles testees, verifiees par empreinte
 SD_VERSION = 'https://github.com/leejet/stable-diffusion.cpp/releases/download/master-1039-290148d/'
@@ -1556,7 +1558,108 @@ def bibliotheque_loras(r, recherche=''):
             raise RuntimeError('Hugging Face ne répond pas. Vérifie ta connexion, puis réessaie.') from e
     resultat = {'famille': famille, 'loras': sorted(trouves.values(), key=lambda l: -l['telechargements'])[:40]}
     cache_bibliotheque[cle] = (time.time(), resultat)
+    # Les images d'exemple partent tout de suite, dans l'ordre de la liste : la fenetre les trouve deja la
+    threading.Thread(target=precharger_apercus, args=([l['apercu'] for l in resultat['loras'] if l['apercu']],), daemon=True).start()
     return resultat
+
+
+# --- Images d'exemple des LoRA : telechargees par Prisme (une seule fois, avec une limite de temps) puis servies
+# depuis le disque. Avant, la fenetre les chargeait elle-meme a chaque ouverture : jusqu'a 30 Mo, et une image lente
+# bloquait les autres
+TAILLE_MAX_APERCU = 12 * 2**20
+DUREE_MAX_APERCU = 25
+PLACE_APERCUS = 300 * 2**20
+SIGNATURES_IMAGES = ((b'\x89PNG\r\n\x1a\n', 'image/png'), (b'\xff\xd8\xff', 'image/jpeg'), (b'RIFF', 'image/webp'))
+apercus_en_cours = {}
+verrou_apercus = threading.Lock()
+
+
+def type_image(debut):
+    if debut.startswith(b'RIFF') and debut[8:12] != b'WEBP':
+        return None
+    return next((t for signature, t in SIGNATURES_IMAGES if debut.startswith(signature)), None)
+
+
+def fichier_apercu(url):
+    return APERCUS_LORAS / hashlib.sha256(url.encode()).hexdigest()[:32]
+
+
+def charger_apercu(url):
+    """Le fichier de l'image d'exemple sur le disque, telechargee si besoin (une seule fois meme si plusieurs
+    demandes arrivent ensemble), ou None si elle n'a pas pu l'etre."""
+    fichier = fichier_apercu(url)
+    with verrou_apercus:
+        if fichier.is_file():
+            return fichier
+        attente = apercus_en_cours.get(url)
+        if attente is None:
+            attente = apercus_en_cours[url] = threading.Event()
+            charge = True
+        else:
+            charge = False
+    if not charge:
+        attente.wait(DUREE_MAX_APERCU + 5)
+        return fichier if fichier.is_file() else None
+    try:
+        fin = time.monotonic() + DUREE_MAX_APERCU
+        requete = urllib.request.Request(url, headers={'User-Agent': f'Prisme/{VERSION}'})
+        with urllib.request.urlopen(requete, context=contexte_ssl(), timeout=15) as reponse:
+            morceaux, taille = [], 0
+            while morceau := reponse.read(256 * 1024):
+                morceaux.append(morceau)
+                taille += len(morceau)
+                if taille > TAILLE_MAX_APERCU or time.monotonic() > fin:
+                    return None
+        donnees = b''.join(morceaux)
+        if not type_image(donnees[:12]):
+            return None
+        APERCUS_LORAS.mkdir(parents=True, exist_ok=True)
+        provisoire = fichier.with_suffix('.partiel')
+        provisoire.write_bytes(donnees)
+        os.replace(provisoire, fichier)
+        ranger_apercus()
+        return fichier
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    finally:
+        with verrou_apercus:
+            apercus_en_cours.pop(url, None)
+        attente.set()
+
+
+def ranger_apercus():
+    """Garde le cache des images d'exemple sous PLACE_APERCUS : les plus anciennes partent d'abord."""
+    try:
+        fichiers = sorted((f for f in APERCUS_LORAS.iterdir() if f.is_file() and not f.suffix), key=lambda f: f.stat().st_mtime)
+        total = sum(f.stat().st_size for f in fichiers)
+        for f in fichiers:
+            if total <= PLACE_APERCUS:
+                break
+            total -= f.stat().st_size
+            f.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def precharger_apercus(urls):
+    # Quatre a la fois : une image lente ne retient pas les autres
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(4) as groupe:
+        list(groupe.map(charger_apercu, urls))
+
+
+def apercu_lora(depot):
+    """Image d'exemple d'un LoRA de la bibliotheque (seulement ceux qu'elle a proposes) : (octets, type) ou None."""
+    url = next((l['apercu'] for _, resultat in list(cache_bibliotheque.values()) for l in resultat['loras']
+                if l['id'] == depot and l['apercu']), None)
+    fichier = charger_apercu(url) if url else None
+    if not fichier:
+        return None
+    try:
+        donnees = fichier.read_bytes()
+    except OSError:
+        return None
+    return donnees, type_image(donnees[:12])
 
 
 def executer_consentement(demande):
@@ -2680,6 +2783,13 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 self.envoyer(200, bibliotheque_loras(lire_reglages(), recherche))
             except RuntimeError as e:
                 self.envoyer(502, {'erreur': str(e)})
+        elif chemin == '/api/loras/apercu':
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
+            image = apercu_lora(parse_qs(url.query).get('id', [''])[0])
+            if not image:
+                return self.envoyer(404, {'erreur': 'Image d\'exemple indisponible.'})
+            self.envoyer(200, image[0], image[1], cache=True)
         elif chemin == '/api/consentement':
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})

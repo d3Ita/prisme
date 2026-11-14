@@ -108,7 +108,8 @@ Panneau {
                 readonly property var suivi: fenetre.suivis[modelData.id] || null
                 readonly property bool fini: modelData.installe || (!!suivi && suivi.phase === "termine")
                 readonly property bool enCours: !!suivi && ["attente", "telechargement", "verification"].indexOf(suivi.phase) >= 0
-                Layout.fillWidth: true
+                // Largeur d'une colonne, meme quand la recherche ne trouve qu'un ou deux LoRA
+                Layout.preferredWidth: (grille.width - (grille.columns - 1) * grille.columnSpacing) / grille.columns
                 Layout.alignment: Qt.AlignTop
                 implicitHeight: colonne.implicitHeight + 24
                 radius: 14
@@ -129,7 +130,8 @@ Panneau {
                         Image {
                             id: apercu
                             anchors.fill: parent
-                            source: carte.modelData.apercu || ""
+                            // Servie par Prisme, qui la telecharge une fois et la garde : rapide a la reouverture
+                            source: carte.modelData.apercu ? Theme.adresse + "/api/loras/apercu?id=" + encodeURIComponent(carte.modelData.id) : ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             sourceSize.width: 420

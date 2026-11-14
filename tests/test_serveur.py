@@ -1565,6 +1565,55 @@ class SecuriteHttpTest(unittest.TestCase):
         self.assertEqual((modele['url'], modele['sha256']), ('https://huggingface.co/a/pixel/resolve/main/l.safetensors', 'f' * 64))
         demande.assert_called_once_with(r['id'])
 
+    def test_apercus_des_loras(self):
+        from unittest import mock
+        import io
+        png = b'\x89PNG\r\n\x1a\n' + b'x' * 100
+        url = 'https://huggingface.co/a/pixel/resolve/main/exemple.png'
+        appels = []
+
+        class Reponse(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                self.close()
+
+        def ouvrir(requete, **_):
+            appels.append(requete.full_url)
+            return Reponse(b'<html>' if '/texte/' in requete.full_url else png)
+
+        dossier = Path(tempfile.mkdtemp(dir=DOSSIER_TEST.name)) / 'apercus'
+        bibliotheque = {'loras': [{'id': 'a/pixel', 'apercu': url}, {'id': 'a/texte', 'apercu': 'https://huggingface.co/a/texte/resolve/main/x.png'}]}
+        with mock.patch.object(serveur, 'APERCUS_LORAS', dossier), mock.patch.object(serveur.urllib.request, 'urlopen', ouvrir), \
+                mock.patch.dict(serveur.cache_bibliotheque, {('flux2-klein', ''): (time.time(), bibliotheque)}, clear=True):
+            # Telechargee une fois, puis servie depuis le disque, avec son type
+            statut, _, corps = self.requete('GET', '/api/loras/apercu?id=a%2Fpixel')
+            self.assertEqual((statut, corps), (200, png))
+            self.assertEqual(serveur.apercu_lora('a/pixel'), (png, 'image/png'))
+            self.assertEqual(self.requete('GET', '/api/loras/apercu?id=a%2Fpixel')[2], png)
+            self.assertEqual(appels, [url])
+            # Seulement les LoRA proposes par la bibliotheque, et seulement des images
+            self.assertEqual(self.requete('GET', '/api/loras/apercu?id=a%2Finconnu')[0], 404)
+            self.assertEqual(self.requete('GET', '/api/loras/apercu?id=a%2Ftexte')[0], 404)
+            # Ni Claude, ni le telephone
+            self.assertEqual(self.requete('GET', '/api/loras/apercu?id=a%2Fpixel', entetes={'X-Prisme-Client': 'mcp'})[0], 403)
+            self.assertEqual(self.distant('/api/loras/apercu?id=a%2Fpixel', serveur.CODE)[0], 403)
+            # Trop grande : pas gardee
+            with mock.patch.object(serveur, 'TAILLE_MAX_APERCU', 50):
+                self.assertIsNone(serveur.charger_apercu(url + '?grande'))
+                self.assertFalse(serveur.fichier_apercu(url + '?grande').exists())
+            # Le cache garde la place qu'on lui donne : les plus anciennes images partent
+            with mock.patch.object(serveur, 'PLACE_APERCUS', 150):
+                ancienne = serveur.fichier_apercu(url)
+                os.utime(ancienne, (1, 1))
+                (dossier / ('b' * 32)).write_bytes(png)
+                serveur.ranger_apercus()
+                self.assertFalse(ancienne.exists())
+                self.assertTrue((dossier / ('b' * 32)).exists())
+        self.assertEqual(serveur.type_image(b'RIFF1234WEBPVP8 '), 'image/webp')
+        self.assertIsNone(serveur.type_image(b'RIFF1234WAVEfmt '))
+
     def test_profils_en_lecture_seule_sur_le_pc(self):
         statut, _, corps = self.requete('GET', '/api/profils')
         self.assertEqual(statut, 200)

@@ -3,12 +3,14 @@
 Le serveur de Prisme tourne dans ce meme processus. L'interface QML lui parle par son API locale, comme le telephone
 (page web) et Claude (serveur MCP) : une seule logique pour les trois. Qt doit tourner dans le fil principal (macOS).
 Seul ce que QML ne sait pas faire passe par Python : lire une image choisie, glissee ou collee."""
+import json
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from PySide6.QtCore import QBuffer, QIODevice, QObject, Qt, QUrl, Signal, Slot
-from PySide6.QtGui import QColor, QFontDatabase, QGuiApplication, QIcon, QImage
+from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, QUrl, Signal, Slot
+from PySide6.QtGui import QColor, QFontDatabase, QGuiApplication, QIcon, QImage, QPainter
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -85,6 +87,48 @@ class Fichiers(QObject):
         except OSError:
             return False
         return True
+
+    @Slot(str, str, str, result=str)
+    def exporterPlanche(self, adresse, planche, dossier):
+        """Assemble la planche d'un webtoon (cases dans l'ordre, espaces, fond) et l'enregistre en morceaux dans le
+        dossier choisi. Chaque image est mise a la largeur une fois, puis chaque morceau est dessine a part : pas
+        d'image geante en memoire. Renvoie {fichiers, dossier} ou {erreur}, en JSON."""
+        import planches
+        try:
+            p = json.loads(planche)
+            r = planches.reglages_propres(p.get('reglages'))
+            noms = [str(c.get('nom') or '') for c in p.get('cases') or [] if isinstance(c, dict)]
+        except (ValueError, AttributeError):
+            return json.dumps({'erreur': 'Planche invalide.'})
+        if not noms:
+            return json.dumps({'erreur': 'La planche est vide : range des images dans ce projet.'})
+        images = []
+        for nom in noms:
+            image = QImage.fromData(lire_locale(adresse + '/images/' + urllib.parse.quote(nom)) or b'')
+            if image.isNull():
+                return json.dumps({'erreur': f'Image illisible : {nom}'})
+            hauteur = max(1, round(image.height() * r['largeur'] / image.width()))
+            images.append(image.scaled(r['largeur'], hauteur, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+        positions, total = planches.mise_en_page([(i.width(), i.height()) for i in images], r['largeur'], r['gouttiere'])
+        if not r['decoupe'] and total > planches.HAUTEUR_MAX_UNE_IMAGE:
+            return json.dumps({'erreur': f'Planche trop haute pour une seule image ({total} px) : choisis les morceaux de 1280 px.'})
+        dossier = Path(QUrl(dossier).toLocalFile() or dossier)
+        base, jpg = planches.nom_de_fichier(str(p.get('projet') or '')), r['format'] == 'jpg'
+        morceaux = planches.decouper(positions, total, r['decoupe'])
+        fichiers = []
+        for numero, (debut, hauteur) in enumerate(morceaux, 1):
+            morceau = QImage(r['largeur'], hauteur, QImage.Format_RGB32)
+            morceau.fill(QColor(r['fond']))
+            peintre = QPainter(morceau)
+            for image, (y, h) in zip(images, positions):
+                if y < debut + hauteur and y + h > debut:
+                    peintre.drawImage(QPoint(0, y - debut), image)
+            peintre.end()
+            chemin = dossier / (f'{base}.{r["format"]}' if len(morceaux) == 1 else f'{base}_{numero:02d}.{r["format"]}')
+            if not morceau.save(str(chemin), 'JPG' if jpg else 'PNG', 92 if jpg else -1):
+                return json.dumps({'erreur': f'Impossible d\'enregistrer {chemin.name} dans ce dossier.'})
+            fichiers.append(chemin.name)
+        return json.dumps({'fichiers': fichiers, 'dossier': str(dossier), 'hauteur': total})
 
     @Slot(str, result=str)
     def qrCode(self, texte):

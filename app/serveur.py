@@ -33,6 +33,7 @@ from http.cookies import SimpleCookie
 
 import agrandir
 import personnages
+import planches
 from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 VERSION = '2.3.0'
@@ -2293,6 +2294,20 @@ def ranger(noms, projet):
         os.replace(temporaire, IMAGES / 'projets.json')
 
 
+def images_du_projet(projet):
+    """Images d'un projet, la plus ancienne d'abord (l'ordre de lecture d'un webtoon)."""
+    noms = [n for n, p in lire_projets().items() if p == projet and NOM_IMAGE.match(n) and (IMAGES / n).is_file()]
+    return sorted(noms, key=lambda n: ((IMAGES / n).stat().st_mtime, n))
+
+
+def planche_du_projet(projet):
+    """La planche d'un projet, avec la taille de chaque image pour la mise en page."""
+    p = planches.Planches(IMAGES).planche(projet, images_du_projet(projet))
+    taille = lambda n: agrandir.taille_png(IMAGES / n) or (0, 0)
+    p['cases'] = [{'nom': n, 'largeur': taille(n)[0], 'hauteur': taille(n)[1]} for n in p['cases']]
+    return p
+
+
 def nom_projet(valeur):
     """Nom de projet propre : espaces simplifies, 60 caracteres au plus."""
     return ' '.join(str(valeur or '').split())[:60]
@@ -2359,6 +2374,9 @@ def lire_infos(chemin):
                             pass
     except OSError:
         pass
+    # Avec des personnages, le moteur a recu leur description en plus : la description affichee reste celle ecrite
+    if isinstance(infos['mesures'], dict) and isinstance(infos['mesures'].get('description'), str):
+        infos['prompt'] = infos['mesures']['description']
     cache_infos[chemin.name] = (cle, infos)
     return infos
 
@@ -2451,6 +2469,7 @@ def generer(params):
                 mesures['comparaison'] = params['comparaison'][i]
             if fiches:
                 mesures['personnages'] = [p['nom'] for p in fiches]
+                mesures['description'] = params['prompt']
             try:
                 noter_dans_png(sortie, mesures)
             except (OSError, ValueError, StopIteration):
@@ -2888,6 +2907,14 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             adresse = f'http://{adresse_reseau()}:{PORT}'
             self.envoyer(200, {'adresse': adresse, 'lien': f'{adresse}/?code={CODE}', 'code': CODE, 'reseau': SERVEUR_RESEAU})
+        elif chemin == '/api/planche':
+            # Planche webtoon d'un projet : ses images dans l'ordre choisi (fenetre de Prisme sur le PC)
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme sur le PC.'})
+            projet = nom_projet(parse_qs(url.query).get('projet', [''])[0])
+            if not projet:
+                return self.envoyer(400, {'erreur': 'Choisis d\'abord un projet : ses images forment la planche.'})
+            self.envoyer(200, planche_du_projet(projet))
         elif chemin == '/api/personnages':
             # Les personnages viennent des images de l'utilisateur : la fenetre de Prisme sur le PC seulement
             if not self.est_local() or self.vient_du_mcp():
@@ -3020,6 +3047,20 @@ class Gestionnaire(BaseHTTPRequestHandler):
                           personnages=fiches)
             threading.Thread(target=generer, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
+
+        elif chemin == '/api/planche':
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme sur le PC.'})
+            donnees = self.lire_json()
+            projet = nom_projet(donnees.get('projet'))
+            if not projet:
+                return self.envoyer(400, {'erreur': 'Choisis d\'abord un projet : ses images forment la planche.'})
+            try:
+                planches.Planches(IMAGES).enregistrer(projet, donnees.get('ordre') or [], donnees.get('retirees') or [],
+                                                      donnees.get('reglages'))
+            except ValueError as e:
+                return self.envoyer(400, {'erreur': str(e)})
+            self.envoyer(200, planche_du_projet(projet))
 
         elif chemin in ('/api/personnages', '/api/personnages/supprimer'):
             if not self.est_local() or self.vient_du_mcp():

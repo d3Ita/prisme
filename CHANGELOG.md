@@ -4,6 +4,14 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **Webtoon strip**: the **Strip** button next to the project list shows the project's images one below the other, like a webtoon episode. Panels are in creation order (new images are added at the bottom); arrows move them, and a panel can be taken out of the strip without deleting the image. Choose the width (Webtoon and Naver 800 px, Tapas 940 px, or 1080 px), the space between panels and the background (white or black), then **Export…**: pieces of 1280 px at most (the Webtoon Canvas limit), cut between two panels when possible, or a single image, in JPG or PNG (`/api/planche`).
+
+### Fixed
+
+- An image created with characters showed, in the feed and in Details, the characters' descriptions added for the engine; it now shows the description you wrote, and Details lists the characters.
+
 ## [2.3.0] - 2026-11-16
 
 ### Added

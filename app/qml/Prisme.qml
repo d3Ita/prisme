@@ -431,6 +431,14 @@ ApplicationWindow {
                     Qt.callLater(function () { choixProjet.valeur = projetActif ? "projet:" + projetActif : "" })
                 }
             }
+            // Planche webtoon du projet choisi
+            BoutonDiscret {
+                objectName: "boutonPlanche"
+                visible: projetActif !== ""
+                icone: "planche"
+                aide: tx("Planche webtoon de ce projet : ses images les unes sous les autres, à exporter", "Webtoon strip of this project: its images one below the other, to export")
+                onClicked: planche.ouvrir(projetActif)
+            }
             Champ {
                 implicitHeight: 32
                 Layout.fillWidth: true
@@ -1242,6 +1250,7 @@ ApplicationWindow {
         onRange: chargerImages(false)
     }
     FenetreLoras { id: bibliotheque; objectName: "bibliotheque"; onInstalle: chargerLoras() }
+    FenetrePlanche { id: planche; objectName: "planche" }
     FenetrePersonnages {
         id: fichePersonnages
         objectName: "personnages"

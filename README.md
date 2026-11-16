@@ -80,6 +80,7 @@ Prisme aims to be the simplest way to run image models locally, not the most pow
 - **LoRA per creation**: pick the LoRA of the next creations and their strength from the writing area, without touching the settings
 - **LoRA library**: find LoRA made for your model on Hugging Face, with an example image and the license, and download them in one click
 - **Characters** (for webtoons and manhwa): save a character from an image, with a name and a description, and keep the same character from one image to the next (FLUX.2 klein or Qwen-Image)
+- **Webtoon strip**: a project's images one below the other, in the order you choose, with space between panels, exported at the platforms' width (Webtoon 800 px, Tapas 940 px) in pieces of 1280 px at most, cut between panels when possible
 - **Conversation layout**: your requests and Prisme's images follow each other like a chat, with search, a full-screen viewer, reuse of a prompt, copy or save an image elsewhere, and delete to the Recycle Bin or Trash
 - **Light and dark themes**, or follow the system
 - **English and French interface**, following the device's language or chosen in the settings

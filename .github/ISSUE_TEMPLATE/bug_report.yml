@@ -14,7 +14,7 @@ body:
     attributes:
       label: Prisme version
       description: Shown at the bottom of the Réglages window.
-      placeholder: "2.4.0"
+      placeholder: "2.4.1"
     validations:
       required: true
   - type: dropdown
@@ -38,3 +38,10 @@ body:
       label: Error message
       description: Paste the error shown by Prisme, if any. Never paste your access code.
       render: text
+  - type: textarea
+    id: journaux
+    attributes:
+      label: Logs
+      description: >-
+        Settings → Logs → Open the folder. Attach prisme.log and, if a creation failed, the moteur-creation-….log named
+        in the error message. They don't contain your descriptions; check them before posting.

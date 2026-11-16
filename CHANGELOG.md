@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-11-16
+
 ### Added
 
 - **Logs to understand a problem**, in the `journaux` folder next to Prisme (**Settings → Logs → Open the folder**). `prisme.log` notes Prisme's start (version, system, graphics card, memory, settings), each creation (models, size, LoRA, characters, the engine's command, duration, exit code, peak memory) and unexpected errors with their trace; it is kept under 2 MB, plus the two previous ones. When a creation fails, the engine's full output goes to `moteur-creation-<date>.log` (the last 20 are kept). Your descriptions are never written to them, and they stay on your computer.
@@ -362,7 +364,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.4.1...HEAD
+[2.4.1]: https://github.com/d3Ita/prisme/releases/tag/v2.4.1
 [2.4.0]: https://github.com/d3Ita/prisme/releases/tag/v2.4.0
 [2.3.0]: https://github.com/d3Ita/prisme/releases/tag/v2.3.0
 [2.2.1]: https://github.com/d3Ita/prisme/releases/tag/v2.2.1

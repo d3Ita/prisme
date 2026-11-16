@@ -32,6 +32,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from http.cookies import SimpleCookie
 
 import agrandir
+import personnages
 from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 VERSION = '2.2.1'
@@ -269,6 +270,8 @@ LORAS = MODELES / 'loras'
 IMAGES = RACINE / 'images'
 # Images demandees par Claude : a part des images creees dans Prisme, que Claude ne lit pas
 IMAGES_CLAUDE = RACINE / 'images-claude'
+# Fiches personnages (webtoon, manhwa) : nom, description et copie de l'image de reference
+PERSONNAGES = personnages.Personnages(RACINE / 'personnages')
 SD_CLI = RACINE / 'sd' / f'sd-cli{SUFFIXE_EXE}'
 LLAMA_SERVEUR = RACINE / 'llama' / f'llama-server{SUFFIXE_EXE}'
 TELECHARGEMENTS = RACINE / '.telechargements'
@@ -2119,9 +2122,12 @@ def options_loras(r):
 
 
 def arguments(r, prompt, largeur, hauteur, seed, source, sortie, vision=True):
+    """source : l'image de reference, ou une liste (image de depart puis personnages), ou None."""
     edition = []
-    if source:
-        edition = (['--llm_vision', str(MODELES / r['modele_vision'])] if vision else []) + ['-r', str(source)]
+    sources = [s for s in (source if isinstance(source, (list, tuple)) else [source]) if s]
+    if sources:
+        edition = (['--llm_vision', str(MODELES / r['modele_vision'])] if vision else []) \
+            + [x for s in sources for x in ('-r', str(s))]
     options = (['--sigmas', r['sigmas']] if r['sigmas'] else []) \
         + (['--diffusion-fa'] if r['flash_attention'] else []) \
         + (['--offload-to-cpu'] if r['dechargement_cpu'] else []) \
@@ -2384,10 +2390,14 @@ def generer(params):
 
         # Une comparaison : les memes description et variante, avec les reglages de chaque profil
         liste = params.get('liste_reglages') or [r] * params['nombre']
-        mode = mode_edition(r) if source else None
-        if source and not mode:
-            raise RuntimeError('Ces modèles ne savent pas modifier une image : choisis un profil qui sait le faire '
-                               '(FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.')
+        # Personnages : leur image de reference suit l'image de depart, et leur description suit celle de l'utilisateur
+        fiches = params.get('personnages') or []
+        references = ([source] if source else []) + [PERSONNAGES.dossier / p['image'] for p in fiches]
+        prompt_moteur = personnages.description_pour_le_moteur(params['prompt'], fiches, 1 if source else 0)
+        mode = mode_edition(r) if references else None
+        if references and not mode:
+            raise RuntimeError(('Ces modèles ne savent pas partir d\'un personnage' if fiches else 'Ces modèles ne savent pas modifier une image')
+                               + ' : choisis un profil qui sait le faire (FLUX.2 klein ou Qwen-Image) dans la fenêtre des modèles.')
         for r in liste:
             manquants = modeles_manquants(r, mode == 'vision')
             if manquants:
@@ -2403,7 +2413,7 @@ def generer(params):
                 etat.update(phase='chargement', etape=0, total=r['etapes'], index=i + 1, seed=seed, debut_image=time.time())
             journal = deque(maxlen=80)
             processus = lancer_moteur(
-                [str(SD_CLI)] + arguments(r, params['prompt'], params['largeur'], params['hauteur'], seed, source, sortie,
+                [str(SD_CLI)] + arguments(r, prompt_moteur, params['largeur'], params['hauteur'], seed, references, sortie,
                                           vision=mode == 'vision'),
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
 
@@ -2439,6 +2449,8 @@ def generer(params):
             mesures = {'duree': round(time.time() - etat['debut_image'], 1), 'memoire': memoire}
             if params.get('comparaison'):
                 mesures['comparaison'] = params['comparaison'][i]
+            if fiches:
+                mesures['personnages'] = [p['nom'] for p in fiches]
             try:
                 noter_dans_png(sortie, mesures)
             except (OSError, ValueError, StopIteration):
@@ -2876,6 +2888,19 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
             adresse = f'http://{adresse_reseau()}:{PORT}'
             self.envoyer(200, {'adresse': adresse, 'lien': f'{adresse}/?code={CODE}', 'code': CODE, 'reseau': SERVEUR_RESEAU})
+        elif chemin == '/api/personnages':
+            # Les personnages viennent des images de l'utilisateur : la fenetre de Prisme sur le PC seulement
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme sur le PC.'})
+            self.envoyer(200, {'personnages': PERSONNAGES.lister(), 'nombre_max': personnages.NOMBRE_MAX,
+                               'possible': mode_edition(lire_reglages()) is not None})
+        elif chemin.startswith('/personnages/'):
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Image réservée.'})
+            fichier = PERSONNAGES.image(unquote(chemin.split('/', 2)[2]))
+            if not fichier:
+                return self.envoyer(404, {'erreur': 'Image introuvable'})
+            self.envoyer(200, fichier.read_bytes(), 'image/png' if fichier.suffix == '.png' else 'image/jpeg')
         elif chemin.startswith(('/images/', '/images-claude/')):
             claude = chemin.startswith('/images-claude/')
             if claude != self.vient_du_mcp() or (claude and not self.est_local()):
@@ -2935,6 +2960,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 modele = str(p.get('modele') or '')
                 comparer = [str(x) for x in p.get('comparer') or []]
                 projet = nom_projet(p.get('projet'))
+                idents_personnages = p.get('personnages') or []
             except (ValueError, TypeError, json.JSONDecodeError):
                 return self.envoyer(400, {'erreur': 'Paramètres invalides.'})
             if not prompt:
@@ -2967,6 +2993,16 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 comparaison = [nom_du_profil(x) for x in profils]
                 nombre = len(profils)
             claude = self.vient_du_mcp()
+            fiches = []
+            if idents_personnages:
+                if claude:
+                    return self.envoyer(403, {'erreur': 'Les personnages de Prisme ne sont pas accessibles à Claude.'})
+                if comparer:
+                    return self.envoyer(400, {'erreur': 'La comparaison crée sans personnage.'})
+                try:
+                    fiches = PERSONNAGES.choisir(idents_personnages)
+                except ValueError as e:
+                    return self.envoyer(400, {'erreur': str(e)})
             with verrou:
                 if etat['occupe']:
                     return self.envoyer(409, {'erreur': 'Une génération est déjà en cours.'})
@@ -2980,9 +3016,37 @@ class Gestionnaire(BaseHTTPRequestHandler):
             # Claude n'envoie que ses propres images (source_data), jamais un nom d'image de Prisme
             params = dict(prompt=prompt, largeur=largeur, hauteur=hauteur, nombre=nombre, seed=seed, reglages=r,
                           source_nom=None if claude else p.get('source_nom'), source_data=p.get('source_data'),
-                          claude=claude, liste_reglages=liste_reglages, comparaison=comparaison, projet=projet)
+                          claude=claude, liste_reglages=liste_reglages, comparaison=comparaison, projet=projet,
+                          personnages=fiches)
             threading.Thread(target=generer, args=(params,), daemon=True).start()
             self.envoyer(200, {'seed': seed})
+
+        elif chemin in ('/api/personnages', '/api/personnages/supprimer'):
+            if not self.est_local() or self.vient_du_mcp():
+                return self.envoyer(403, {'erreur': 'Disponible seulement dans la fenêtre de Prisme sur le PC.'})
+            donnees = self.lire_json()
+            try:
+                if chemin.endswith('/supprimer'):
+                    PERSONNAGES.supprimer(str(donnees.get('id') or ''))
+                    return self.envoyer(200, {})
+                if donnees.get('id'):
+                    fiche = PERSONNAGES.modifier(str(donnees['id']), donnees.get('nom'), donnees.get('description'))
+                else:
+                    # L'image de reference : une image de la galerie, ou un fichier choisi (data URL)
+                    nom = str(donnees.get('source_nom') or '')
+                    if nom:
+                        if not NOM_IMAGE.match(nom) or not (IMAGES / nom).is_file():
+                            raise ValueError('Image introuvable.')
+                        image = (IMAGES / nom).read_bytes()
+                    else:
+                        try:
+                            image = base64.b64decode(str(donnees.get('source_data') or '').partition(',')[2], validate=True)
+                        except ValueError:
+                            image = b''
+                    fiche = PERSONNAGES.creer(donnees.get('nom'), donnees.get('description'), image)
+            except ValueError as e:
+                return self.envoyer(400, {'erreur': str(e)})
+            self.envoyer(200, fiche)
 
         elif chemin == '/api/agrandir':
             nom = str(self.lire_json().get('nom') or '')

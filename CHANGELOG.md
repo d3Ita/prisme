@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **Characters**, a first step toward webtoons and manhwa: keep the same character from one image to the next. Under each image, "Create a character from this image" saves it with a name and a description (a copy of the image goes into the `personnages` folder, so the sheet stays valid if the image is deleted). The **Characters** button in the writing area picks up to two of them; they stay picked from one image to the next, in any format (portrait for a webtoon panel). Their images are given to the engine as references and their descriptions follow yours. Works with the models that can start from an image (FLUX.2 klein, Qwen-Image): in our tests both keep the face, hair and clothes; FLUX.2 klein gives more natural poses and is three to four times faster (`/api/personnages`).
+
 ## [2.2.1] - 2026-11-16
 
 ### Fixed

@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- **The PC stays usable during a creation with a LoRA.** With a compressed drawing model (Qwen-Image 2.1 Turbo Q4_K, for example), the engine applied the LoRA at every step, and the whole PC froze until the image was done (no video, Notepad would not even open). Prisme now merges the LoRA into the model once at the start: the PC stays usable and the image is the same. **Settings → Performance → Applying LoRA** offers "At every step" if a LoRA gives a strange image, and "Engine's choice".
+
 ## [2.2.0] - 2026-11-14
 
 ### Added

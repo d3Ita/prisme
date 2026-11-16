@@ -65,6 +65,29 @@ class ReglagesTest(unittest.TestCase):
             with self.subTest(cle=cle):
                 self.assertIsNotNone(valider(**{cle: valeur})[1])
         self.assertIsNotNone(valider(loras=[{'nom': 'x.safetensors', 'force': 3}])[1])
+        self.assertIsNotNone(valider(lora_application='partout')[1])
+
+    def test_application_des_loras(self):
+        self.assertEqual(valider(lora_application='immediately')[0]['lora_application'], 'immediately')
+        serveur.LORAS.mkdir(parents=True, exist_ok=True)
+        (serveur.LORAS / 'style.safetensors').write_bytes(b'')
+        self.addCleanup((serveur.LORAS / 'style.safetensors').unlink)
+        avec = {**serveur.REGLAGES_DEFAUT, 'loras': [{'nom': 'style.safetensors', 'force': 1.0, 'actif': True}]}
+        arguments = lambda r: serveur.arguments(r, 'un phare', 1024, 1024, 1, None, Path('sortie.png'))
+        # Par defaut, fusionnes au debut : appliques a chaque etape, ils gelaient le PC avec un modele compresse
+        a = arguments(avec)
+        self.assertEqual(a[a.index('--lora-apply-mode') + 1], 'immediately')
+        self.assertIn('--lora-model-dir', a)
+        # Choix du moteur : sd-cli choisit lui-meme
+        self.assertNotIn('--lora-apply-mode', arguments({**avec, 'lora_application': 'auto'}))
+        for mode in ('immediately', 'at_runtime'):
+            with self.subTest(mode=mode):
+                a = arguments({**avec, 'lora_application': mode})
+                self.assertEqual(a[a.index('--lora-apply-mode') + 1], mode)
+        # Sans LoRA actif : rien
+        sans = arguments({**avec, 'loras': [], 'lora_application': 'immediately'})
+        self.assertNotIn('--lora-apply-mode', sans)
+        self.assertNotIn('--lora-model-dir', sans)
 
     def test_modeles_obligatoires(self):
         self.assertIsNotNone(valider(vae='')[1])

@@ -420,6 +420,11 @@ REGLAGES_DEFAUT = {
     'flash_attention': True,
     # Laisse de la memoire de carte graphique a Windows (ou au bureau sous Linux) : sinon l'ecran gele pendant les calculs
     'memoire_ecran': True,
+    # Application des LoRA par sd-cli : 'immediately' (fusionnes une fois au debut), 'at_runtime' (a chaque etape) ou
+    # 'auto' (son choix : a chaque etape pour un modele compresse). Avec un modele compresse, appliquer le LoRA a chaque
+    # etape gelait le PC sous Windows pendant toute la creation ; fusionne au debut, le PC reste utilisable et l'image
+    # est la meme (verifie le 16/11/2026 avec Qwen-Image 2.1 Turbo Q4_K sur RTX 4070 SUPER)
+    'lora_application': 'immediately',
     # L'acces depuis le reseau local s'active dans les Reglages
     'acces_reseau': False,
     'arret_auto_minutes': 30,
@@ -544,6 +549,10 @@ def valider_reglages(donnees):
                     'verifier_mises_a_jour'):
             r[cle] = bool(donnees.get(cle, r[cle]))
         r['arret_auto_minutes'] = int(donnees.get('arret_auto_minutes', r['arret_auto_minutes']))
+        application = str(donnees.get('lora_application', r['lora_application']))
+        if application not in MODES_LORA:
+            return None, 'Mode d\'application des LoRA inconnu.'
+        r['lora_application'] = application
         loras = []
         for l in donnees.get('loras', r['loras']) or []:
             nom = str(l.get('nom', '')).strip().replace('\\', '/')
@@ -2098,6 +2107,17 @@ def mode_edition(r):
     return 'vision' if r['modele_vision'] else None
 
 
+MODES_LORA = ('auto', 'immediately', 'at_runtime')
+
+
+def options_loras(r):
+    """Arguments de sd-cli pour les LoRA actifs : leur dossier, et la facon de les appliquer si elle est choisie."""
+    if not loras_actifs(r):
+        return []
+    mode = r.get('lora_application', 'auto')
+    return ['--lora-model-dir', str(LORAS)] + (['--lora-apply-mode', mode] if mode in MODES_LORA and mode != 'auto' else [])
+
+
 def arguments(r, prompt, largeur, hauteur, seed, source, sortie, vision=True):
     edition = []
     if source:
@@ -2114,7 +2134,7 @@ def arguments(r, prompt, largeur, hauteur, seed, source, sortie, vision=True):
         '-p', prompt + ''.join(f'<lora:{Path(l["nom"]).with_suffix("").as_posix()}:{l["force"]}>' for l in loras_actifs(r)),
         '--steps', str(r['etapes']), '--cfg-scale', str(r['cfg']), '--sampling-method', r['methode'],
         '-W', str(largeur), '-H', str(hauteur), '--seed', str(seed), '--threads', str(fils_calcul()),
-    ] + options + (['--lora-model-dir', str(LORAS)] if loras_actifs(r) else []) + ['-o', str(sortie)]
+    ] + options + options_loras(r) + ['-o', str(sortie)]
 
 
 def modeles_manquants(r, avec_vision):

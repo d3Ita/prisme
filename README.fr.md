@@ -73,6 +73,7 @@ C'est une alternative simple à ComfyUI et aux générateurs d'images en ligne :
 - **LoRA par création** : choisir les LoRA des prochaines créations et leur intensité depuis la zone d'écriture, sans toucher aux réglages
 - **Bibliothèque de LoRA** : trouver sur Hugging Face des LoRA faits pour ton modèle, avec une image d'exemple et la licence, et les télécharger en un clic
 - **Personnages** (pour les webtoons et manhwas) : enregistrer un personnage depuis une image, avec un nom et une description, et garder le même personnage d'une image à l'autre (FLUX.2 klein ou Qwen-Image)
+- **Planche webtoon** : les images d'un projet les unes sous les autres, dans l'ordre choisi, avec un espace entre les cases, exportées à la largeur des plateformes (Webtoon 800 px, Tapas 940 px) en morceaux de 1280 px au plus, coupés entre deux cases quand c'est possible
 - **Disposition en conversation** : tes demandes et les images de Prisme se suivent comme dans une messagerie, avec recherche, visionneuse plein écran, réutilisation d'une description, copie ou enregistrement d'une image ailleurs, et mise à la corbeille
 - **Thème clair ou sombre**, ou celui du système
 - **Interface en français ou en anglais**, selon la langue de l'appareil ou au choix dans **Réglages → Application → Langue**

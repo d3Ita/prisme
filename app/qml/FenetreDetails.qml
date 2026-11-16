@@ -91,6 +91,11 @@ Panneau {
         Ligne { nom: Theme.tx("Modèle de texte", "Text model"); Valeur { text: fenetre.valeur(fenetre.p ? fenetre.p.modele_texte : null) } }
         Ligne { nom: "VAE"; Valeur { text: fenetre.valeur(fenetre.p ? fenetre.p.vae : null) } }
         Ligne {
+            visible: !!fenetre.m && !!fenetre.m.personnages
+            nom: Theme.tx("Personnages", "Characters")
+            Valeur { text: fenetre.m && fenetre.m.personnages ? fenetre.m.personnages.join(", ") : "—" }
+        }
+        Ligne {
             nom: "LoRA"
             Valeur { text: fenetre.image && fenetre.image.loras && fenetre.image.loras.length ? fenetre.image.loras.join("\n") : "—" }
         }

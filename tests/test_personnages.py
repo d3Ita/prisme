@@ -227,5 +227,23 @@ class GenerationTest(unittest.TestCase):
         self.assertIn('personnage', serveur.etat['erreur'])
 
 
+class DescriptionAfficheeTest(unittest.TestCase):
+    def test_description_ecrite_gardee(self):
+        """Le moteur recoit la description et les personnages ; le fil et les Details montrent ce que l'utilisateur a ecrit."""
+        import struct
+        import zlib
+        morceau = lambda genre, donnees: struct.pack('>I', len(donnees)) + genre + donnees + struct.pack('>I', zlib.crc32(genre + donnees))
+        texte = 'dans un café\nMina (image 1) : veste rouge\nSteps: 8, Seed: 7, Size: 16x16'
+        dossier = Path(tempfile.mkdtemp(dir=DOSSIER.name))
+        chemin = dossier / 'image_20261116_150000.png'
+        chemin.write_bytes(b'\x89PNG\r\n\x1a\n' + morceau(b'IHDR', struct.pack('>IIBBBBB', 16, 16, 8, 2, 0, 0, 0))
+                           + morceau(b'tEXt', b'parameters\x00' + texte.encode('latin-1'))
+                           + morceau(b'IDAT', zlib.compress(b'\x00' + b'\x00' * 48 * 16)) + morceau(b'IEND', b''))
+        self.assertIn('Mina (image 1)', serveur.lire_infos(chemin)['prompt'])
+        serveur.noter_dans_png(chemin, {'duree': 10, 'personnages': ['Mina'], 'description': 'dans un café'})
+        infos = serveur.lire_infos(chemin)
+        self.assertEqual((infos['prompt'], infos['seed'], infos['mesures']['personnages']), ('dans un café', 7, ['Mina']))
+
+
 if __name__ == '__main__':
     unittest.main()

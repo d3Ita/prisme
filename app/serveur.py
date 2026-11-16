@@ -8,6 +8,8 @@ import signal
 import ctypes
 import ipaddress
 import json
+import logging
+import logging.handlers
 import os
 import platform
 import random
@@ -25,6 +27,7 @@ import urllib.error
 import urllib.request
 import threading
 import time
+import traceback
 from collections import deque
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -110,6 +113,89 @@ def job_moteurs():
 def mourir_avec_prisme():
     """Linux, dans le moteur juste avant son lancement : il recoit SIGKILL quand Prisme disparait (PR_SET_PDEATHSIG)."""
     _prctl(1, signal.SIGKILL)
+
+
+def ouvrir_journal():
+    """Ecrit le journal dans journaux/prisme.log (2 Mo au plus, les deux precedents gardes). Appele au lancement."""
+    try:
+        JOURNAUX.mkdir(parents=True, exist_ok=True)
+        fichier = logging.handlers.RotatingFileHandler(JOURNAUX / 'prisme.log', maxBytes=2 * 2**20, backupCount=2, encoding='utf-8')
+    except OSError:
+        return
+    fichier.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S'))
+    journal.addHandler(fichier)
+    journal.setLevel(logging.INFO)
+
+
+# Codes de sortie connus d'un moteur sous Windows (NTSTATUS) et ailleurs
+CODES_MOTEUR = {
+    1: 'arrêté de force, ou erreur générale',
+    3: 'arrêt interne du moteur (abort)',
+    -6: 'arrêt interne du moteur (abort)',
+    -9: 'arrêté par le système, peut-être faute de mémoire',
+    -11: 'accès mémoire invalide (plantage)',
+    0xC0000005: 'accès mémoire invalide (plantage)',
+    0xC0000409: 'arrêt interne du moteur : une vérification a échoué',
+    0xC0000374: 'mémoire corrompue (plantage)',
+    0xC00000FD: 'pile dépassée (plantage)',
+    0xC0000135: 'une DLL du moteur est introuvable',
+    0xC000013A: 'interrompu (Ctrl+C)',
+    0xC0000017: 'plus assez de mémoire',
+}
+
+
+def code_lisible(code):
+    """Code de sortie d'un moteur avec son sens : 'code 3221226505 (0xC0000409 : arret interne du moteur...)'."""
+    if code is None:
+        return 'code inconnu'
+    sens = CODES_MOTEUR.get(code) or CODES_MOTEUR.get(code & 0xFFFFFFFF)
+    hexa = f'0x{code & 0xFFFFFFFF:08X}' if code < 0 or code > 255 else ''
+    details = ' : '.join(x for x in (hexa, sens) if x)
+    return f'code {code}' + (f' ({details})' if details else '')
+
+
+def sans_description(texte, description):
+    """Retire la description de l'utilisateur d'un texte destine au journal (elle reste privee)."""
+    return texte.replace(description, f'<description : {len(description)} caracteres>') if description else texte
+
+
+def commande_pour_journal(commande, description):
+    """Commande d'un moteur pour le journal : la description (-p) remplacee par sa longueur."""
+    copie = list(commande)
+    if '-p' in copie and copie.index('-p') + 1 < len(copie):
+        i = copie.index('-p') + 1
+        loras = ''.join(re.findall(r'<lora:[^>]*>', copie[i]))
+        copie[i] = f'<description : {len(description)} caracteres>' + loras
+    return ' '.join(f'"{c}"' if ' ' in c else c for c in copie)
+
+
+def garder_sortie_moteur(nom, commande, description, code, lignes):
+    """Sortie complete d'un moteur qui a echoue, dans journaux/moteur-....log ; renvoie le nom du fichier (ou '')."""
+    try:
+        JOURNAUX.mkdir(parents=True, exist_ok=True)
+        fichier = JOURNAUX / f'moteur-{nom}-{datetime.now().strftime("%Y%m%d-%H%M%S")}.log'
+        contenu = [f'Prisme {VERSION} · {platform.platform()}', f'Commande : {commande_pour_journal(commande, description)}',
+                   f'Sortie : {code_lisible(code)}', '', *(sans_description(l, description) for l in lignes)]
+        fichier.write_text('\n'.join(contenu) + '\n', encoding='utf-8')
+        anciens = sorted(JOURNAUX.glob('moteur-*.log'), key=lambda p: p.stat().st_mtime)
+        for vieux in anciens[:-JOURNAUX_MOTEUR_GARDES]:
+            vieux.unlink(missing_ok=True)
+        return fichier.name
+    except OSError:
+        return ''
+
+
+def message_echec_moteur(lignes, code, fichier):
+    """Message d'une creation qui a echoue : les lignes d'erreur du moteur ; sans elles, ses dernieres lignes utiles
+    et le code de sortie explique ; puis le journal a envoyer."""
+    erreurs = [l for l in lignes if re.search(r'^\[E\]|error|out of memory|assert|abort|exception|failed', l, re.I)]
+    if not erreurs:
+        # Les barres d'avancement ne disent rien : les dernieres autres lignes
+        utiles = [l for l in lignes if l.strip() and not agrandir.PAS.search(l) and '|' not in l]
+        erreurs = utiles[-2:]
+    message = '\n'.join(erreurs[-3:])
+    message = (message + '\n' if message else '') + f'Le moteur sd-cli s\'est arrêté : {code_lisible(code)}.'
+    return message + (f'\nDétails : journaux/{fichier}' if fichier else '')
 
 
 def lancer_moteur(commande, **options):
@@ -276,6 +362,12 @@ PERSONNAGES = personnages.Personnages(RACINE / 'personnages')
 SD_CLI = RACINE / 'sd' / f'sd-cli{SUFFIXE_EXE}'
 LLAMA_SERVEUR = RACINE / 'llama' / f'llama-server{SUFFIXE_EXE}'
 TELECHARGEMENTS = RACINE / '.telechargements'
+# Journaux pour comprendre un probleme : prisme.log (demarrage, creations, erreurs) et la sortie complete du moteur
+# pour chaque creation qui echoue. Ils restent sur cet ordinateur ; les descriptions n'y sont pas ecrites.
+JOURNAUX = RACINE / 'journaux'
+JOURNAUX_MOTEUR_GARDES = 20
+journal = logging.getLogger('prisme')
+journal.addHandler(logging.NullHandler())
 # Images d'exemple de la bibliotheque de LoRA, gardees pour ne pas les retelecharger a chaque ouverture
 APERCUS_LORAS = RACINE / '.cache' / 'apercus-loras'
 
@@ -1397,6 +1489,7 @@ def telecharger_modele(modele):
         with verrou_modeles:
             suivi.update(phase='annule')
     except Exception as e:
+        journal.warning('telechargement de %s echoue : %s', modele.get('fichier'), e)
         with verrou_modeles:
             suivi.update(phase='erreur', erreur=str(e) if isinstance(e, RuntimeError) else f'Téléchargement impossible : {e}')
 
@@ -2429,11 +2522,16 @@ def generer(params):
             sortie = nouveau_chemin(IMAGES_CLAUDE if params['claude'] else IMAGES)
             with verrou:
                 etat.update(phase='chargement', etape=0, total=r['etapes'], index=i + 1, seed=seed, debut_image=time.time())
-            journal = deque(maxlen=80)
-            processus = lancer_moteur(
-                [str(SD_CLI)] + arguments(r, prompt_moteur, params['largeur'], params['hauteur'], seed, references, sortie,
-                                          vision=mode == 'vision'),
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
+            sortie_moteur = deque(maxlen=4000)
+            commande = [str(SD_CLI)] + arguments(r, prompt_moteur, params['largeur'], params['hauteur'], seed, references, sortie,
+                                                 vision=mode == 'vision')
+            journal.info('creation %d/%d : %dx%d, variante %s, %s, dessin %s, texte %s, vision %s, LoRA %s (%s), personnages %d, '
+                         'image de depart %s, %d etapes, cfg %s', i + 1, params['nombre'], params['largeur'], params['hauteur'], seed,
+                         mode or 'creation', r['modele_diffusion'], r['modele_texte'], r['modele_vision'] if mode == 'vision' else '-',
+                         [l['nom'] for l in loras_actifs(r)], r.get('lora_application'), len(fiches), 'oui' if source else 'non',
+                         r['etapes'], r['cfg'])
+            journal.info('commande : %s', commande_pour_journal(commande, prompt_moteur))
+            processus = lancer_moteur(commande, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
 
             reste = ''
             while True:
@@ -2444,7 +2542,7 @@ def generer(params):
                 reste = lignes.pop()
                 for ligne in lignes:
                     if ligne.strip():
-                        journal.append(ligne)
+                        sortie_moteur.append(ligne)
                     pas = agrandir.PAS.findall(ligne)
                     if pas:
                         fait, total = map(int, pas[-1])
@@ -2453,15 +2551,24 @@ def generer(params):
                                 etat.update(phase='finalisation' if fait >= total else 'dessin', etape=fait)
                             elif etat['phase'] == 'dessin':
                                 etat['phase'] = 'finalisation'
+            if reste.strip():
+                sortie_moteur.append(reste)
             code, memoire = attendre_moteur(processus)
+            duree = time.time() - etat['debut_image']
+            journal.info('fin du moteur : %s en %.1f s, memoire vive max %s Mo, image %s', code_lisible(code), duree,
+                         round(memoire / 2**20) if memoire else '?', 'oui' if sortie.exists() else 'non')
 
             if annule:
+                journal.info('creation annulee')
                 sortie.unlink(missing_ok=True)
                 break
             if code != 0 or not sortie.exists():
-                erreurs = [l for l in journal if re.search(r'^\[E\]|error|out of memory', l, re.I)]
+                lignes = list(sortie_moteur)
+                fichier = garder_sortie_moteur('creation', commande, prompt_moteur, code, lignes)
+                journal.error('creation echouee (%s), sortie du moteur dans %s ; dernieres lignes :\n%s', code_lisible(code),
+                              fichier or '?', '\n'.join(sans_description(l, prompt_moteur) for l in lignes[-15:]))
                 with verrou:
-                    etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
+                    etat['erreur'] = message_echec_moteur(lignes, code, fichier)
                 break
             # Mesures de cette creation, gardees dans l'image : combien de temps et de memoire sur cet ordinateur
             mesures = {'duree': round(time.time() - etat['debut_image'], 1), 'memoire': memoire}
@@ -2479,6 +2586,7 @@ def generer(params):
             with verrou:
                 etat['resultats'].append(sortie.name)
     except Exception as e:
+        journal.exception('creation impossible')
         with verrou:
             etat['erreur'] = str(e)
     finally:
@@ -2522,12 +2630,16 @@ def generer_agrandissement(params):
 
     try:
         commande = [str(SD_CLI)] + agrandir.arguments(params['modele'], source, sortie) + options_reserve_sd(params['reglages'])
+        journal.info('agrandissement de %s : %s', source.name, commande_pour_journal(commande, ''))
         code, erreurs = agrandir.executer(commande, lancer, rapporter, lambda: annule)
+        journal.info('fin de l\'agrandissement : %s', code_lisible(code))
         if annule:
             sortie.unlink(missing_ok=True)
         elif code != 0 or not sortie.exists():
+            fichier = garder_sortie_moteur('agrandissement', commande, '', code, erreurs)
+            journal.error('agrandissement echoue (%s) :\n%s', code_lisible(code), '\n'.join(erreurs[-15:]))
             with verrou:
-                etat['erreur'] = '\n'.join(erreurs[-3:]) or f'sd-cli s\'est arrete (code {code}).'
+                etat['erreur'] = message_echec_moteur(erreurs, code, fichier)
         else:
             agrandir.copier_description(source, sortie)
             if lire_projets().get(source.name):
@@ -2535,6 +2647,7 @@ def generer_agrandissement(params):
             with verrou:
                 etat['resultats'].append(sortie.name)
     except Exception as e:
+        journal.exception('agrandissement impossible')
         with verrou:
             etat['erreur'] = str(e)
     finally:
@@ -2746,6 +2859,7 @@ class Gestionnaire(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass  # l'appareil est parti avant la reponse
         except Exception as e:
+            journal.exception('erreur inattendue sur %s %s', self.command, urlparse(self.path).path)
             if self.repondu:
                 raise
             self.envoyer(500, {'erreur': f'Erreur inattendue dans Prisme : {e}'})
@@ -3387,10 +3501,10 @@ class Gestionnaire(BaseHTTPRequestHandler):
                 ecrire_reglages(r)
             self.envoyer(200, {'reglages': r, 'version': version_reglages()})
 
-        elif chemin in ('/api/dossier-modeles', '/api/dossier-loras'):
+        elif chemin in ('/api/dossier-modeles', '/api/dossier-loras', '/api/dossier-journaux'):
             if not self.est_local():
                 return self.envoyer(403, {'erreur': 'Disponible seulement sur le PC.'})
-            dossier = LORAS if chemin.endswith('loras') else MODELES
+            dossier = LORAS if chemin.endswith('loras') else JOURNAUX if chemin.endswith('journaux') else MODELES
             dossier.mkdir(parents=True, exist_ok=True)
             ouvrir_dossier(dossier)
             self.envoyer(200, {})
@@ -3672,6 +3786,23 @@ def liberer_instance():
     _instance = None
 
 
+def noter_demarrage():
+    """Premieres lignes du journal : version, systeme, machine et reglages utiles pour comprendre un probleme."""
+    try:
+        r = lire_reglages()
+        journal.info('--- Prisme %s demarre (%s) · %s · Python %s · dossier %s', VERSION, 'exe' if EXE else 'sources',
+                     platform.platform(), platform.python_version(), RACINE)
+        machine = profil_machine()
+        journal.info('machine : %s', {k: machine.get(k) for k in ('carte', 'video', 'memoire', 'mac', 'suggestion')})
+        journal.info('reglages : dessin %s, texte %s, vision %s, vae %s, %s etapes, cfg %s, %s, LoRA %s (%s), dechargement %s, '
+                     'tuiles %s, flash %s, memoire ecran %s', r['modele_diffusion'], r['modele_texte'], r['modele_vision'], r['vae'],
+                     r['etapes'], r['cfg'], r['methode'], [l['nom'] for l in loras_actifs(r)], r.get('lora_application'),
+                     r['dechargement_cpu'], r['vae_tuiles'], r['flash_attention'], r.get('memoire_ecran'))
+        journal.info('moteurs : %s', {n: m['installe'] and m['version'] for n, m in etat_moteurs().items()})
+    except Exception:
+        journal.exception('demarrage : informations incompletes')
+
+
 def deja_lance():
     """Un autre Prisme tient deja ce dossier : il montre sa fenetre (sauf lancement sans fenetre, apres une mise a jour)."""
     if '--sans-fenetre' not in sys.argv:
@@ -3705,6 +3836,8 @@ def main():
 
     if not prendre_instance():
         return deja_lance()
+    ouvrir_journal()
+    noter_demarrage()
     reprendre_apres_maj()
     arreter_moteurs_orphelins()
     try:

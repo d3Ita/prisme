@@ -4,6 +4,14 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **Logs to understand a problem**, in the `journaux` folder next to Prisme (**Settings → Logs → Open the folder**). `prisme.log` notes Prisme's start (version, system, graphics card, memory, settings), each creation (models, size, LoRA, characters, the engine's command, duration, exit code, peak memory) and unexpected errors with their trace; it is kept under 2 MB, plus the two previous ones. When a creation fails, the engine's full output goes to `moteur-creation-<date>.log` (the last 20 are kept). Your descriptions are never written to them, and they stay on your computer.
+
+### Fixed
+
+- **A clearer message when the engine stops**: instead of "sd-cli stopped (code …)" alone, Prisme shows the engine's last error lines (an internal check that failed, for example), the exit code explained (0xC0000409: internal stop, 0xC0000005: crash…) and the name of the log with the details.
+
 ## [2.4.0] - 2026-11-16
 
 ### Added

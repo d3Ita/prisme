@@ -342,6 +342,12 @@ Panneau {
             }
         }
         Ligne {
+            nom: Theme.tx("Journaux", "Logs")
+            aide: Theme.tx("Ce qui s'est passé à chaque création, pour comprendre un problème. Ils restent sur cet ordinateur, sans tes descriptions.",
+                           "What happened at each creation, to understand a problem. They stay on this computer, without your descriptions.")
+            BoutonPrincipal { secondaire: true; text: Theme.tx("Ouvrir le dossier", "Open the folder"); onClicked: Theme.api("/api/dossier-journaux", {}) }
+        }
+        Ligne {
             nom: Theme.tx("Quitter Prisme", "Quit Prisme")
             aide: Theme.tx("Arrête Prisme et ses moteurs ; le téléphone et Claude n'y ont plus accès", "Stops Prisme and its engines; the phone and Claude lose access")
             BoutonPrincipal { secondaire: true; text: Theme.tx("Quitter Prisme", "Quit Prisme"); onClicked: Theme.api("/api/quitter", {}, function () { Qt.quit() }) }

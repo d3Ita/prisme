@@ -10,6 +10,9 @@ llama/
 .telechargements/
 # Images d'exemple de la bibliotheque de LoRA
 .cache/
+# Journaux de Prisme, et fiches personnages quand Prisme tourne depuis ce dossier
+/journaux/
+/personnages/
 .*.installation/
 zips/
 

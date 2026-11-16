@@ -136,5 +136,84 @@ class CreationEchoueeTest(unittest.TestCase):
         self.assertNotIn('secret', texte)
 
 
+class LoraSurModeleKTest(unittest.TestCase):
+    """Fusion d'un LoRA au debut : impossible sur un modele compresse en K ou IQ (le moteur s'arrete)."""
+
+    def setUp(self):
+        dossier = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(dossier.cleanup)
+        self.racine = Path(dossier.name)
+        (self.racine / 'loras').mkdir()
+        (self.racine / 'loras' / 'style.safetensors').write_bytes(b'')
+        for patch in (mock.patch.object(serveur, 'LORAS', self.racine / 'loras'), mock.patch.object(serveur, 'JOURNAUX', self.racine / 'journaux'),
+                      mock.patch.object(serveur, 'IMAGES', self.racine / 'images')):
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.r = dict(serveur.REGLAGES_DEFAUT, modele_diffusion='Qwen-Image-2.1-Turbo-AD-Q4_K.gguf', modele_texte='t.gguf', vae='v.safetensors',
+                      loras=[{'nom': 'style.safetensors', 'force': 1.0, 'actif': True}])
+
+    def test_mode_choisi_selon_le_modele(self):
+        for nom, attendu in (('Qwen-Image-2.1-Turbo-AD-Q4_K.gguf', 'at_runtime'), ('x-Q5_K_M.gguf', 'at_runtime'), ('m-IQ4_XS.gguf', 'at_runtime'),
+                             ('flux-2-klein-4b-Q8_0.gguf', 'immediately'), ('a-Q4_0.gguf', 'immediately'), ('b-BF16.safetensors', 'immediately')):
+            with self.subTest(nom=nom):
+                self.assertEqual(serveur.mode_lora({**self.r, 'modele_diffusion': nom}), attendu)
+                a = serveur.options_loras({**self.r, 'modele_diffusion': nom})
+                self.assertEqual(a[a.index('--lora-apply-mode') + 1], attendu)
+        # Un choix explicite « a chaque etape » ou « choix du moteur » est garde
+        self.assertEqual(serveur.mode_lora({**self.r, 'modele_diffusion': 'a-Q8_0.gguf', 'lora_application': 'at_runtime'}), 'at_runtime')
+        self.assertEqual(serveur.mode_lora({**self.r, 'lora_application': 'auto'}), 'auto')
+
+    def test_nouvel_essai_si_la_fusion_echoue(self):
+        """Le moteur s'arrete en fusionnant le LoRA : Prisme recommence avec le LoRA a chaque etape, et l'image arrive."""
+        commandes = []
+
+        class Moteur:
+            def __init__(self, sortie):
+                self.pid = 1
+                self.stdout = io.BytesIO(sortie)
+
+        def lancer(commande, **_):
+            commandes.append(commande)
+            if len(commandes) == 1:
+                return Moteur(b'[I] loading\nggml-backend.cpp:1099: pre-allocated tensor (x) in a buffer (CUDA0) that cannot run the operation (CPY)\n')
+            Path(commande[commande.index('-o') + 1]).write_bytes(b'\x89PNG\r\n\x1a\n')
+            return Moteur(b'[I] generate_image completed\n')
+
+        codes = iter([(0xC0000409, None), (0, None)])
+        r = {**self.r, 'modele_diffusion': 'modele-Q8_0.gguf'}
+        self.addCleanup(setattr, serveur, 'annule', serveur.annule)
+        serveur.annule = False
+        with mock.patch.object(serveur, 'lancer_moteur', lancer), mock.patch.object(serveur, 'attendre_moteur', lambda p: next(codes)), \
+                mock.patch.object(serveur, 'modeles_manquants', return_value=[]), mock.patch.object(serveur, 'noter_dans_png'), \
+                self.assertLogs('prisme', level='INFO') as journaux:
+            serveur.etat.update(occupe=True, resultats=[], erreur=None)
+            serveur.generer(dict(prompt='un phare', largeur=768, hauteur=1376, nombre=1, seed=1, reglages=r, source_nom=None,
+                                 source_data=None, claude=False, liste_reglages=None, comparaison=None, projet=None, personnages=[]))
+        self.assertEqual(len(commandes), 2)
+        self.assertEqual(commandes[0][commandes[0].index('--lora-apply-mode') + 1], 'immediately')
+        self.assertEqual(commandes[1][commandes[1].index('--lora-apply-mode') + 1], 'at_runtime')
+        self.assertIsNone(serveur.etat['erreur'])
+        self.assertEqual(len(serveur.etat['resultats']), 1)
+        self.assertIn('nouvel essai, LoRA applique a chaque etape', '\n'.join(journaux.output))
+
+    def test_pas_de_nouvel_essai_pour_une_autre_panne(self):
+        commandes = []
+
+        def lancer(commande, **_):
+            commandes.append(commande)
+            return type('Moteur', (), {'pid': 1, 'stdout': io.BytesIO(b'[E] model metadata validation failed\n')})()
+
+        r = {**self.r, 'modele_diffusion': 'modele-Q8_0.gguf'}
+        self.addCleanup(setattr, serveur, 'annule', serveur.annule)
+        serveur.annule = False
+        with mock.patch.object(serveur, 'lancer_moteur', lancer), mock.patch.object(serveur, 'attendre_moteur', return_value=(1, None)), \
+                mock.patch.object(serveur, 'modeles_manquants', return_value=[]):
+            serveur.etat.update(occupe=True, resultats=[], erreur=None)
+            serveur.generer(dict(prompt='un phare', largeur=768, hauteur=1376, nombre=1, seed=1, reglages=r, source_nom=None,
+                                 source_data=None, claude=False, liste_reglages=None, comparaison=None, projet=None, personnages=[]))
+        self.assertEqual(len(commandes), 1)
+        self.assertIn('model metadata validation failed', serveur.etat['erreur'])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -156,7 +156,7 @@ const EN = {
   'Claude est installé : il peut créer des images avec Prisme.': 'Claude is installed: it can create images with Prisme.',
   'Connecter à Claude': 'Connect to Claude', 'Connecter': 'Connect', 'Déconnecter': 'Disconnect',
   'Créer des images en le demandant à Claude': 'Create images by asking Claude', 'Choisis ta machine': 'Choose your machine', 'Autres choix': 'Other choices', 'Garder le PC utilisable': 'Keep the PC usable', 'Application des LoRA': 'Applying LoRA',
-  'Au début, le PC reste utilisable. Si un LoRA donne une image étrange, essaie « À chaque étape »': 'At the start, the PC stays usable. If a LoRA gives a strange image, try "At every step"',
+  'Au début, le PC reste utilisable. Impossible avec un modèle compressé en K (Q4_K, Q6_K…) : le LoRA est alors appliqué à chaque étape. Si un LoRA donne une image étrange, essaie « À chaque étape »': 'At the start, the PC stays usable. Not possible with a K-compressed model (Q4_K, Q6_K…): the LoRA is then applied at every step. If a LoRA gives a strange image, try "At every step"',
   'Au début (conseillé)': 'At the start (recommended)', 'À chaque étape': 'At every step', 'Choix du moteur': 'Engine\'s choice',
   'Agrandir l\'image 4 fois (Real-ESRGAN)': 'Enlarge the image 4 times (Real-ESRGAN)', 'Agrandissement de l\'image': 'Enlarging the image',
   'Agrandissement': 'Upscaling',
@@ -1081,7 +1081,7 @@ textarea.champ.consigne { min-height: 0; height: 92px; font-size: 13px; resize: 
         <div class="reglage"><label for="r-tuiles">VAE par tuiles<small>Évite les manques de mémoire</small></label><label class="interrupteur"><input type="checkbox" id="r-tuiles" data-cle="vae_tuiles"><span></span></label></div>
         <div class="reglage"><label for="r-ecran">Garder le PC utilisable<small>Laisse 1,5 Go de la carte graphique à l'affichage pendant les calculs : un peu plus lent, mais l'écran ne gèle plus</small></label><label class="interrupteur"><input type="checkbox" id="r-ecran" data-cle="memoire_ecran"><span></span></label></div>
         <div class="reglage"><label for="r-fa">Flash attention<small>Plus rapide sur carte NVIDIA</small></label><label class="interrupteur"><input type="checkbox" id="r-fa" data-cle="flash_attention"><span></span></label></div>
-        <div class="reglage"><label for="r-lora-application">Application des LoRA<small>Au début, le PC reste utilisable. Si un LoRA donne une image étrange, essaie « À chaque étape »</small></label><select class="champ" id="r-lora-application" data-cle="lora_application">
+        <div class="reglage"><label for="r-lora-application">Application des LoRA<small>Au début, le PC reste utilisable. Impossible avec un modèle compressé en K (Q4_K, Q6_K…) : le LoRA est alors appliqué à chaque étape. Si un LoRA donne une image étrange, essaie « À chaque étape »</small></label><select class="champ" id="r-lora-application" data-cle="lora_application">
           <option value="immediately">Au début (conseillé)</option><option value="at_runtime">À chaque étape</option><option value="auto">Choix du moteur</option></select></div>
       </section>
       <section class="bloc">

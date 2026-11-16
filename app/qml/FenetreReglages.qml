@@ -256,8 +256,8 @@ Panneau {
         Ligne { nom: "Flash attention"; aide: Theme.tx("Plus rapide sur carte NVIDIA", "Faster on NVIDIA cards"); Interrupteur { id: flash } }
         Ligne {
             nom: Theme.tx("Application des LoRA", "Applying LoRA")
-            aide: Theme.tx("Au début, le PC reste utilisable. Si un LoRA donne une image étrange, essaie « À chaque étape »",
-                           "At the start, the PC stays usable. If a LoRA gives a strange image, try \"At every step\"")
+            aide: Theme.tx("Au début, le PC reste utilisable. Impossible avec un modèle compressé en K (Q4_K, Q6_K…) : le LoRA est alors appliqué à chaque étape. Si un LoRA donne une image étrange, essaie « À chaque étape »",
+                           "At the start, the PC stays usable. Not possible with a K-compressed model (Q4_K, Q6_K…): the LoRA is then applied at every step. If a LoRA gives a strange image, try \"At every step\"")
             ListeDeroulante {
                 id: applicationLoras
                 implicitWidth: 220

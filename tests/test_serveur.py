@@ -65,6 +65,26 @@ class ReglagesTest(unittest.TestCase):
             with self.subTest(cle=cle):
                 self.assertIsNotNone(valider(**{cle: valeur})[1])
         self.assertIsNotNone(valider(loras=[{'nom': 'x.safetensors', 'force': 3}])[1])
+        self.assertIsNotNone(valider(lora_application='partout')[1])
+
+    def test_application_des_loras(self):
+        self.assertEqual(valider(lora_application='immediately')[0]['lora_application'], 'immediately')
+        serveur.LORAS.mkdir(parents=True, exist_ok=True)
+        (serveur.LORAS / 'style.safetensors').write_bytes(b'')
+        self.addCleanup((serveur.LORAS / 'style.safetensors').unlink)
+        avec = {**serveur.REGLAGES_DEFAUT, 'loras': [{'nom': 'style.safetensors', 'force': 1.0, 'actif': True}]}
+        arguments = lambda r: serveur.arguments(r, 'un phare', 1024, 1024, 1, None, Path('sortie.png'))
+        # Automatique : sd-cli choisit lui-meme ; sinon le mode choisi lui est donne
+        self.assertNotIn('--lora-apply-mode', arguments(avec))
+        self.assertIn('--lora-model-dir', arguments(avec))
+        for mode in ('immediately', 'at_runtime'):
+            with self.subTest(mode=mode):
+                a = arguments({**avec, 'lora_application': mode})
+                self.assertEqual(a[a.index('--lora-apply-mode') + 1], mode)
+        # Sans LoRA actif : rien
+        sans = arguments({**avec, 'loras': [], 'lora_application': 'immediately'})
+        self.assertNotIn('--lora-apply-mode', sans)
+        self.assertNotIn('--lora-model-dir', sans)
 
     def test_modeles_obligatoires(self):
         self.assertIsNotNone(valider(vae='')[1])

@@ -59,6 +59,7 @@ Panneau {
         tuiles.checked = r.vae_tuiles
         ecran.checked = r.memoire_ecran
         flash.checked = r.flash_attention
+        applicationLoras.valeur = r.lora_application || "auto"
         reseau.checked = r.acces_reseau
         maj.checked = r.verifier_mises_a_jour
         arretFermeture.checked = r.arret_fermeture
@@ -86,6 +87,7 @@ Panneau {
             amelioration_consigne: consigne.text, amelioration_consigne_modif: consigneModif.text,
             etapes: Number(etapes.text), cfg: Number(cfg.text.replace(",", ".")), methode: methode.valeur, sigmas: sigmas.text,
             dechargement_cpu: cpu.checked, vae_tuiles: tuiles.checked, memoire_ecran: ecran.checked, flash_attention: flash.checked,
+            lora_application: applicationLoras.valeur,
             acces_reseau: reseau.checked, verifier_mises_a_jour: maj.checked, arret_fermeture: arretFermeture.checked,
             arret_auto_minutes: Number(arretAuto.text), loras: loras.filter(l => l.actif || l.force !== 1.0)
         }
@@ -252,6 +254,18 @@ Panneau {
             Interrupteur { id: ecran }
         }
         Ligne { nom: "Flash attention"; aide: Theme.tx("Plus rapide sur carte NVIDIA", "Faster on NVIDIA cards"); Interrupteur { id: flash } }
+        Ligne {
+            nom: Theme.tx("Application des LoRA", "Applying LoRA")
+            aide: Theme.tx("Si le PC ralentit pendant une création avec un LoRA, essaie « Au début »",
+                           "If the PC slows down during a creation with a LoRA, try \"At the start\"")
+            ListeDeroulante {
+                id: applicationLoras
+                implicitWidth: 220
+                model: [{ valeur: "auto", texte: Theme.tx("Automatique", "Automatic") },
+                        { valeur: "immediately", texte: Theme.tx("Au début (fusionnés)", "At the start (merged)") },
+                        { valeur: "at_runtime", texte: Theme.tx("À chaque étape", "At every step") }]
+            }
+        }
     }
 
     // --- Application

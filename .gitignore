@@ -8,6 +8,8 @@ models/
 sd/
 llama/
 .telechargements/
+# Images d'exemple de la bibliotheque de LoRA
+.cache/
 .*.installation/
 zips/
 

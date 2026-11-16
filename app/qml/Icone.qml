@@ -26,6 +26,8 @@ Item {
         // Baguette magique : reecrire la description en mieux
         ameliorer: "M4 20 L15 9 M13.5 7.5 l3 3 M18 3 v4 M16 5 h4 M20.5 11 v2 M19.5 12 h2 M9 3.5 v2 M8 4.5 h2",
         retablir: "M9 14 L4 9 l5 -5 M4 9 h10.5 a5.5 5.5 0 0 1 0 11 H11",
+        // Buste : un personnage (webtoon, manhwa) garde d'une image a l'autre
+        personnage: "M12 3.5 a4 4 0 1 1 0 8 a4 4 0 1 1 0 -8 M4.5 20.5 a7.5 7.5 0 0 1 15 0",
         // Piece de puzzle : un LoRA est un module de style qu'on ajoute au modele
         lora: "M4 7.5 h4.9 a2.3 2.3 0 1 1 3.6 0 H17 v4.5 a2.3 2.3 0 1 1 0 3.6 V20.5 H4 z",
         // Une image coupee en deux : les memes images cote a cote

@@ -145,6 +145,22 @@ ApplicationWindow {
     // Comme la version web : 1024 x 1024 pixels en tout, aux proportions de l'image de depart
     // LoRA pour les creations suivantes (null : ceux des Reglages), et ceux du dossier avec leur etat dans les Reglages
     property var lorasChoisis: null
+    // Personnages (webtoon, manhwa) gardes d'une image a l'autre : leurs fiches, et ceux choisis pour les creations
+    property var fichesPersonnages: []
+    property var personnagesChoisis: []
+    property bool personnagesPossibles: true
+
+    function chargerPersonnages() {
+        api("/api/personnages", undefined, function (r) {
+            fichesPersonnages = r.personnages
+            personnagesPossibles = r.possible
+            personnagesChoisis = personnagesChoisis.filter(id => r.personnages.some(p => p.id === id))
+        })
+    }
+
+    function fichePersonnage(id) {
+        return fichesPersonnages.find(p => p.id === id) || null
+    }
     property var lorasDispo: []
     // Profils a comparer pour la prochaine creation
     property var comparaisonDemandee: null
@@ -248,6 +264,7 @@ ApplicationWindow {
         if (Object.keys(parametres).length) corps.parametres = parametres
         if (comparaisonDemandee) corps.comparer = comparaisonDemandee
         if (projetActif) corps.projet = projetActif
+        if (personnagesChoisis.length) corps.personnages = personnagesChoisis
         return corps
     }
 
@@ -334,6 +351,7 @@ ApplicationWindow {
         Theme.adresse = adresse
         chargerImages(true)
         chargerLoras()
+        chargerPersonnages()
         api("/api/claude", undefined, function (c) { claude = c }, function () {})
     }
 
@@ -591,6 +609,12 @@ ApplicationWindow {
                         onClicked: { saisie.text = message.model.prompt; variante.text = message.model.seed; saisie.forceActiveFocus() }
                     }
                     BoutonDiscret {
+                        icone: "personnage"
+                        aide: tx("Créer un personnage avec cette image", "Create a character from this image")
+                        onClicked: fichePersonnages.nouveau({ galerie: message.model.nom, nom: message.model.nom,
+                                                              url: adresse + "/images/" + encodeURIComponent(message.model.nom) })
+                    }
+                    BoutonDiscret {
                         icone: "details"
                         aide: tx("Détails et refaire à l'identique", "Details and redo identically")
                         onClicked: details.ouvrir(JSON.parse(message.model.infos))
@@ -795,6 +819,30 @@ ApplicationWindow {
                 }
 
                 RowLayout {
+                    visible: personnagesChoisis.length > 0
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Repeater {
+                        model: personnagesChoisis
+                        delegate: ImageArrondie {
+                            required property string modelData
+                            Layout.preferredWidth: 39
+                            Layout.preferredHeight: 52
+                            rayon: 8
+                            source: fichePersonnage(modelData) ? adresse + "/personnages/" + fichePersonnage(modelData).image : ""
+                        }
+                    }
+                    Text {
+                        text: tx("Personnages · ", "Characters · ") + personnagesChoisis.map(id => fichePersonnage(id) ? fichePersonnage(id).nom : "").join(", ")
+                        color: c.texte
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    BoutonDiscret { icone: "fermer"; aide: tx("Créer sans personnage", "Create without a character"); onClicked: personnagesChoisis = [] }
+                }
+
+                RowLayout {
                     visible: !!reprise
                     Layout.fillWidth: true
                     spacing: 10
@@ -949,9 +997,81 @@ ApplicationWindow {
                         }
                     }
                     BoutonDiscret {
+                        icone: "personnage"
+                        objectName: "boutonPersonnages"
+                        text: (large ? tx("Personnages", "Characters") : "") + (personnagesChoisis.length ? (large ? " · " : "") + personnagesChoisis.length : "")
+                        actif: personnagesChoisis.length > 0
+                        aide: tx("Garder le même personnage d'une image à l'autre", "Keep the same character from one image to the next")
+                        onClicked: { chargerPersonnages(); menuPersonnages.open() }
+                        Popup {
+                            id: menuPersonnages
+                            y: -height - 8
+                            padding: 12
+                            background: Rectangle { radius: 14; color: c.surface; border.color: c.bordure }
+                            contentItem: ColumnLayout {
+                                spacing: 8
+                                Repeater {
+                                    model: fichesPersonnages
+                                    delegate: RowLayout {
+                                        required property var modelData
+                                        spacing: 10
+                                        Interrupteur {
+                                            checked: personnagesChoisis.indexOf(modelData.id) >= 0
+                                            enabled: checked || personnagesChoisis.length < 2
+                                            onToggled: personnagesChoisis = checked ? personnagesChoisis.concat([modelData.id])
+                                                                                    : personnagesChoisis.filter(x => x !== modelData.id)
+                                        }
+                                        ImageArrondie {
+                                            Layout.preferredWidth: 27
+                                            Layout.preferredHeight: 36
+                                            rayon: 6
+                                            source: adresse + "/personnages/" + modelData.image
+                                        }
+                                        Text {
+                                            text: modelData.nom
+                                            color: c.texte
+                                            font.pixelSize: 13
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 140
+                                        }
+                                    }
+                                }
+                                Text {
+                                    visible: fichesPersonnages.length === 0
+                                    text: tx("Aucun personnage : crée-en un avec le bouton Personnage sous une image.",
+                                             "No character: create one with the Character button under an image.")
+                                    color: c.texte2
+                                    font.pixelSize: 13
+                                    wrapMode: Text.WordWrap
+                                    Layout.maximumWidth: 320
+                                }
+                                Text {
+                                    visible: !personnagesPossibles
+                                    text: tx("Ton modèle de dessin ne sait pas partir d'une image : choisis FLUX.2 klein ou Qwen-Image.",
+                                             "Your drawing model can't start from an image: pick FLUX.2 klein or Qwen-Image.")
+                                    color: c.danger
+                                    font.pixelSize: 12
+                                    wrapMode: Text.WordWrap
+                                    Layout.maximumWidth: 320
+                                }
+                                Text {
+                                    visible: fichesPersonnages.length > 0
+                                    text: tx("Deux au plus ; ils restent choisis d'une image à l'autre.", "Two at most; they stay picked from one image to the next.")
+                                    color: c.texte3
+                                    font.pixelSize: 12
+                                }
+                                BoutonDiscret {
+                                    icone: "personnage"
+                                    text: tx("Gérer les personnages…", "Manage characters…")
+                                    onClicked: { menuPersonnages.close(); fichePersonnages.open() }
+                                }
+                            }
+                        }
+                    }
+                    BoutonDiscret {
                         icone: "comparer"
                         text: large ? tx("Comparer", "Compare") : ""
-                        enabled: !occupe && !source && !ameliorant && saisie.text.trim().length > 0
+                        enabled: !occupe && !source && !ameliorant && saisie.text.trim().length > 0 && personnagesChoisis.length === 0
                         aide: tx("Comparer des modèles : cette description avec plusieurs modèles et la même variante",
                                  "Compare models: this description with several models and the same variant")
                         onClicked: comparateur.open()
@@ -1122,6 +1242,13 @@ ApplicationWindow {
         onRange: chargerImages(false)
     }
     FenetreLoras { id: bibliotheque; objectName: "bibliotheque"; onInstalle: chargerLoras() }
+    FenetrePersonnages {
+        id: fichePersonnages
+        objectName: "personnages"
+        choisis: personnagesChoisis
+        onChoix: function (ids) { personnagesChoisis = ids }
+        onChange: chargerPersonnages()
+    }
     FenetreComparer { id: comparateur; objectName: "comparateur"; onComparer: function (profils) { fenetre.comparer(profils) } }
     Demande {
         id: nouveauProjet

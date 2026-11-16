@@ -2207,11 +2207,32 @@ def mode_edition(r):
 MODES_LORA = ('auto', 'immediately', 'at_runtime')
 
 
+# Modeles compresses en « K » (Q4_K, Q5_K_M, Q6_K...) ou « IQ » : la carte graphique (CUDA) ne sait pas y ecrire, et
+# sd-cli s'arrete en fusionnant un LoRA au debut (« cannot run the operation (CPY) », 0xC0000409). Verifie le 16/11/2026
+# avec Qwen-Image 2.1 Turbo Q4_K et un LoRA sur RTX 4070 SUPER, en creation comme en modification : seul le LoRA
+# applique a chaque etape fonctionne avec ces modeles
+COMPRESSION_SANS_FUSION = re.compile(r'(?i)(?<![a-z0-9])(i?q\d_k|iq\d)')
+
+
+def mode_lora(r):
+    """Facon d'appliquer les LoRA pour ces reglages : celle choisie, sauf la fusion au debut sur un modele compresse en
+    K ou IQ, impossible : a chaque etape."""
+    mode = r.get('lora_application', 'immediately')
+    if mode == 'immediately' and COMPRESSION_SANS_FUSION.search(Path(r.get('modele_diffusion') or '').name):
+        return 'at_runtime'
+    return mode
+
+
+def fusion_lora_impossible(r, lignes):
+    """Le moteur s'est arrete en fusionnant un LoRA au debut : il faut le refaire avec le LoRA a chaque etape."""
+    return bool(loras_actifs(r)) and mode_lora(r) == 'immediately' and any('cannot run the operation' in l for l in lignes)
+
+
 def options_loras(r):
     """Arguments de sd-cli pour les LoRA actifs : leur dossier, et la facon de les appliquer si elle est choisie."""
     if not loras_actifs(r):
         return []
-    mode = r.get('lora_application', 'auto')
+    mode = mode_lora(r)
     return ['--lora-model-dir', str(LORAS)] + (['--lora-apply-mode', mode] if mode in MODES_LORA and mode != 'auto' else [])
 
 
@@ -2522,41 +2543,54 @@ def generer(params):
             sortie = nouveau_chemin(IMAGES_CLAUDE if params['claude'] else IMAGES)
             with verrou:
                 etat.update(phase='chargement', etape=0, total=r['etapes'], index=i + 1, seed=seed, debut_image=time.time())
-            sortie_moteur = deque(maxlen=4000)
-            commande = [str(SD_CLI)] + arguments(r, prompt_moteur, params['largeur'], params['hauteur'], seed, references, sortie,
-                                                 vision=mode == 'vision')
-            journal.info('creation %d/%d : %dx%d, variante %s, %s, dessin %s, texte %s, vision %s, LoRA %s (%s), personnages %d, '
-                         'image de depart %s, %d etapes, cfg %s', i + 1, params['nombre'], params['largeur'], params['hauteur'], seed,
-                         mode or 'creation', r['modele_diffusion'], r['modele_texte'], r['modele_vision'] if mode == 'vision' else '-',
-                         [l['nom'] for l in loras_actifs(r)], r.get('lora_application'), len(fiches), 'oui' if source else 'non',
-                         r['etapes'], r['cfg'])
-            journal.info('commande : %s', commande_pour_journal(commande, prompt_moteur))
-            processus = lancer_moteur(commande, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
+            # Deux essais au plus : si le moteur n'a pas pu fusionner le LoRA au debut, il recommence avec le LoRA a
+            # chaque etape (la creation aboutit, plus lentement)
+            for essai in range(2):
+                sortie_moteur = deque(maxlen=4000)
+                commande = [str(SD_CLI)] + arguments(r, prompt_moteur, params['largeur'], params['hauteur'], seed, references, sortie,
+                                                     vision=mode == 'vision')
+                journal.info('creation %d/%d : %dx%d, variante %s, %s, dessin %s, texte %s, vision %s, LoRA %s (%s), personnages %d, '
+                             'image de depart %s, %d etapes, cfg %s', i + 1, params['nombre'], params['largeur'], params['hauteur'], seed,
+                             mode or 'creation', r['modele_diffusion'], r['modele_texte'], r['modele_vision'] if mode == 'vision' else '-',
+                             [l['nom'] for l in loras_actifs(r)], mode_lora(r), len(fiches), 'oui' if source else 'non',
+                             r['etapes'], r['cfg'])
+                journal.info('commande : %s', commande_pour_journal(commande, prompt_moteur))
+                processus = lancer_moteur(commande, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(RACINE))
 
-            reste = ''
-            while True:
-                bloc = processus.stdout.read1(4096)
-                if not bloc:
-                    break
-                lignes = re.split(r'[\r\n]+', reste + bloc.decode('utf-8', 'replace'))
-                reste = lignes.pop()
-                for ligne in lignes:
-                    if ligne.strip():
-                        sortie_moteur.append(ligne)
-                    pas = agrandir.PAS.findall(ligne)
-                    if pas:
-                        fait, total = map(int, pas[-1])
-                        with verrou:
-                            if total == r['etapes'] and etat['phase'] != 'finalisation':
-                                etat.update(phase='finalisation' if fait >= total else 'dessin', etape=fait)
-                            elif etat['phase'] == 'dessin':
-                                etat['phase'] = 'finalisation'
-            if reste.strip():
-                sortie_moteur.append(reste)
-            code, memoire = attendre_moteur(processus)
-            duree = time.time() - etat['debut_image']
-            journal.info('fin du moteur : %s en %.1f s, memoire vive max %s Mo, image %s', code_lisible(code), duree,
-                         round(memoire / 2**20) if memoire else '?', 'oui' if sortie.exists() else 'non')
+                reste = ''
+                while True:
+                    bloc = processus.stdout.read1(4096)
+                    if not bloc:
+                        break
+                    lignes = re.split(r'[\r\n]+', reste + bloc.decode('utf-8', 'replace'))
+                    reste = lignes.pop()
+                    for ligne in lignes:
+                        if ligne.strip():
+                            sortie_moteur.append(ligne)
+                        pas = agrandir.PAS.findall(ligne)
+                        if pas:
+                            fait, total = map(int, pas[-1])
+                            with verrou:
+                                if total == r['etapes'] and etat['phase'] != 'finalisation':
+                                    etat.update(phase='finalisation' if fait >= total else 'dessin', etape=fait)
+                                elif etat['phase'] == 'dessin':
+                                    etat['phase'] = 'finalisation'
+                if reste.strip():
+                    sortie_moteur.append(reste)
+                code, memoire = attendre_moteur(processus)
+                duree = time.time() - etat['debut_image']
+                journal.info('fin du moteur : %s en %.1f s, memoire vive max %s Mo, image %s', code_lisible(code), duree,
+                             round(memoire / 2**20) if memoire else '?', 'oui' if sortie.exists() else 'non')
+                if essai == 0 and not annule and (code != 0 or not sortie.exists()) and fusion_lora_impossible(r, sortie_moteur):
+                    fichier = garder_sortie_moteur('creation', commande, prompt_moteur, code, list(sortie_moteur))
+                    journal.warning('le moteur n\'a pas pu fusionner le LoRA au debut (sortie dans %s) : nouvel essai, LoRA applique '
+                                    'a chaque etape', fichier or '?')
+                    r = {**r, 'lora_application': 'at_runtime'}
+                    sortie.unlink(missing_ok=True)
+                    with verrou:
+                        etat.update(phase='chargement', etape=0)
+                    continue
+                break
 
             if annule:
                 journal.info('creation annulee')

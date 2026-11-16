@@ -4,6 +4,10 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- **Creations with a LoRA failed on a K-compressed model** (Qwen-Image 2.1 Turbo Q4_K, for example) since 2.2.1: merging the LoRA at the start is not possible on those formats with an NVIDIA card, and the engine stopped ("cannot run the operation (CPY)", code 0xC0000409), for a creation as for an edit. With a model compressed in K (Q4_K, Q5_K, Q6_K…) or IQ, Prisme now applies the LoRA at every step. And if the engine still stops while merging a LoRA, Prisme redoes the creation by itself with the LoRA at every step, and notes it in the log.
+
 ## [2.4.1] - 2026-11-16
 
 ### Added

@@ -4,6 +4,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-16
+
 ### Added
 
 - **Webtoon strip**: the **Strip** button next to the project list shows the project's images one below the other, like a webtoon episode. Panels are in creation order (new images are added at the bottom); arrows move them, and a panel can be taken out of the strip without deleting the image. Choose the width (Webtoon and Naver 800 px, Tapas 940 px, or 1080 px), the space between panels and the background (white or black), then **Export…**: pieces of 1280 px at most (the Webtoon Canvas limit), cut between two panels when possible, or a single image, in JPG or PNG (`/api/planche`).
@@ -352,7 +354,8 @@ All notable changes to Prisme are documented here. The format follows [Keep a Ch
 
 - First version: create and edit images locally with stable-diffusion.cpp, history, settings, LoRA and phone access.
 
-[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/d3Ita/prisme/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/d3Ita/prisme/releases/tag/v2.4.0
 [2.3.0]: https://github.com/d3Ita/prisme/releases/tag/v2.3.0
 [2.2.1]: https://github.com/d3Ita/prisme/releases/tag/v2.2.1
 [2.2.0]: https://github.com/d3Ita/prisme/releases/tag/v2.2.0

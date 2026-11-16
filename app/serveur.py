@@ -420,10 +420,11 @@ REGLAGES_DEFAUT = {
     'flash_attention': True,
     # Laisse de la memoire de carte graphique a Windows (ou au bureau sous Linux) : sinon l'ecran gele pendant les calculs
     'memoire_ecran': True,
-    # Application des LoRA par sd-cli : 'auto' (son choix : pendant le calcul pour un modele compresse), 'immediately'
-    # (fusionnes une fois au debut) ou 'at_runtime' (a chaque etape). Avec un modele compresse, le mode 'auto' gele
-    # le PC sous Windows pendant toute la creation (signale le 16/11/2026, sans LoRA le PC reste fluide)
-    'lora_application': 'auto',
+    # Application des LoRA par sd-cli : 'immediately' (fusionnes une fois au debut), 'at_runtime' (a chaque etape) ou
+    # 'auto' (son choix : a chaque etape pour un modele compresse). Avec un modele compresse, appliquer le LoRA a chaque
+    # etape gelait le PC sous Windows pendant toute la creation ; fusionne au debut, le PC reste utilisable et l'image
+    # est la meme (verifie le 16/11/2026 avec Qwen-Image 2.1 Turbo Q4_K sur RTX 4070 SUPER)
+    'lora_application': 'immediately',
     # L'acces depuis le reseau local s'active dans les Reglages
     'acces_reseau': False,
     'arret_auto_minutes': 30,

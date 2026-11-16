@@ -74,9 +74,12 @@ class ReglagesTest(unittest.TestCase):
         self.addCleanup((serveur.LORAS / 'style.safetensors').unlink)
         avec = {**serveur.REGLAGES_DEFAUT, 'loras': [{'nom': 'style.safetensors', 'force': 1.0, 'actif': True}]}
         arguments = lambda r: serveur.arguments(r, 'un phare', 1024, 1024, 1, None, Path('sortie.png'))
-        # Automatique : sd-cli choisit lui-meme ; sinon le mode choisi lui est donne
-        self.assertNotIn('--lora-apply-mode', arguments(avec))
-        self.assertIn('--lora-model-dir', arguments(avec))
+        # Par defaut, fusionnes au debut : appliques a chaque etape, ils gelaient le PC avec un modele compresse
+        a = arguments(avec)
+        self.assertEqual(a[a.index('--lora-apply-mode') + 1], 'immediately')
+        self.assertIn('--lora-model-dir', a)
+        # Choix du moteur : sd-cli choisit lui-meme
+        self.assertNotIn('--lora-apply-mode', arguments({**avec, 'lora_application': 'auto'}))
         for mode in ('immediately', 'at_runtime'):
             with self.subTest(mode=mode):
                 a = arguments({**avec, 'lora_application': mode})

@@ -59,7 +59,7 @@ Panneau {
         tuiles.checked = r.vae_tuiles
         ecran.checked = r.memoire_ecran
         flash.checked = r.flash_attention
-        applicationLoras.valeur = r.lora_application || "auto"
+        applicationLoras.valeur = r.lora_application || "immediately"
         reseau.checked = r.acces_reseau
         maj.checked = r.verifier_mises_a_jour
         arretFermeture.checked = r.arret_fermeture
@@ -256,14 +256,14 @@ Panneau {
         Ligne { nom: "Flash attention"; aide: Theme.tx("Plus rapide sur carte NVIDIA", "Faster on NVIDIA cards"); Interrupteur { id: flash } }
         Ligne {
             nom: Theme.tx("Application des LoRA", "Applying LoRA")
-            aide: Theme.tx("Si le PC ralentit pendant une création avec un LoRA, essaie « Au début »",
-                           "If the PC slows down during a creation with a LoRA, try \"At the start\"")
+            aide: Theme.tx("Au début, le PC reste utilisable. Si un LoRA donne une image étrange, essaie « À chaque étape »",
+                           "At the start, the PC stays usable. If a LoRA gives a strange image, try \"At every step\"")
             ListeDeroulante {
                 id: applicationLoras
                 implicitWidth: 220
-                model: [{ valeur: "auto", texte: Theme.tx("Automatique", "Automatic") },
-                        { valeur: "immediately", texte: Theme.tx("Au début (fusionnés)", "At the start (merged)") },
-                        { valeur: "at_runtime", texte: Theme.tx("À chaque étape", "At every step") }]
+                model: [{ valeur: "immediately", texte: Theme.tx("Au début (conseillé)", "At the start (recommended)") },
+                        { valeur: "at_runtime", texte: Theme.tx("À chaque étape", "At every step") },
+                        { valeur: "auto", texte: Theme.tx("Choix du moteur", "Engine's choice") }]
             }
         }
     }
